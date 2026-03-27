@@ -935,32 +935,6 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId }: any) {
     { key: EL_KEY, label: 'ElevenLabs API Key', hint: 'elevenlabs.io — voice companion' },
   ]
 
-  // Write live context to localStorage so companion popout window can read it
-  useEffect(() => {
-    const activePlaybook = playbooks.find((p: any) => p.id === activePlaybookId) || null
-    const ctx = {
-      spx: fmt(currentPrice),
-      vwapPos: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—',
-      vix: vixPrice ? vixPrice.toFixed(2) : '—',
-      vixLevel: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—',
-      signal: aiResult?.signal || '',
-      confidence: aiResult?.confidence || 0,
-      bias: morningPlan.bias || '',
-      impliedMove: morningPlan.impliedMove || '',
-      keyLevels: morningPlan.keyLevels || '',
-      score, grade,
-      flow: optionsFlow.length ? optionsFlow.slice(0,3).map((f: any) => `${f.ticker} ${f.type} ${f.sentiment}`).join(' | ') : 'No data',
-      tide: marketTide?.bias || '—',
-      breadth: marketIntel?.breadth?.bias || '—',
-      pnl: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`,
-      trades: trades.filter((t: any) => t.date === new Date().toISOString().split('T')[0]).length,
-      edge: aiResult?.todaysEdge || '',
-      riskFlag: aiResult?.riskFlag || '',
-    }
-    localStorage.setItem('tz-live-context', JSON.stringify(ctx))
-  }, [currentPrice, vixPrice, aiResult, morningPlan, score, grade, optionsFlow, marketTide, marketIntel, todayPnL, trades])
-
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
@@ -1069,7 +1043,7 @@ export default function CockpitPage() {
   const [showDisclosure, setShowDisclosure] = useState(false)
 
   // Tab
-  const [tab, setTab] = useState<'plan' | 'cockpit' | 'log' | 'journal'>('plan')
+  const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
 
   // Market data
   const [candles, setCandles] = useState<any[]>([])
@@ -1351,7 +1325,7 @@ export default function CockpitPage() {
         let nextPath: string | null = initialPath
         let page = 0
         while (nextPath && page < 25) {
-          const data = await proxyFetch(nextPath).then(r => r.json())
+          const data: any = await proxyFetch(nextPath).then(r => r.json())
           if (data.results?.length) all = all.concat(data.results)
           if (data.next_url) {
             try { const u = new URL(data.next_url); nextPath = u.pathname + u.search }
@@ -1892,8 +1866,33 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   const score = CHECKLIST.filter(c => checked[c.id]).length
   const grade = score >= 11 ? 'A' : score >= 9 ? 'B' : score >= 7 ? 'C' : score >= 5 ? 'D' : 'F'
   const gradeColor = score >= 9 ? C.teal : score >= 7 ? C.yellow : C.red
+  const todayPnL = trades.filter((t: any) => t.date === new Date().toISOString().split('T')[0]).reduce((s: number, t: any) => s + (parseFloat(t.pnl) || 0), 0)
+
+  // Write live context to localStorage so companion popout can read it
+  useEffect(() => {
+    const activePlaybook = playbooks.find((p: any) => p.id === activePlaybookId) || null
+    const ctx = {
+      spx: fmt(currentPrice),
+      vwapPos: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—',
+      vix: vixPrice ? vixPrice.toFixed(2) : '—',
+      vixLevel: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—',
+      signal: aiResult?.signal || '',
+      confidence: aiResult?.confidence || 0,
+      bias: morningPlan.bias || '',
+      impliedMove: morningPlan.impliedMove || '',
+      keyLevels: morningPlan.keyLevels || '',
+      score, grade,
+      flow: optionsFlow.length ? optionsFlow.slice(0,3).map((f: any) => `${f.ticker} ${f.type} ${f.sentiment}`).join(' | ') : 'No data',
+      tide: marketTide?.bias || '—',
+      breadth: marketIntel?.breadth?.bias || '—',
+      pnl: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`,
+      trades: trades.filter((t: any) => t.date === new Date().toISOString().split('T')[0]).length,
+      edge: aiResult?.todaysEdge || '',
+      riskFlag: aiResult?.riskFlag || '',
+    }
+    localStorage.setItem('tz-live-context', JSON.stringify(ctx))
+  }, [currentPrice, vixPrice, aiResult, morningPlan, score, grade, optionsFlow, marketTide, marketIntel, todayPnL, trades, playbooks, activePlaybookId])
   const signalColor = aiResult?.signal === 'LONG' ? C.teal : aiResult?.signal === 'SHORT' ? C.red : aiResult?.signal === 'WAIT' ? C.yellow : C.textDim
-  const todayPnL = trades.filter(t => t.date === new Date().toISOString().split('T')[0]).reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0)
   const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
   const estTime = getEST().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
@@ -1964,7 +1963,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         <div style={{ padding: '0 20px', borderRight: `1px solid rgba(0,229,255,0.08)`, display: 'flex', alignItems: 'center', gap: 10, height: '100%' }}>
           <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, letterSpacing: 3, display: 'flex', alignItems: 'center', gap: 0 }}>
             <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}, 0 0 40px rgba(0,229,255,0.15)` }}>tr</span>
-            <span style={{ color: C.pink, textShadow: `0 0 20px ${C.pinkGlow}` }}>AI</span>
+            <span style={{ color: C.pink, textShadow: `0 0 20px ${'rgba(192,32,224,0.15)'}` }}>AI</span>
             <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}` }}>de Zone</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -2160,7 +2159,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>⚡</span>}
                     </div>
                   ))}
-                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive' as any)}>→ Full flow in Deep Dive</div>
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full flow in Deep Dive</div>
                 </div>
 
                 {/* Market conditions mini */}
@@ -2181,7 +2180,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color }}>{value}</span>
                     </div>
                   ))}
-                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive' as any)}>→ Full chart in Deep Dive</div>
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full chart in Deep Dive</div>
                 </div>
               </div>
 
@@ -2291,7 +2290,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(102,32,212,0.06)', borderLeft: '3px solid rgba(102,32,212,0.3)' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
                   <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
-                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
+                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
                 </div>
               )}
             </div>
@@ -2406,7 +2405,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Collapsed companion button */}
             {tab !== 'cockpit' && !companionOpen && (
-              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.violet, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(102,32,212,0.25)', zIndex: 500 }}>
+              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.violet, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(102,32,212,0.25)', zIndex: 500 }}>
                 🧠
               </button>
             )}
@@ -3249,7 +3248,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
         {!companionOpen && (
           <button onClick={() => setCompanionOpen(true)} style={{
             position: 'absolute', bottom: 20, right: 20,
-            width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            width: 56, height: 56, borderRadius: '50%', cursor: 'pointer',
             background: `radial-gradient(circle, rgba(124,58,237,0.3) 0%, rgba(60,20,120,0.9) 60%)`,
             boxShadow: `0 0 20px rgba(124,58,237,0.4), 0 0 40px rgba(124,58,237,0.15)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -3397,7 +3396,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {/* MIC BUTTON */}
                 <button onClick={listening ? stopListening : startListening} style={{
-                  width: 42, height: 42, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  width: 42, height: 42, borderRadius: '50%', cursor: 'pointer',
                   background: listening ? 'rgba(255,60,96,0.15)' : 'rgba(124,58,237,0.12)',
                   border: `1.5px solid ${listening ? C.red : C.violetBorder}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
@@ -3436,7 +3435,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                   <span style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px', textTransform: 'uppercase' }}>Voice</span>
                   {speaking && <span style={{ fontSize: 8, color: C.violet, animation: 'pulse 0.8s infinite' }}>● speaking</span>}
-                  <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>+ more voices</button>
+                  <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', cursor: 'pointer', padding: 0 }}>+ more voices</button>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   {[
