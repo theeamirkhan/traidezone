@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   let pages = 0
 
   while (nextPath && pages < 25) {
-    const url = `${base}${nextPath}${nextPath.includes('?') ? '&' : '?'}apiKey=${apiKey}`
+    const url: string = `${base}${nextPath}${nextPath.includes('?') ? '&' : '?'}apiKey=${apiKey}`
     const res = await fetch(url, { cache: 'no-store' })
     const data = await res.json()
     if (data.results?.length) allResults = allResults.concat(data.results)
