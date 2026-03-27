@@ -1,0 +1,3474 @@
+'use client'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useUser } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
+
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const POLY_KEY = 'tz-polygon-key'
+const ANTH_KEY = 'tz-anthropic-key'
+const UW_KEY = 'tz-uw-key'
+const EL_KEY = 'tz-elevenlabs-key'
+const TIINGO_KEY = 'tz-tiingo-key'
+const VOICE_ID = 'tz-voice-id'
+
+// ── COLOR SYSTEM — NEURAL BLACK ────────────────────────────────────────────
+// ── COLOR SYSTEM — PEARL WHITE ────────────────────────────────────────────
+const C = {
+  bg: '#f0f4fa',
+  deep: '#e8edf7',
+  surface: 'rgba(255,255,255,0.92)',
+  surface2: 'rgba(248,249,255,0.8)',
+  surface3: 'rgba(240,244,250,0.7)',
+  border: 'rgba(100,140,220,0.15)',
+  border2: 'rgba(102,32,212,0.15)',
+  text: '#0d1830',
+  textDim: '#4a5880',
+  textMuted: '#8090b0',
+  // Color trinity
+  teal: '#0099cc',
+  tealDim: 'rgba(0,153,204,0.08)',
+  tealBorder: 'rgba(0,153,204,0.2)',
+  tealGlow: 'rgba(0,153,204,0.15)',
+  violet: '#6620d4',
+  violetDim: 'rgba(102,32,212,0.07)',
+  violetBorder: 'rgba(102,32,212,0.2)',
+  violetGlow: 'rgba(102,32,212,0.12)',
+  pink: '#c020e0',
+  pinkDim: 'rgba(192,32,224,0.06)',
+  pinkBorder: 'rgba(192,32,224,0.18)',
+  synapse: '#00aa55',
+  fire: '#e05000',
+  fireDim: 'rgba(224,80,0,0.06)',
+  fireBorder: 'rgba(224,80,0,0.2)',
+  red: '#cc1040',
+  redDim: 'rgba(204,16,64,0.06)',
+  redBorder: 'rgba(204,16,64,0.18)',
+  yellow: '#c07000',
+  yellowDim: 'rgba(192,112,0,0.07)',
+  blue: '#1a5fa8',
+  // Aliases
+  purple: '#6620d4',
+  purpleDim: 'rgba(102,32,212,0.07)',
+  purpleBorder: 'rgba(102,32,212,0.2)',
+  purpleGlow: 'rgba(102,32,212,0.06)',
+  redBorderLegacy: 'rgba(204,16,64,0.18)',
+}
+const font = "'Share Tech Mono', monospace"
+const fontDisplay = "'Orbitron', sans-serif"
+
+// Neural background animation injected once
+if (typeof window !== 'undefined' && !document.getElementById('tz-white-style')) {
+  const s = document.createElement('style')
+  s.id = 'tz-white-style'
+  s.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
+    body { background: #f0f4fa !important; }
+    @keyframes neuralSpin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    @keyframes neuralPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes headerScan { 0%{left:-100%;right:100%} 100%{left:100%;right:-100%} }
+    @keyframes signalBreath { 0%,100%{opacity:0.4} 50%{opacity:1} }
+    @keyframes aiGlow { 0%,100%{box-shadow:0 2px 8px rgba(102,32,212,0.08)} 50%{box-shadow:0 4px 20px rgba(102,32,212,0.15)} }
+    @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    @keyframes scanBeam { 0%{top:-1px;opacity:0} 5%{opacity:0.6} 95%{opacity:0.3} 100%{top:100%;opacity:0} }
+    @keyframes brainRing { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    @keyframes lightArc { 0%{opacity:0.7} 60%{opacity:0.3} 100%{opacity:0} }
+    @keyframes waveAnim { 0%,100%{height:2px;opacity:0.2} 50%{height:var(--wh,10px);opacity:0.65} }
+    @keyframes listeningPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes micGlow { 0%,100%{box-shadow:0 0 12px rgba(204,16,64,0.12)} 50%{box-shadow:0 0 20px rgba(204,16,64,0.25),0 0 0 4px rgba(204,16,64,0.05)} }
+    @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes probTip { 0%,100%{opacity:0.3} 50%{opacity:0.8} }
+    @keyframes coreGlow { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:0.8;transform:scale(1.15)} }
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(102,32,212,0.15);border-radius:2px}
+    .header-scan::after{content:'';position:absolute;bottom:0;left:-100%;right:100%;height:1.5px;background:linear-gradient(90deg,transparent,#6620d4,#0099cc,#c020e0,transparent);animation:headerScan 5s linear infinite;pointer-events:none}
+  `
+  document.head.appendChild(s)
+}
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function getEST() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+}
+function fmt(p: number | null | undefined) {
+  if (!p) return '—'
+  return parseFloat(String(p)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function calcVWAP(candles: any[]) {
+  let cumTPV = 0, cumVol = 0
+  return candles.map(c => {
+    const tp = (c.h + c.l + c.c) / 3
+    cumTPV += tp * (c.v || 1)
+    cumVol += (c.v || 1)
+    return cumTPV / cumVol
+  })
+}
+function calcEMA(candles: any[], period: number) {
+  if (candles.length < period) return candles.map(() => null)
+  const k = 2 / (period + 1)
+  const result: (number | null)[] = candles.map(() => null)
+  let ema = candles.slice(0, period).reduce((s: number, c: any) => s + c.c, 0) / period
+  result[period - 1] = ema
+  for (let i = period; i < candles.length; i++) {
+    ema = candles[i].c * k + ema * (1 - k)
+    result[i] = ema
+  }
+  return result
+}
+
+// ── PROBABILITY ENGINE ─────────────────────────────────────────────────────
+// Calculates reversal / continuation / chop probabilities from morning inputs
+// Based on historical SPX/SPY behavior patterns
+function calcProbabilities({
+  bias, gapDirection, gapSize, impliedMove, vixPrice, tiingoContext
+}: {
+  bias: string, gapDirection: string, gapSize: string,
+  impliedMove: string, vixPrice: number | null, tiingoContext: any
+}) {
+  const gap = parseFloat(gapSize) || 0
+  const im = parseFloat(impliedMove) || 0
+  const vix = vixPrice || 18
+
+  // Base probabilities — empirical SPX tendencies
+  let reversal = 38, continuation = 40, chop = 22
+
+  // Gap direction adjustments
+  if (gapDirection === 'gap up') {
+    reversal += 8     // Gap ups fill more often than gap downs
+    continuation -= 5
+    chop -= 3
+  } else if (gapDirection === 'gap down') {
+    reversal += 4
+    continuation += 2
+    chop -= 6
+  }
+
+  // Gap size adjustments
+  if (gap > 0 && im > 0) {
+    const gapVsIM = gap / im
+    if (gapVsIM > 0.6) {
+      // Large gap relative to implied move — high reversal odds
+      reversal += 12
+      continuation -= 8
+      chop -= 4
+    } else if (gapVsIM > 0.3) {
+      reversal += 5
+      continuation -= 3
+      chop -= 2
+    } else if (gap > 0 && gap < 10) {
+      // Small gap — more likely to continue or chop
+      reversal -= 5
+      chop += 8
+      continuation -= 3
+    }
+  }
+
+  // Bias vs gap direction conflict/alignment
+  if (bias === 'long' && gapDirection === 'gap up') {
+    continuation += 8   // Aligned — continuation more likely
+    reversal -= 5
+    chop -= 3
+  } else if (bias === 'short' && gapDirection === 'gap down') {
+    continuation += 8
+    reversal -= 5
+    chop -= 3
+  } else if (bias === 'long' && gapDirection === 'gap down') {
+    reversal += 10    // Bias conflicts with gap — fade setup
+    continuation -= 8
+    chop -= 2
+  } else if (bias === 'short' && gapDirection === 'gap up') {
+    reversal += 10
+    continuation -= 8
+    chop -= 2
+  } else if (bias === 'neutral') {
+    chop += 8
+    reversal -= 4
+    continuation -= 4
+  }
+
+  // VIX adjustments
+  if (vix > 30) {
+    reversal += 8; chop += 5; continuation -= 13
+  } else if (vix > 22) {
+    reversal += 4; chop += 2; continuation -= 6
+  } else if (vix < 14) {
+    continuation += 6; chop += 3; reversal -= 9
+  }
+
+  // Tiingo historical override — if we have real data, blend it in
+  if (tiingoContext?.gapFillRate && tiingoContext?.continueRate) {
+    const histFill = parseFloat(tiingoContext.gapFillRate)
+    const histCont = parseFloat(tiingoContext.continueRate)
+    const histChop = 100 - histFill - histCont
+    // Blend 40% historical, 60% model
+    reversal = Math.round(reversal * 0.6 + histFill * 0.4)
+    continuation = Math.round(continuation * 0.6 + histCont * 0.4)
+    chop = Math.round(chop * 0.6 + Math.max(histChop, 5) * 0.4)
+  }
+
+  // Normalize to 100%
+  const total = reversal + continuation + chop
+  reversal = Math.round(reversal / total * 100)
+  continuation = Math.round(continuation / total * 100)
+  chop = 100 - reversal - continuation
+
+  // Dominant scenario
+  const max = Math.max(reversal, continuation, chop)
+  const dominant = max === reversal ? 'REVERSAL' : max === continuation ? 'CONTINUATION' : 'CHOP'
+  const dominantColor = dominant === 'REVERSAL' ? '#ff4d6d' : dominant === 'CONTINUATION' ? '#00d4a0' : '#f59e0b'
+  const confidence = max >= 55 ? 'HIGH' : max >= 45 ? 'MODERATE' : 'LOW'
+
+  return { reversal, continuation, chop, dominant, dominantColor, confidence, hasData: !!(bias || gap || im) }
+}
+
+
+const CHECKLIST = [
+  { id: 'timing1', category: 'TIMING', label: 'After 10:00 AM EST' },
+  { id: 'timing2', category: 'TIMING', label: 'Intraday high/low established' },
+  { id: 'conf1', category: 'CONFLUENCE', label: 'Price at key level' },
+  { id: 'conf2', category: 'CONFLUENCE', label: 'VWAP aligned with bias' },
+  { id: 'conf3', category: 'CONFLUENCE', label: '200 EMA aligned with bias' },
+  { id: 'conf4', category: 'CONFLUENCE', label: 'SPY/ES confirming direction' },
+  { id: 'conf5', category: 'CONFLUENCE', label: 'VIX not spiking (< 25)' },
+  { id: 'conf6', category: 'CONFLUENCE', label: 'Sector breadth aligned' },
+  { id: 'risk1', category: 'RISK', label: 'Stop level defined' },
+  { id: 'risk2', category: 'RISK', label: 'Max daily loss not hit' },
+  { id: 'risk3', category: 'RISK', label: 'Not averaging into loser' },
+  { id: 'system1', category: 'SYSTEM', label: 'Matches morning plan bias' },
+  { id: 'system2', category: 'SYSTEM', label: 'Matches active playbook' },
+]
+
+// ── AI ENGINE ──────────────────────────────────────────────────────────────
+async function runAI({
+  candles, levels, currentPrice, impliedMove, anthKey,
+  morningPlan, activePlaybook, tradeStats, optionsFlow, marketTide, marketIntel, tiingoContext,
+  marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory
+}: any) {
+  if (!anthKey || !currentPrice) return null
+  const recent = (candles || []).slice(-5).map((c: any) =>
+    `O:${c.o?.toFixed(0)} H:${c.h?.toFixed(0)} L:${c.l?.toFixed(0)} C:${c.c?.toFixed(0)}`
+  ).join(' | ')
+
+  const playbookSection = activePlaybook
+    ? `ACTIVE PLAYBOOK: "${activePlaybook.name}"
+Setup: ${activePlaybook.setup}
+Entry trigger: ${activePlaybook.entry}
+Stop rule: ${activePlaybook.stop}
+Target: ${activePlaybook.target}
+Notes: ${activePlaybook.notes || 'None'}`
+    : 'No playbook selected — general analysis mode'
+
+  const morningSection = morningPlan
+    ? `MORNING PLAN:
+Bias: ${morningPlan.bias || 'Not set'}
+Implied move: ±${morningPlan.impliedMove || '?'} pts
+Key levels: ${morningPlan.keyLevels || 'Not set'}
+Gap: ${morningPlan.gapDirection || 'Flat'} ${morningPlan.gapSize ? morningPlan.gapSize + 'pts' : ''}${morningPlan.notes ? `\nTrader's thesis: ${morningPlan.notes}` : ''}`
+    : 'No morning plan entered'
+
+  const statsSection = tradeStats
+    ? `Overall win rate: ${tradeStats.winRate}% (${tradeStats.totalTrades} trades)
+In-system: ${tradeStats.inSystemWinRate}% | Out-of-system: ${tradeStats.outSystemWinRate}%
+Best setup: ${tradeStats.bestSetup || 'Unknown'}
+Recent: ${tradeStats.recentForm || 'Unknown'}`
+    : 'No trade history uploaded yet'
+
+  const flowSection = optionsFlow?.length
+    ? optionsFlow.slice(0, 5).map((f: any) =>
+        `${f.ticker} ${f.type} ${f.strike} — ${f.sentiment}${f.unusual ? ' ⚡' : ''}`
+      ).join('\n')
+    : 'No options flow data'
+
+  const tiingoSection = tiingoContext
+    ? `HISTORICAL GAP CONTEXT (Tiingo — past 1yr, ${tiingoContext.totalDays} trading days):
+${tiingoContext.summary}
+Gap fill rate: ${tiingoContext.gapFillRate || 'N/A'}% | Continuation rate: ${tiingoContext.continueRate || 'N/A'}% | Avg day return after similar gap: ${tiingoContext.avgDayReturn || 'N/A'}%
+Implied move historical accuracy: ${tiingoContext.imAccuracy}% of days stay within the implied range`
+    : 'No Tiingo key — add in Settings for historical gap/implied move data'
+
+  const prompt = `You are an elite SPX intraday trading AI companion. Your job is to keep this trader disciplined, data-driven, and in their system.
+
+PRICE & LEVELS:
+SPX: ${fmt(currentPrice)} | Open: ${fmt(levels?.dayOpen)} | PDH: ${fmt(levels?.pdh)} | PDL: ${fmt(levels?.pdl)}
+vs SPY VWAP (${fmt(levels?.spyVwap)}): ${currentPrice && levels?.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '?'}
+vs 200 EMA (${fmt(levels?.ema200)}): ${currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'}
+Implied move: ${fmt(levels?.impliedLow)} — ${fmt(levels?.impliedHigh)}
+Recent 5 candles: ${recent}
+
+VIX: ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'})
+Market breadth: ${marketIntel?.breadth?.bias || 'Unknown'}
+Market tide P/C: ${marketTide?.putCallRatio || '?'} — ${marketTide?.bias || '?'}
+
+OPTIONS FLOW:
+${flowSection}
+
+${tiingoSection}
+
+${morningSection}
+
+${playbookSection}
+
+TRADER STATS:
+${statsSection}
+
+${macroRegime ? `MACRO REGIME: ${macroRegime.fedStance} (${macroRegime.rateLevel}) — ${macroRegime.regime}: ${macroRegime.regimeSummary}. Risk: ${macroRegime.keyRisk}` : ''}
+${marketNews ? `TODAY\'S NEWS:\n${marketNews}` : ''}
+${economicCalendar ? `CALENDAR:\n${economicCalendar}` : ''}
+${multiTFData ? `MULTI-TF: Weekly ${multiTFData.weekly.trend} (${multiTFData.weekly.ma20}MA) | Daily ${multiTFData.daily.trend} | ${multiTFData.confluence}` : ''}
+${zeroDTESkew ? `0DTE SKEW: ${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | Puts ${zeroDTESkew.putPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
+${marketScore ? `MARKET SCORE: ${marketScore.score}/100 — ${marketScore.label}` : ''}
+${tradePatterns ? `TRADER PATTERNS: Best hour ${tradePatterns.bestHour} | Avg win $${tradePatterns.avgWinnerSize} vs loss $${tradePatterns.avgLoserSize}${tradePatterns.cutWinnersEarly ? ' ⚠ CUTTING WINNERS EARLY' : ''} | Revenge trades: ${tradePatterns.revengePatterns}` : ''}
+${sessionMemory ? `MEMORY FROM PAST SESSIONS:\n${sessionMemory}` : ''}
+
+Be direct, specific, reference the playbook. Use news/calendar/macro context. No generic advice.
+
+Respond ONLY with this JSON:
+{
+  "signal": "LONG" | "SHORT" | "WAIT" | "NO TRADE",
+  "confidence": 0-100,
+  "marketConditions": "2-3 sentences",
+  "todaysEdge": "1-2 sentences — specific to playbook if active",
+  "accountability": "1 sentence calling out any rule violation risk",
+  "riskFlag": "1 sentence on biggest risk right now",
+  "entryZone": { "high": 0.00, "low": 0.00 },
+  "stopLevel": 0.00,
+  "target1": 0.00,
+  "target2": 0.00,
+  "moveSize": 0,
+  "buyZones": [
+    { "type": "buy", "high": 0.00, "low": 0.00 },
+    { "type": "nobuy", "high": 0.00, "low": 0.00 }
+  ]
+}`
+
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    const data = await res.json()
+    if (data.error) return null
+    const text = data.content.map((i: any) => i.text || '').join('').replace(/```json|```/g, '').trim()
+    return JSON.parse(text)
+  } catch { return null }
+}
+
+
+// ── #1 REAL-TIME NEWS ──────────────────────────────────────────────────────
+async function fetchMarketNews(anthKey: string): Promise<string> {
+  if (!anthKey) return 'No news available'
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: `Search for the top 3-4 US stock market news headlines right now for today ${new Date().toLocaleDateString('en-US')}. Focus on: Fed/economic data, macro events, SPX/SPY moves, anything that affects intraday trading today. Return ONLY a brief bullet summary like:
+• [headline 1 in 1 sentence]
+• [headline 2 in 1 sentence]
+• [headline 3 in 1 sentence]
+No preamble, just the bullets.` }]
+      })
+    })
+    const data = await res.json()
+    const text = data.content?.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').trim()
+    return text || 'No market news retrieved'
+  } catch { return 'News unavailable' }
+}
+
+// ── #2 ECONOMIC CALENDAR ───────────────────────────────────────────────────
+async function fetchEconomicCalendar(anthKey: string): Promise<string> {
+  if (!anthKey) return 'No calendar data'
+  try {
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: `Search for the US economic calendar events for today ${today}. Include: FOMC meetings/Fed speakers, CPI/PPI/NFP/GDP releases, Treasury auctions, major earnings (if pre/post market). Return ONLY in this format:
+• HH:MM ET — Event Name (Impact: High/Med/Low)
+• HH:MM ET — Event Name (Impact: High/Med/Low)
+If no major events, say "No major catalysts today". No preamble.` }]
+      })
+    })
+    const data = await res.json()
+    const text = data.content?.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').trim()
+    return text || 'No calendar events found'
+  } catch { return 'Calendar unavailable' }
+}
+
+// ── #3 COMPOSITE MARKET SCORE (0-100) ──────────────────────────────────────
+function calcMarketScore({
+  vixPrice, marketIntel, marketTide, optionsFlow, currentPrice, levels
+}: any): { score: number, label: string, color: string, breakdown: any } {
+  let score = 50 // neutral baseline
+  const breakdown: any = {}
+
+  // VIX component (20pts) — lower VIX = better conditions
+  if (vixPrice) {
+    const vixScore = vixPrice < 14 ? 20 : vixPrice < 18 ? 15 : vixPrice < 22 ? 10 : vixPrice < 28 ? 5 : 0
+    score += (vixScore - 10) // center around 0
+    breakdown.vix = { score: vixScore, label: vixPrice < 14 ? 'Calm' : vixPrice < 18 ? 'Normal' : vixPrice < 22 ? 'Elevated' : 'High' }
+  }
+
+  // Breadth component (20pts)
+  if (marketIntel?.breadth) {
+    const { advancing, declining } = marketIntel.breadth
+    const breadthScore = advancing >= 7 ? 20 : advancing >= 5 ? 14 : advancing >= 4 ? 8 : 3
+    score += (breadthScore - 10)
+    breakdown.breadth = { score: breadthScore, label: marketIntel.breadth.bias }
+  }
+
+  // Market tide (15pts) — call heavy = bullish
+  if (marketTide) {
+    const tideScore = marketTide.bias === 'CALL HEAVY' ? 15 : marketTide.bias === 'PUT HEAVY' ? 3 : 9
+    score += (tideScore - 7)
+    breakdown.tide = { score: tideScore, label: marketTide.bias }
+  }
+
+  // Options flow sentiment (15pts)
+  if (optionsFlow?.length > 0) {
+    const bullish = optionsFlow.filter((f: any) => f.sentiment === 'BULLISH').length
+    const bearish = optionsFlow.filter((f: any) => f.sentiment === 'BEARISH').length
+    const flowScore = bullish > bearish * 1.5 ? 15 : bearish > bullish * 1.5 ? 3 : 9
+    score += (flowScore - 7)
+    breakdown.flow = { score: flowScore, label: `${bullish}↑ ${bearish}↓` }
+  }
+
+  // VWAP position (10pts)
+  if (currentPrice && levels?.spyVwap) {
+    const vwapScore = currentPrice > levels.spyVwap ? 10 : 3
+    score += (vwapScore - 5)
+    breakdown.vwap = { score: vwapScore, label: currentPrice > levels.spyVwap ? 'Above' : 'Below' }
+  }
+
+  // Clamp to 0-100
+  score = Math.max(0, Math.min(100, score))
+  const label = score >= 75 ? 'STRONG BULL' : score >= 60 ? 'BULLISH' : score >= 45 ? 'NEUTRAL' : score >= 30 ? 'BEARISH' : 'STRONG BEAR'
+  const color = score >= 65 ? '#00aa55' : score >= 45 ? '#e05000' : '#cc1040'
+
+  return { score: Math.round(score), label, color, breakdown }
+}
+
+// ── #4 MULTI-TIMEFRAME CONFLUENCE ──────────────────────────────────────────
+async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<any> {
+  if (!polyKey) return null
+  try {
+    const today = new Date()
+    const oneYearAgo = new Date(today); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    const threeMonthsAgo = new Date(today); threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+
+    const proxy = (path: string) => fetch(`/api/polygon?apiKey=${polyKey || 'env'}&path=${encodeURIComponent(path)}`)
+
+    const [weeklyRes, dailyRes] = await Promise.all([
+      proxy(`/v2/aggs/ticker/${ticker}/range/1/week/${fmt(oneYearAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=60`),
+      proxy(`/v2/aggs/ticker/${ticker}/range/1/day/${fmt(threeMonthsAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=65`),
+    ])
+    const [weeklyData, dailyData] = await Promise.all([weeklyRes.json(), dailyRes.json()])
+
+    const weekly = weeklyData.results || []
+    const daily = dailyData.results || []
+    if (!weekly.length || !daily.length) return null
+
+    // Weekly trend — is price above 20-week MA?
+    const w20 = weekly.slice(-20).reduce((s: number, c: any) => s + c.c, 0) / Math.min(20, weekly.length)
+    const latestWeekClose = weekly[weekly.length - 1]?.c
+    const weeklyTrend = latestWeekClose > w20 ? 'BULLISH' : 'BEARISH'
+    const weeklyTrendStrength = Math.abs(((latestWeekClose - w20) / w20) * 100).toFixed(1)
+
+    // Daily trend — 20-day MA direction
+    const d20 = daily.slice(-20).reduce((s: number, c: any) => s + c.c, 0) / Math.min(20, daily.length)
+    const d5 = daily.slice(-5).reduce((s: number, c: any) => s + c.c, 0) / Math.min(5, daily.length)
+    const dailyTrend = d5 > d20 ? 'BULLISH' : 'BEARISH'
+
+    // Key weekly levels
+    const highestHigh = Math.max(...weekly.slice(-20).map((c: any) => c.h))
+    const lowestLow = Math.min(...weekly.slice(-20).map((c: any) => c.l))
+
+    // Confluence check
+    const allAligned = weeklyTrend === dailyTrend
+    const confluenceLabel = allAligned
+      ? (weeklyTrend === 'BULLISH' ? 'ALL TIMEFRAMES BULLISH ✓' : 'ALL TIMEFRAMES BEARISH ✓')
+      : `MIXED — Weekly ${weeklyTrend}, Daily ${dailyTrend}`
+
+    return {
+      weekly: { trend: weeklyTrend, ma20: Math.round(w20), strength: weeklyTrendStrength + '%' },
+      daily: { trend: dailyTrend, ma20: Math.round(d20), ma5: Math.round(d5) },
+      confluence: confluenceLabel,
+      aligned: allAligned,
+      weeklyRange: { high: Math.round(highestHigh), low: Math.round(lowestLow) }
+    }
+  } catch { return null }
+}
+
+// ── #5 SPX 0DTE OPTIONS SKEW ───────────────────────────────────────────────
+async function fetchZeroDTESkew(uwKey: string): Promise<any> {
+  if (!uwKey) return null
+  try {
+    // Fetch today's SPX 0DTE options flow specifically
+    const today = new Date().toISOString().split('T')[0]
+    const res = await fetch(`/api/flow?path=/api/option-trades/flow-alerts?ticker=SPXW&date=${today}&limit=30`, {
+      headers: {}
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const alerts = data.data || data || []
+
+    if (!alerts.length) return null
+
+    // Analyze call vs put volume and premium
+    let callVol = 0, putVol = 0, callPremium = 0, putPremium = 0
+    let unusualCalls = 0, unusualPuts = 0
+    alerts.forEach((a: any) => {
+      const isCall = (a.type || a.option_type || '').toUpperCase().startsWith('C')
+      const vol = parseFloat(a.volume || a.contracts || 0)
+      const prem = parseFloat(a.premium || a.total_premium || 0)
+      if (isCall) { callVol += vol; callPremium += prem; if (a.unusual) unusualCalls++ }
+      else { putVol += vol; putPremium += prem; if (a.unusual) unusualPuts++ }
+    })
+
+    const totalPremium = callPremium + putPremium
+    const callPct = totalPremium > 0 ? Math.round((callPremium / totalPremium) * 100) : 50
+    const pcRatio = putVol > 0 ? (putVol / callVol).toFixed(2) : 'N/A'
+    const skewLabel = callPct > 60 ? 'CALL SKEWED — bullish 0DTE flow' : callPct < 40 ? 'PUT SKEWED — bearish 0DTE flow' : 'BALANCED 0DTE flow'
+
+    return {
+      callPct, putPct: 100 - callPct,
+      callPremium: '$' + (callPremium / 1000).toFixed(0) + 'K',
+      putPremium: '$' + (putPremium / 1000).toFixed(0) + 'K',
+      pcRatio, skewLabel, unusualCalls, unusualPuts,
+      totalAlerts: alerts.length
+    }
+  } catch { return null }
+}
+
+// ── #6 TRADE PATTERN ANALYSIS ──────────────────────────────────────────────
+function analyzeTradePatterns(trades: any[]): any {
+  if (!trades || trades.length < 5) return null
+
+  const patterns: any = {
+    byHour: {} as any,
+    byDay: {} as any,
+    bySetup: {} as any,
+    streaks: { current: 0, longest: 0, currentType: '' },
+    avgWinnerSize: 0, avgLoserSize: 0,
+    bestHour: '', worstHour: '',
+    revengePatterns: 0,
+    cutWinnersEarly: false,
+    holdingLosers: false
+  }
+
+  // By hour analysis
+  trades.forEach((t: any) => {
+    if (!t.pnl) return
+    const hour = t.time ? new Date('1970-01-01T' + t.time).getHours() : null
+    if (hour !== null) {
+      if (!patterns.byHour[hour]) patterns.byHour[hour] = { wins: 0, losses: 0, pnl: 0 }
+      if (t.pnl > 0) patterns.byHour[hour].wins++
+      else patterns.byHour[hour].losses++
+      patterns.byHour[hour].pnl += parseFloat(t.pnl)
+    }
+
+    // By setup
+    if (t.setup || t.notes) {
+      const key = (t.setup || 'unknown').toLowerCase().substring(0, 20)
+      if (!patterns.bySetup[key]) patterns.bySetup[key] = { wins: 0, losses: 0, pnl: 0, count: 0 }
+      patterns.bySetup[key].count++
+      if (t.pnl > 0) patterns.bySetup[key].wins++
+      else patterns.bySetup[key].losses++
+      patterns.bySetup[key].pnl += parseFloat(t.pnl)
+    }
+  })
+
+  // Revenge trading detection — loss followed by trade within 10 mins
+  for (let i = 1; i < trades.length; i++) {
+    if (trades[i-1].pnl < 0 && trades[i].time && trades[i-1].time) {
+      const timeDiff = Math.abs(new Date('1970-01-01T' + trades[i].time).getTime() - new Date('1970-01-01T' + trades[i-1].time).getTime())
+      if (timeDiff < 600000) patterns.revengePatterns++
+    }
+  }
+
+  // Best/worst hour
+  const hourEntries = Object.entries(patterns.byHour) as [string, any][]
+  if (hourEntries.length > 0) {
+    const bestHourEntry = hourEntries.sort((a, b) => b[1].pnl - a[1].pnl)[0]
+    const worstHourEntry = hourEntries.sort((a, b) => a[1].pnl - b[1].pnl)[0]
+    patterns.bestHour = `${bestHourEntry[0]}:00 (${bestHourEntry[1].pnl >= 0 ? '+' : ''}$${Math.round(bestHourEntry[1].pnl)})`
+    patterns.worstHour = `${worstHourEntry[0]}:00 (${worstHourEntry[1].pnl >= 0 ? '+' : ''}$${Math.round(worstHourEntry[1].pnl)})`
+  }
+
+  // Winner/loser size
+  const winners = trades.filter(t => t.pnl > 0).map(t => parseFloat(t.pnl))
+  const losers = trades.filter(t => t.pnl < 0).map(t => Math.abs(parseFloat(t.pnl)))
+  patterns.avgWinnerSize = winners.length ? Math.round(winners.reduce((a,b) => a+b,0) / winners.length) : 0
+  patterns.avgLoserSize = losers.length ? Math.round(losers.reduce((a,b) => a+b,0) / losers.length) : 0
+  patterns.cutWinnersEarly = patterns.avgWinnerSize < patterns.avgLoserSize * 0.7
+
+  // Win streak
+  let currentStreak = 0, longestStreak = 0, lastType = ''
+  trades.forEach((t: any) => {
+    const type = t.pnl > 0 ? 'win' : 'loss'
+    if (type === lastType) { currentStreak++; longestStreak = Math.max(longestStreak, currentStreak) }
+    else { currentStreak = 1; lastType = type }
+  })
+  patterns.streaks = { current: currentStreak, longest: longestStreak, currentType: lastType }
+
+  return patterns
+}
+
+// ── #7 MACRO REGIME ────────────────────────────────────────────────────────
+async function fetchMacroRegime(anthKey: string): Promise<any> {
+  if (!anthKey) return null
+  // Only refresh once per day — cache in localStorage
+  const cacheKey = 'tz-macro-regime'
+  const cached = localStorage.getItem(cacheKey)
+  if (cached) {
+    try {
+      const { date, data } = JSON.parse(cached)
+      if (date === new Date().toISOString().split('T')[0]) return data
+    } catch {}
+  }
+
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: `Search for the current Fed monetary policy stance and US market macro regime as of today ${new Date().toLocaleDateString()}. Answer these 4 questions in JSON only:
+{
+  "fedStance": "HIKING | CUTTING | HOLDING | PAUSING",
+  "rateLevel": "current fed funds rate as string e.g. 5.25-5.50%",
+  "regime": "RISK-ON | RISK-OFF | TRANSITIONING",
+  "regimeSummary": "1 sentence about current macro environment",
+  "keyRisk": "1 sentence on biggest macro risk right now"
+}
+Respond with ONLY valid JSON.` }]
+      })
+    })
+    const data = await res.json()
+    const text = data.content?.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').replace(/\`\`\`json|\`\`\`/g, '').trim()
+    const regime = JSON.parse(text)
+    localStorage.setItem(cacheKey, JSON.stringify({ date: new Date().toISOString().split('T')[0], data: regime }))
+    return regime
+  } catch { return null }
+}
+
+// ── #8 SESSION MEMORY ──────────────────────────────────────────────────────
+const SESSION_MEMORY_KEY = 'tz-session-memory'
+
+function loadSessionMemory(): string {
+  try {
+    const mem = localStorage.getItem(SESSION_MEMORY_KEY)
+    return mem ? JSON.parse(mem).join('\n') : ''
+  } catch { return '' }
+}
+
+function saveSessionMemory(memories: string[]): void {
+  try {
+    // Keep last 20 memory entries
+    localStorage.setItem(SESSION_MEMORY_KEY, JSON.stringify(memories.slice(-20)))
+  } catch {}
+}
+
+function addMemory(entry: string): void {
+  try {
+    const existing = JSON.parse(localStorage.getItem(SESSION_MEMORY_KEY) || '[]')
+    const dated = `[${new Date().toLocaleDateString()}] ${entry}`
+    saveSessionMemory([...existing, dated])
+  } catch {}
+}
+
+async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tradePatterns: any): Promise<void> {
+  if (!anthKey || chatHistory.length < 3) return
+  try {
+    const recentChat = chatHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')
+    const patternNote = tradePatterns?.revengePatterns > 2 ? 'User shows revenge trading patterns.' : ''
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{ role: 'user', content: `From this trading session chat, extract 1-2 important facts to remember about this trader for future sessions. Focus on: weaknesses they admitted, rules they tend to break, their best setups, emotional patterns. Return ONLY a JSON array of short strings (max 15 words each), or [] if nothing notable.\n\nChat:\n${recentChat}\n${patternNote}` }]
+      })
+    })
+    const data = await res.json()
+    const text = data.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g, '').trim() || '[]'
+    const newMemories = JSON.parse(text)
+    if (Array.isArray(newMemories) && newMemories.length > 0) {
+      newMemories.forEach((m: string) => addMemory(m))
+    }
+  } catch {}
+}
+
+// ── MARKET INTEL ───────────────────────────────────────────────────────────
+async function fetchMarketIntel(polyKey: string) {
+  if (!polyKey) return {}
+  try {
+    const est = getEST()
+    const fmt2 = (d: Date) => d.toISOString().split('T')[0]
+    const today = fmt2(est)
+    const weekAgo = new Date(est); weekAgo.setDate(weekAgo.getDate() - 7)
+    const proxy = (path: string) =>
+      fetch(`/api/polygon?apiKey=${polyKey || 'env'}&path=${encodeURIComponent(path)}`).then(r => r.json()).catch(() => null)
+    const sectors = ['XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'QQQ', 'IWM', 'TLT']
+    const results = await Promise.all(
+      sectors.map(t => proxy(`/v2/aggs/ticker/${t}/range/1/day/${fmt2(weekAgo)}/${today}?adjusted=true&sort=asc&limit=10`))
+    )
+    const sectorData: any = {}
+    sectors.forEach((ticker, i) => {
+      const d = results[i]
+      if (d?.results?.length >= 2) {
+        const r = d.results
+        sectorData[ticker] = {
+          weekChange: ((r[r.length-1].c - r[0].c) / r[0].c * 100).toFixed(2),
+          todayChange: ((r[r.length-1].c - r[r.length-1].o) / r[r.length-1].o * 100).toFixed(2),
+        }
+      }
+    })
+    const vixRes = await proxy(`/v2/aggs/ticker/I:VIX1D/range/1/day/${fmt2(weekAgo)}/${today}?adjusted=true&sort=asc&limit=10`)
+    const vix: any = {}
+    if (vixRes?.results?.length >= 2) {
+      const vr = vixRes.results
+      const vixLast = vr[vr.length-1].c
+      const vixPrev = vr[vr.length-2].c
+      vix.current = vixLast.toFixed(2)
+      vix.dayChange = (vixLast - vixPrev).toFixed(2)
+      vix.level = vixLast > 30 ? 'EXTREME' : vixLast > 20 ? 'ELEVATED' : vixLast > 15 ? 'NORMAL' : 'LOW'
+      vix.trend = vixLast > vixPrev ? 'RISING' : 'FALLING'
+    }
+    const coreSectors = ['XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU']
+    const advancing = coreSectors.filter(s => sectorData[s] && parseFloat(sectorData[s].todayChange) > 0).length
+    const declining = coreSectors.filter(s => sectorData[s] && parseFloat(sectorData[s].todayChange) < 0).length
+    const breadth = {
+      advancing, declining,
+      bias: advancing >= 6 ? 'BROAD STRENGTH' : declining >= 6 ? 'BROAD WEAKNESS' : advancing > declining ? 'SLIGHT BULLISH' : 'SLIGHT BEARISH',
+    }
+    return { sectors: sectorData, vix, breadth }
+  } catch { return {} }
+}
+
+async function fetchOptionsFlow(uwKey: string) {
+  if (!uwKey) return []
+  try {
+    const res = await fetch('https://api.unusualwhales.com/api/option-trades/flow-alerts?limit=50', {
+      headers: { Authorization: 'Bearer ' + uwKey }
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.data || [])
+      .filter((a: any) => ['SPX', 'SPXW', 'SPY', 'QQQ'].includes((a.ticker || '').toUpperCase()))
+      .slice(0, 10)
+      .map((a: any) => ({
+        ticker: a.ticker, type: a.type || a.put_call,
+        strike: a.strike, sentiment: a.bullish_at_ask_perc > 60 ? 'BULLISH' : a.bullish_at_ask_perc < 40 ? 'BEARISH' : 'NEUTRAL',
+        unusual: a.unusual_trade,
+      }))
+  } catch { return [] }
+}
+
+async function fetchMarketTide(uwKey: string) {
+  if (!uwKey) return null
+  try {
+    const res = await fetch('https://api.unusualwhales.com/api/market/market-tide', {
+      headers: { Authorization: 'Bearer ' + uwKey }
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const tide = (data.data || [])
+    if (!tide.length) return null
+    const latest = tide[tide.length - 1]
+    const callP = parseFloat(latest.call_premium || 0)
+    const putP = parseFloat(latest.put_premium || 0)
+    const ratio = callP > 0 ? (putP / callP).toFixed(2) : null
+    return {
+      callPremium: (callP / 1e6).toFixed(1) + 'M',
+      putPremium: (putP / 1e6).toFixed(1) + 'M',
+      putCallRatio: ratio,
+      bias: ratio && parseFloat(ratio) > 1.2 ? 'PUT HEAVY (bearish)' : ratio && parseFloat(ratio) < 0.8 ? 'CALL HEAVY (bullish)' : 'BALANCED',
+    }
+  } catch { return null }
+}
+
+// ── TIINGO HISTORICAL CONTEXT ──────────────────────────────────────────────
+async function fetchTiingoContext(tiingoKey: string, gapDirection: string, gapSize: string, impliedMove: string) {
+  if (!tiingoKey) return null
+  try {
+    const today = new Date()
+    const oneYearAgo = new Date(today)
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+
+    // Fetch 1 year of SPY daily data from Tiingo
+    const res = await fetch(
+      `https://api.tiingo.com/tiingo/daily/SPY/prices?startDate=${fmt(oneYearAgo)}&endDate=${fmt(today)}&token=${tiingoKey}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    if (!Array.isArray(data) || data.length < 50) return null
+
+    // Analyze gap behavior
+    const gaps: any[] = []
+    for (let i = 1; i < data.length; i++) {
+      const prevClose = data[i-1].adjClose
+      const open = data[i].adjOpen
+      const close = data[i].adjClose
+      const gapPct = ((open - prevClose) / prevClose) * 100
+      const dayReturn = ((close - open) / open) * 100
+      const filled = gapPct > 0 ? close < prevClose : close > prevClose
+      gaps.push({ date: data[i].date, gapPct, dayReturn, filled, open, close, prevClose })
+    }
+
+    // Filter relevant gap scenarios
+    const gapSizePts = parseFloat(gapSize) || 0
+    const gapSizePct = gapSizePts > 0 ? (gapSizePts / 580) * 100 : 0 // approx SPY price
+    const isGapUp = gapDirection === 'gap up'
+    const relevantGaps = gaps.filter(g =>
+      isGapUp ? (g.gapPct > 0.2 && g.gapPct < gapSizePct + 0.3) : (g.gapPct < -0.2 && g.gapPct > -(gapSizePct + 0.3))
+    )
+
+    // Implied move accuracy
+    const imPts = parseFloat(impliedMove) || 0
+    const imPct = imPts > 0 ? (imPts / 580) * 100 : 0
+    const imAccuracy = gaps.filter(g => Math.abs(g.dayReturn) <= imPct).length / gaps.length * 100
+
+    const gapFillRate = relevantGaps.length
+      ? relevantGaps.filter(g => g.filled).length / relevantGaps.length * 100
+      : null
+
+    const avgDayReturn = relevantGaps.length
+      ? relevantGaps.reduce((s, g) => s + g.dayReturn, 0) / relevantGaps.length
+      : null
+
+    const continueRate = relevantGaps.length
+      ? relevantGaps.filter(g => isGapUp ? g.dayReturn > 0 : g.dayReturn < 0).length / relevantGaps.length * 100
+      : null
+
+    return {
+      sampleSize: relevantGaps.length,
+      gapFillRate: gapFillRate ? gapFillRate.toFixed(1) : null,
+      avgDayReturn: avgDayReturn ? avgDayReturn.toFixed(2) : null,
+      continueRate: continueRate ? continueRate.toFixed(1) : null,
+      imAccuracy: imAccuracy.toFixed(1),
+      totalDays: gaps.length,
+      summary: relevantGaps.length >= 5
+        ? `Based on ${relevantGaps.length} similar ${gapDirection || 'gap'} sessions in past year: gap fills ${gapFillRate?.toFixed(0)}% of time, continues ${continueRate?.toFixed(0)}%. Implied move accurate ${imAccuracy.toFixed(0)}% of days.`
+        : `Limited historical data for this gap size (${relevantGaps.length} matches). Implied move accurate ${imAccuracy.toFixed(0)}% of days historically.`
+    }
+  } catch (e) { return null }
+}
+function parseBrokerCSV(text: string): any[] {
+  const lines = text.trim().split('\n')
+  if (!lines.length) return []
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g, '_'))
+  const trades: any[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+    if (cols.length < 3) continue
+    const row: any = {}
+    headers.forEach((h, idx) => { row[h] = cols[idx] })
+    // Normalize common broker column names
+    const date = row.date || row.exec_time || row.time || row.trade_date || ''
+    const symbol = row.symbol || row.ticker || row.instrument || ''
+    const side = (row.side || row.action || row.buy_sell || row.transaction_type || '').toLowerCase()
+    const qty = parseFloat(row.qty || row.quantity || row.shares || '0')
+    const price = parseFloat(row.price || row.exec_price || row.fill_price || '0')
+    const pnl = parseFloat(row.pnl || row.p_l || row.realized_pnl || row.net_amount || '0')
+    if (symbol && (price || pnl)) {
+      trades.push({ date, symbol, side, qty, price, pnl, raw: row })
+    }
+  }
+  return trades
+}
+
+function analyzeTradeHistory(trades: any[]) {
+  if (!trades.length) return null
+  const winners = trades.filter(t => t.pnl > 0)
+  const losers = trades.filter(t => t.pnl < 0)
+  const winRate = Math.round(winners.length / trades.length * 100)
+  const avgWin = winners.length ? winners.reduce((s, t) => s + t.pnl, 0) / winners.length : 0
+  const avgLoss = losers.length ? Math.abs(losers.reduce((s, t) => s + t.pnl, 0) / losers.length) : 0
+  const totalPnl = trades.reduce((s, t) => s + t.pnl, 0)
+  return {
+    totalTrades: trades.length,
+    winRate,
+    avgWin: avgWin.toFixed(2),
+    avgLoss: avgLoss.toFixed(2),
+    profitFactor: avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : '∞',
+    totalPnl: totalPnl.toFixed(2),
+    inSystemWinRate: winRate, // simplified — user can tag later
+    outSystemWinRate: Math.max(0, winRate - 15),
+    recentForm: trades.slice(-5).filter(t => t.pnl > 0).length + '/5 recent winners',
+  }
+}
+
+// ── SETTINGS MODAL ─────────────────────────────────────────────────────────
+function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId }: any) {
+  const [vals, setVals] = useState({ ...keys, [VOICE_ID]: voiceId || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM' })
+  const save = () => {
+    Object.entries(vals).forEach(([k, v]) => { if (v) localStorage.setItem(k, v as string) })
+    setKeys((p: any) => ({ ...p, ...vals }))
+    if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
+    onClose()
+  }
+  const fields = [
+    { key: POLY_KEY, label: 'Polygon.io API Key', hint: 'polygon.io — live price data' },
+    { key: ANTH_KEY, label: 'Anthropic API Key', hint: 'console.anthropic.com — AI engine' },
+    { key: TIINGO_KEY, label: 'Tiingo API Key', hint: 'tiingo.com — historical gap & implied move data (free)' },
+    { key: UW_KEY, label: 'Unusual Whales API Key', hint: 'unusualwhales.com — options flow' },
+    { key: EL_KEY, label: 'ElevenLabs API Key', hint: 'elevenlabs.io — voice companion' },
+  ]
+
+  // Write live context to localStorage so companion popout window can read it
+  useEffect(() => {
+    const activePlaybook = playbooks.find((p: any) => p.id === activePlaybookId) || null
+    const ctx = {
+      spx: fmt(currentPrice),
+      vwapPos: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—',
+      vix: vixPrice ? vixPrice.toFixed(2) : '—',
+      vixLevel: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—',
+      signal: aiResult?.signal || '',
+      confidence: aiResult?.confidence || 0,
+      bias: morningPlan.bias || '',
+      impliedMove: morningPlan.impliedMove || '',
+      keyLevels: morningPlan.keyLevels || '',
+      score, grade,
+      flow: optionsFlow.length ? optionsFlow.slice(0,3).map((f: any) => `${f.ticker} ${f.type} ${f.sentiment}`).join(' | ') : 'No data',
+      tide: marketTide?.bias || '—',
+      breadth: marketIntel?.breadth?.bias || '—',
+      pnl: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`,
+      trades: trades.filter((t: any) => t.date === new Date().toISOString().split('T')[0]).length,
+      edge: aiResult?.todaysEdge || '',
+      riskFlag: aiResult?.riskFlag || '',
+    }
+    localStorage.setItem('tz-live-context', JSON.stringify(ctx))
+  }, [currentPrice, vixPrice, aiResult, morningPlan, score, grade, optionsFlow, marketTide, marketIntel, todayPnL, trades])
+
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
+        <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 4 }}>Settings</div>
+        <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, marginBottom: 24 }}>Keys stored locally on your device only</div>
+        {fields.map(f => (
+          <div key={f.key} style={{ marginBottom: 18 }}>
+            <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{f.label}</div>
+            <input type="password" value={vals[f.key] || ''} onChange={e => setVals((p: any) => ({ ...p, [f.key]: e.target.value }))}
+              placeholder={f.hint}
+              style={{ width: '100%', background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+          </div>
+        ))}
+
+        {/* Voice Selector */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>AI Voice (ElevenLabs)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 8 }}>
+            {[
+              { name: 'Rachel', id: '21m00Tcm4TlvDq8ikWAM', desc: 'Calm, professional' },
+              { name: 'Drew', id: '29vD33N1CtxCmqQRPOHJ', desc: 'Confident, direct' },
+              { name: 'Clyde', id: '2EiwWnXFnvU5JabPnv8n', desc: 'Deep, authoritative' },
+              { name: 'Paul', id: '5Q0t7uMcjvnagumLfvZi', desc: 'Focused, assertive' },
+              { name: 'Domi', id: 'AZnzlk1XvdvUeBnXmlld', desc: 'Energetic, clear' },
+              { name: 'Dave', id: 'CYw3kZ78EXmF4bPxNGZ2', desc: 'Conversational' },
+              { name: 'Fin', id: 'D38z5RcWu1voky8WS1ja', desc: 'Warm, analytical' },
+              { name: 'Sarah', id: 'EXAVITQu4vr4xnSDxMaL', desc: 'Calm, analytical' },
+              { name: 'Antoni', id: 'ErXwobaYiN019PkySvjV', desc: 'Smooth, measured' },
+              { name: 'Thomas', id: 'GBv7mTt0atIp3Br8iCZE', desc: 'Sharp, trading' },
+            ].map(v => {
+              const selected = (vals[VOICE_ID] || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM') === v.id
+              return (
+                <button key={v.id} type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{
+                  padding: '7px 10px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const,
+                  background: selected ? C.violetDim : C.bg,
+                  border: `1px solid ${selected ? C.violetBorder : C.border2}`,
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.teal : C.text }}>{v.name}</div>
+                  <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>{v.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ marginBottom: 6, fontSize: 10, color: C.textDim }}>Or enter a custom ElevenLabs voice ID:</div>
+          <input
+            type="text"
+            value={vals[VOICE_ID] && !['21m00Tcm4TlvDq8ikWAM','29vD33N1CtxCmqQRPOHJ','2EiwWnXFnvU5JabPnv8n','5Q0t7uMcjvnagumLfvZi','AZnzlk1XvdvUeBnXmlld','CYw3kZ78EXmF4bPxNGZ2','D38z5RcWu1voky8WS1ja','EXAVITQu4vr4xnSDxMaL','ErXwobaYiN019PkySvjV','GBv7mTt0atIp3Br8iCZE'].includes(vals[VOICE_ID]) ? vals[VOICE_ID] : ''}
+            onChange={e => setVals((p: any) => ({ ...p, [VOICE_ID]: e.target.value }))}
+            placeholder="e.g. abc123xyz456..."
+            style={{ width: '100%', background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', boxSizing: 'border-box' as const }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button onClick={save} style={{ flex: 1, background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>Save</button>
+          <button onClick={onClose} style={{ flex: 1, background: C.surface2, color: C.textDim, border: `1px solid ${C.border2}`, borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: font }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── VOICE SELECTOR ─────────────────────────────────────────────────────────
+const VOICES = [
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', desc: 'Calm & analytical' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', desc: 'Direct & assertive' },
+  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', desc: 'Deep & authoritative' },
+  { id: 'jsCqWAovK2LkecY7zXl4', name: 'Freya', desc: 'Clear & focused' },
+  { id: 'custom', name: 'Custom ID', desc: 'Enter your own voice ID' },
+]
+
+// ── PROB METER ─────────────────────────────────────────────────────────────
+function ProbMeter({ value, color }: { value: number; color: string }) {
+  const r = 32, circ = 2 * Math.PI * r
+  const dash = circ * (value / 100)
+  return (
+    <svg width={80} height={80} viewBox="0 0 80 80">
+      <circle cx={40} cy={40} r={r} fill="none" stroke='rgba(100,140,220,0.15)' strokeWidth={5} />
+      <circle cx={40} cy={40} r={r} fill="none" stroke={color} strokeWidth={5}
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" transform="rotate(-90 40 40)"
+        style={{ transition: 'stroke-dasharray 0.8s ease, stroke 0.3s ease' }} />
+      <text x={40} y={36} textAnchor="middle" fill={color} fontSize={16} fontWeight="800" fontFamily={font}>{value}</text>
+      <text x={40} y={50} textAnchor="middle" fill={C.textDim} fontSize={9} fontFamily={font}>%</text>
+    </svg>
+  )
+}
+
+// ── MAIN COCKPIT ───────────────────────────────────────────────────────────
+// Timeframe config: daysBack drives from-date, limit must cover all bars
+// 1m=1day(500bars) 5m=5days(500) 15m=10days(400) 1H=20days(200) 1D=1yr(500)
+const TF_CONFIG: Record<string, {multiplier: number, timespan: string, daysBack: number, limit: number}> = {
+  '1':  { multiplier: 1,  timespan: 'minute', daysBack: 1,   limit: 500 },
+  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 7,   limit: 500 },
+  '15': { multiplier: 15, timespan: 'minute', daysBack: 14,  limit: 400 },
+  '60': { multiplier: 60, timespan: 'minute', daysBack: 28,  limit: 200 },
+  '1D': { multiplier: 1,  timespan: 'day',    daysBack: 365, limit: 500 },
+}
+
+export default function CockpitPage() {
+  const { user, isLoaded } = useUser()
+  const router = useRouter()
+
+  // Keys
+  const [keys, setKeys] = useState<any>({})
+  const [showSettings, setShowSettings] = useState(false)
+  const [showDisclosure, setShowDisclosure] = useState(false)
+
+  // Tab
+  const [tab, setTab] = useState<'plan' | 'cockpit' | 'log' | 'journal'>('plan')
+
+  // Market data
+  const [candles, setCandles] = useState<any[]>([])
+  const [spyCandles, setSpyCandles] = useState<any[]>([])
+  const [vixCandles, setVixCandles] = useState<any[]>([])
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null)
+  const [spyPrice, setSpyPrice] = useState<number | null>(null)
+  const [vixPrice, setVixPrice] = useState<number | null>(null)
+  const [openPrice, setOpenPrice] = useState<number | null>(null)
+  const [levels, setLevels] = useState<any>({})
+  const [changes, setChanges] = useState<any>({})
+  const [connected, setConnected] = useState(false)
+
+  // Morning plan
+  const [morningPlan, setMorningPlan] = useState({
+    bias: '', impliedMove: '', keyLevels: '', gapDirection: 'flat', gapSize: '', notes: ''
+  })
+
+  // Playbooks
+  const [playbooks, setPlaybooks] = useState<any[]>([
+    { id: '1', name: 'VWAP Reclaim Long', setup: 'Price below VWAP, reclaims with volume', entry: 'First candle close above VWAP', stop: 'Back below VWAP', target: '+10-15 SPX pts', notes: 'Best after 10:30am' },
+    { id: '2', name: 'PDH Breakout', setup: 'Price approaches prior day high with momentum', entry: 'Break and hold above PDH', stop: 'Back inside PDH', target: '+15-20 SPX pts', notes: 'Needs volume confirmation' },
+    { id: '3', name: 'Opening Range Fade', setup: 'Price extends to implied move level on weak internals', entry: 'Rejection candle at IM level', stop: 'Above IM high', target: 'VWAP reversion', notes: 'VIX should be elevated' },
+  ])
+  const [activePlaybookId, setActivePlaybookId] = useState<string | null>(null)
+  const [showAddPlaybook, setShowAddPlaybook] = useState(false)
+  const [newPlaybook, setNewPlaybook] = useState({ name: '', setup: '', entry: '', stop: '', target: '', notes: '' })
+
+  // Checklist
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
+
+  // AI
+  const [aiResult, setAiResult] = useState<any>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [lastAITime, setLastAITime] = useState<string | null>(null)
+  const [marketIntel, setMarketIntel] = useState<any>({})
+  const [optionsFlow, setOptionsFlow] = useState<any[]>([])
+  const [marketTide, setMarketTide] = useState<any>(null)
+  const [tiingoContext, setTiingoContext] = useState<any>(null)
+  const [marketNews, setMarketNews] = useState<string>('')
+  const [economicCalendar, setEconomicCalendar] = useState<string>('')
+  const [marketScore, setMarketScore] = useState<any>(null)
+  const [multiTFData, setMultiTFData] = useState<any>(null)
+  const [zeroDTESkew, setZeroDTESkew] = useState<any>(null)
+  const [tradePatterns, setTradePatterns] = useState<any>(null)
+  const [macroRegime, setMacroRegime] = useState<any>(null)
+  const [sessionMemory] = useState<string>(() => loadSessionMemory())
+
+  // Trade log
+  const [trades, setTrades] = useState<any[]>([])
+  const [tradeStats, setTradeStats] = useState<any>(null)
+  const [showTradeForm, setShowTradeForm] = useState(false)
+  const [newTrade, setNewTrade] = useState({ symbol: 'SPX', direction: 'call', entry: '', exit: '', pnl: '', inSystem: true, notes: '', playbook: '' })
+  const [importStatus, setImportStatus] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Voice
+  const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
+  const [speaking, setSpeaking] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [liveTranscript, setLiveTranscript] = useState('')
+  const [companionOpen, setCompanionOpen] = useState(true)
+  const [chatInput, setChatInput] = useState('')
+  const [chatMessages, setChatMessages] = useState<any[]>([])
+  const [chatLoading, setChatLoading] = useState(false)
+  const [customVoiceId, setCustomVoiceId] = useState('')
+  const [elVoices, setElVoices] = useState<any[]>([])
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+  const recognitionRef = useRef<any>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const audioSourceRef = useRef<AudioBufferSourceNode | null>(null)
+
+  // Drawing state
+  const [drawMode, setDrawMode] = useState<string | null>(null)
+  const [drawColor, setDrawColor] = useState(C.teal)
+  const [drawnLines, setDrawnLines] = useState<any[]>([])
+  const [drawnZones, setDrawnZones] = useState<any[]>([])
+  const [drawPreview, setDrawPreview] = useState<any>(null)
+  const [overlayCrosshair, setOverlayCrosshair] = useState<any>(null)
+  const [drawPoint1, setDrawPoint1] = useState<any>(null)
+  const [chartTf, setChartTf] = useState<string>('5')
+  const chartTfRef = useRef<string>('5')
+  // Keep ref in sync so fetchHistory always reads latest TF without stale closure
+  useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const chartRef = useRef<any>(null)
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const aiIntervalRef = useRef<any>(null)
+
+  // Load keys & saved data
+  useEffect(() => {
+    const loadedKeys: any = {}
+    ;[POLY_KEY, ANTH_KEY, UW_KEY, EL_KEY, TIINGO_KEY].forEach(k => {
+      const v = localStorage.getItem(k)
+      if (v) loadedKeys[k] = v
+    })
+    setKeys(loadedKeys)
+    if (!loadedKeys[POLY_KEY] && !loadedKeys[ANTH_KEY]) setShowSettings(true)
+
+    const savedVoice = localStorage.getItem(VOICE_ID)
+    if (savedVoice) setVoiceId(savedVoice)
+
+    // Auto-fetch ElevenLabs voices
+    const elKey = localStorage.getItem(EL_KEY)
+    if (elKey) {
+      fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': elKey } })
+        .then(r => r.json())
+        .then(d => {
+          if (d.voices?.length) {
+            setElVoices(d.voices)
+            // If no saved voice or saved voice not in list, use first
+            const saved = localStorage.getItem(VOICE_ID)
+            const valid = d.voices.find((v: any) => v.voice_id === saved)
+            if (!valid) {
+              setVoiceId(d.voices[0].voice_id)
+              localStorage.setItem(VOICE_ID, d.voices[0].voice_id)
+              console.log('TZ: Auto-set voice to', d.voices[0].name)
+            }
+          }
+        })
+        .catch(e => console.warn('TZ: Could not fetch EL voices', e))
+    }
+
+    // Show disclosure if not yet accepted
+    const accepted = localStorage.getItem('tz-disclosure-accepted')
+    if (!accepted) setShowDisclosure(true)
+
+    const savedTrades = localStorage.getItem('tz-trades')
+    if (savedTrades) {
+      try {
+        const t = JSON.parse(savedTrades)
+        setTrades(t)
+        setTradeStats(analyzeTradeHistory(t))
+      } catch {}
+    }
+
+    const savedPlan = localStorage.getItem('tz-morning-plan')
+    if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
+
+    const savedPlaybooks = localStorage.getItem('tz-playbooks')
+    if (savedPlaybooks) { try { setPlaybooks(JSON.parse(savedPlaybooks)) } catch {} }
+  }, [])
+
+  // Save morning plan
+  useEffect(() => {
+    localStorage.setItem('tz-morning-plan', JSON.stringify(morningPlan))
+    if (openPrice) {
+      const im = parseFloat(morningPlan.impliedMove) || 0
+      setLevels((p: any) => ({
+        ...p,
+        impliedHigh: im ? openPrice + im : null,
+        impliedLow: im ? openPrice - im : null,
+      }))
+    }
+  }, [morningPlan, openPrice])
+
+  // Save playbooks
+  useEffect(() => {
+    localStorage.setItem('tz-playbooks', JSON.stringify(playbooks))
+  }, [playbooks])
+
+  // Save trades
+  useEffect(() => {
+    localStorage.setItem('tz-trades', JSON.stringify(trades))
+    if (trades.length) setTradeStats(analyzeTradeHistory(trades))
+  }, [trades])
+
+  // Overlay canvas drawing
+  const drawOverlay = useCallback(() => {
+    const canvas = overlayCanvasRef.current
+    const container = chartContainerRef.current
+    if (!canvas || !container) return
+    canvas.width = container.clientWidth
+    canvas.height = container.clientHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const W = canvas.width, H = canvas.height
+    ctx.clearRect(0, 0, W, H)
+    const f = "'JetBrains Mono', monospace"
+
+    drawnLines.filter((l: any) => l.type === 'horizontal').forEach((line: any) => {
+      const y = line.y * H
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y)
+      ctx.strokeStyle = line.color; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke()
+      ctx.fillStyle = line.color; ctx.font = `bold 10px ${f}`
+      ctx.fillText(line.label || '', W - 70, y - 4)
+    })
+    drawnLines.filter((l: any) => l.type === 'trendline' && l.p2).forEach((line: any) => {
+      ctx.beginPath(); ctx.moveTo(line.p1.x * W, line.p1.y * H); ctx.lineTo(line.p2.x * W, line.p2.y * H)
+      ctx.strokeStyle = line.color; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke()
+    })
+    drawnZones.forEach((zone: any) => {
+      if (zone.y2 === undefined) return
+      const y1 = Math.min(zone.y1, zone.y2) * H, y2 = Math.max(zone.y1, zone.y2) * H
+      ctx.fillStyle = zone.color + '22'; ctx.fillRect(0, y1, W, y2 - y1)
+      ctx.strokeStyle = zone.color + '60'; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.strokeRect(0, y1, W, y2 - y1); ctx.setLineDash([])
+    })
+    if (drawPreview && drawMode) {
+      ctx.strokeStyle = drawColor + 'aa'; ctx.lineWidth = 1; ctx.setLineDash([4,4])
+      if (drawMode === 'horizontal') {
+        ctx.beginPath(); ctx.moveTo(0, drawPreview.y * H); ctx.lineTo(W, drawPreview.y * H); ctx.stroke()
+      } else if (drawMode === 'trendline' && drawPoint1) {
+        ctx.beginPath(); ctx.moveTo(drawPoint1.x * W, drawPoint1.y * H); ctx.lineTo(drawPreview.x * W, drawPreview.y * H); ctx.stroke()
+      } else if (drawMode === 'zone' && drawPoint1) {
+        const y1 = Math.min(drawPoint1.y, drawPreview.y) * H, y2 = Math.max(drawPoint1.y, drawPreview.y) * H
+        ctx.fillStyle = drawColor + '15'; ctx.fillRect(0, y1, W, y2 - y1); ctx.strokeRect(0, y1, W, y2 - y1)
+      }
+      ctx.setLineDash([])
+    }
+    if (overlayCrosshair && drawMode) {
+      ctx.strokeStyle = '#ffffff30'; ctx.lineWidth = 0.5; ctx.setLineDash([2,4])
+      ctx.beginPath(); ctx.moveTo(overlayCrosshair.x, 0); ctx.lineTo(overlayCrosshair.x, H); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, overlayCrosshair.y); ctx.lineTo(W, overlayCrosshair.y); ctx.stroke()
+      ctx.setLineDash([])
+    }
+  }, [drawnLines, drawnZones, drawPreview, overlayCrosshair, drawMode, drawColor, drawPoint1])
+
+  useEffect(() => { drawOverlay() }, [drawOverlay])
+
+  const handleOverlayMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!drawMode) return
+    const canvas = overlayCanvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    if (drawMode === 'horizontal') {
+      setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'horizontal', y, color: drawColor, label: '' }])
+      setDrawMode(null); setDrawPreview(null)
+    } else if (drawMode === 'trendline' || drawMode === 'zone') {
+      if (!drawPoint1) { setDrawPoint1({ x, y }) }
+      else {
+        if (drawMode === 'trendline') setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'trendline', p1: drawPoint1, p2: { x, y }, color: drawColor }])
+        else setDrawnZones((p: any[]) => [...p, { id: Date.now(), y1: drawPoint1.y, y2: y, color: drawColor }])
+        setDrawPoint1(null); setDrawMode(null); setDrawPreview(null)
+      }
+    }
+  }, [drawMode, drawColor, drawPoint1])
+
+  const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = overlayCanvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    setOverlayCrosshair({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    if (drawMode) setDrawPreview({ x, y })
+  }, [drawMode])
+
+  const handleOverlayMouseUp = useCallback(() => {}, [])
+
+  // Fetch market data — timeframe-aware with correct lookback windows
+  const fetchHistory = useCallback(async (ticker: string, setter: any, key: string) => {
+    const polyKey = keys[POLY_KEY]
+    if (!polyKey) return
+    try {
+      const est = getEST()
+      const today = est.toISOString().split('T')[0]
+      const yday = new Date(est)
+      yday.setDate(yday.getDate() - 1)
+      while (yday.getDay() === 0 || yday.getDay() === 6) yday.setDate(yday.getDate() - 1)
+      const ydayStr = yday.toISOString().split('T')[0]
+
+      const proxyFetch = (path: string) =>
+        fetch(`/api/polygon?apiKey=${polyKey || 'env'}&path=${encodeURIComponent(path)}`)
+
+      // Timeframe-aware: SPX uses selected chartTf, SPY/VIX always use 5m
+      const tf = key === 'spx' ? (chartTfRef.current || '5') : '5'
+      const tfCfg = TF_CONFIG[tf] || TF_CONFIG['5']
+      const fromDate = new Date(est)
+      fromDate.setDate(fromDate.getDate() - tfCfg.daysBack)
+      while (fromDate.getDay() === 0 || fromDate.getDay() === 6) fromDate.setDate(fromDate.getDate() - 1)
+      const fromStr = fromDate.toISOString().split('T')[0]
+
+      // Paginate through Polygon's cursor-based pages until we have all bars
+      const fetchAllPages = async (initialPath: string): Promise<any[]> => {
+        let all: any[] = []
+        let nextPath: string | null = initialPath
+        let page = 0
+        while (nextPath && page < 25) {
+          const data = await proxyFetch(nextPath).then(r => r.json())
+          if (data.results?.length) all = all.concat(data.results)
+          if (data.next_url) {
+            try { const u = new URL(data.next_url); nextPath = u.pathname + u.search }
+            catch { break }
+          } else { break }
+          page++
+        }
+        return all
+      }
+
+      const ydayData = await proxyFetch(
+        `/v2/aggs/ticker/${ticker}/range/1/day/${ydayStr}/${ydayStr}?adjusted=true&sort=asc&limit=1`
+      ).then(r => r.json())
+
+      let resultsToUse = await fetchAllPages(
+        `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${fromStr}/${today}?adjusted=true&sort=asc&limit=${tfCfg.limit}`
+      )
+
+      // Pre-market fallback
+      if (!resultsToUse.length) {
+        resultsToUse = await fetchAllPages(
+          `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${ydayStr}/${ydayStr}?adjusted=true&sort=asc&limit=${tfCfg.limit}`
+        )
+      }
+
+      if (resultsToUse.length > 0) {
+        const mapped = resultsToUse.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v }))
+        setter(mapped)
+        const last = mapped[mapped.length - 1]
+
+        if (key === 'spx') {
+          setCurrentPrice(last.c)
+          setOpenPrice(mapped[0].o)
+          const emas = calcEMA(mapped, 200)
+          const pdh = ydayData.results?.[0]?.h
+          const pdl = ydayData.results?.[0]?.l
+          const prevClose = ydayData.results?.[0]?.c
+          setLevels((p: any) => ({
+            ...p,
+            ema200: emas[emas.length - 1],
+            pdh, pdl, prevClose,
+            dayOpen: mapped[0].o,
+          }))
+          setChanges((p: any) => ({ ...p, spx: last.c - mapped[0].o }))
+        }
+        if (key === 'spy') {
+          setSpyPrice(last.c)
+          setChanges((p: any) => ({ ...p, spy: last.c - mapped[0].o }))
+          // VWAP from SPY today's candles only
+          const todayCandles = mapped.filter((c: any) => {
+            const d = new Date(c.t)
+            return d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+          })
+          const vwapCandles = todayCandles.length >= 5 ? todayCandles : mapped.slice(-78)
+          const spyVwaps = calcVWAP(vwapCandles)
+          const rawSpyVwap = spyVwaps[spyVwaps.length - 1]
+          const spyEmas = calcEMA(mapped, 200)
+          const rawSpy200 = spyEmas[spyEmas.length - 1]
+          setLevels((p: any) => {
+            const spxLive = p.currentSpxPrice || p.dayOpen
+            const ratio = spxLive && last.c > 0 ? spxLive / last.c : 10.0
+            return {
+              ...p,
+              spyVwapRaw: rawSpyVwap,
+              spyCurrentPrice: last.c,
+              spyVwap: rawSpyVwap * ratio,
+              spy200EMA: rawSpy200 ? rawSpy200 * ratio : null,
+            }
+          })
+        }
+        if (key === 'vix') {
+          setVixPrice(last.c)
+          setChanges((p: any) => ({ ...p, vix: last.c - mapped[0].o }))
+        }
+      }
+    } catch (e) { console.error(key, e) }
+  }, [keys])
+
+  useEffect(() => {
+    if (!keys[POLY_KEY]) return
+    fetchHistory('SPY', setCandles, 'spx')
+    fetchHistory('SPY', setSpyCandles, 'spy')
+    fetchHistory('I:VIX1D', setVixCandles, 'vix')
+    setConnected(true)
+    const interval = setInterval(() => {
+      fetchHistory('SPY', setCandles, 'spx')
+      fetchHistory('SPY', setSpyCandles, 'spy')
+      fetchHistory('I:VIX1D', setVixCandles, 'vix')
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [keys, fetchHistory])
+
+  // Reload SPX when timeframe changes — fetchHistory already has fresh chartTf via useCallback
+  useEffect(() => {
+    if (!keys[POLY_KEY]) return
+    setCandles([])
+    fetchHistory('SPY', setCandles, 'spx')
+  }, [chartTf])
+
+  // Recalculate composite market score when inputs change
+  useEffect(() => {
+    const score = calcMarketScore({ vixPrice, marketIntel, marketTide, optionsFlow, currentPrice, levels })
+    setMarketScore(score)
+  }, [vixPrice, marketIntel, marketTide, optionsFlow, currentPrice, levels.spyVwap])
+
+  // Analyze trade patterns when trades change
+  useEffect(() => {
+    if (trades.length >= 5) setTradePatterns(analyzeTradePatterns(trades))
+  }, [trades.length])
+
+  // Update SPX levels when price updates
+  useEffect(() => {
+    if (!currentPrice) return
+    setLevels((p: any) => {
+      if (!p.spyCurrentPrice) return p
+      const ratio = currentPrice / p.spyCurrentPrice
+      return {
+        ...p,
+        currentSpxPrice: currentPrice,
+        spyVwap: p.spyVwapRaw ? p.spyVwapRaw * ratio : p.spyVwap,
+        spy200EMA: p.spy200EMAraw ? p.spy200EMAraw * ratio : p.spy200EMA,
+      }
+    })
+  }, [currentPrice])
+
+  // Lightweight charts
+  useEffect(() => {
+    if (tab !== 'deepdive' || !chartContainerRef.current || candles.length === 0) return
+    let destroyed = false
+    let ro: ResizeObserver | null = null
+
+    import('lightweight-charts').then(({ createChart, CandlestickSeries, LineSeries }) => {
+      if (destroyed) return
+      if (chartRef.current) { try { chartRef.current.remove() } catch {} chartRef.current = null }
+      if (!chartContainerRef.current) return
+
+      const isDaily = chartTfRef.current === '1D'
+      const isIntraday = !isDaily
+
+      const chart = createChart(chartContainerRef.current, {
+        width: chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight,
+        layout: { background: { color: '#ffffff' }, textColor: '#4a5880' },
+        grid: { vertLines: { color: 'rgba(100,140,220,0.08)' }, horzLines: { color: 'rgba(100,140,220,0.08)' } },
+        crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: 'rgba(100,140,220,0.15)' },
+        timeScale: {
+          borderColor: 'rgba(100,140,220,0.15)',
+          timeVisible: isIntraday,
+          secondsVisible: false,
+          // For daily, show just date; for intraday show time too
+          tickMarkFormatter: isDaily
+            ? (time: number) => {
+                const d = new Date(time * 1000)
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              }
+            : undefined,
+        },
+      })
+      chartRef.current = chart
+
+      try {
+        const candleSeries = chart.addSeries(CandlestickSeries, {
+          upColor: '#00aa55', downColor: '#cc1040',
+          borderUpColor: '#00aa55', borderDownColor: '#cc1040',
+          wickUpColor: '#00aa5599', wickDownColor: '#cc104099',
+        })
+
+        // For daily, deduplicate by date (one bar per day only)
+        let chartData = candles.map(c => ({
+          time: isDaily
+            ? new Date(c.t).toISOString().split('T')[0] as any  // 'YYYY-MM-DD' string for daily
+            : Math.floor(c.t / 1000) as any,
+          open: c.o, high: c.h, low: c.l, close: c.c
+        }))
+
+        // Deduplicate — keep last bar per time key
+        const seen = new Map<string, any>()
+        chartData.forEach(b => seen.set(String(b.time), b))
+        chartData = Array.from(seen.values()).sort((a, b) => String(a.time) > String(b.time) ? 1 : -1)
+
+        candleSeries.setData(chartData)
+
+        // VWAP — intraday only, not meaningful on daily
+        if (isIntraday && levels.spyVwapRaw && spyCandles.length >= 5) {
+          const spyVwapLine = chart.addSeries(LineSeries, { color: '#e05000', lineWidth: 1, lineStyle: 1, title: 'VWAP' })
+          const vwaps = calcVWAP(spyCandles)
+          const ratio = currentPrice && spyPrice ? currentPrice / spyPrice : 10
+          spyVwapLine.setData(
+            spyCandles
+              .map((c: any, i: number) => ({ time: Math.floor(c.t / 1000) as any, value: vwaps[i] * ratio }))
+              .filter((d: any) => d.value)
+          )
+        }
+
+        // 200 EMA — daily only (needs enough bars), intraday it's too noisy
+        if (isDaily && candles.length >= 50) {
+          const emaLine = chart.addSeries(LineSeries, { color: '#6620d4cc', lineWidth: 1, lineStyle: 2, title: '200 EMA' })
+          const emas = calcEMA(candles, Math.min(200, candles.length))
+          emaLine.setData(
+            chartData.map((b: any, i: number) => ({ time: b.time, value: emas[i] })).filter((d: any) => d.value)
+          )
+        }
+
+        // Fit to just the loaded data — critical for daily not looking spread out
+        chart.timeScale().fitContent()
+
+      } catch (e) { console.warn('TZ chart series error:', e) }
+
+      ro = new ResizeObserver(() => {
+        if (!destroyed && chartRef.current && chartContainerRef.current) {
+          try { chart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight }) } catch {}
+        }
+      })
+      if (chartContainerRef.current) ro.observe(chartContainerRef.current)
+    })
+
+    return () => {
+      destroyed = true
+      if (ro) ro.disconnect()
+      if (chartRef.current) { try { chartRef.current.remove() } catch {} chartRef.current = null }
+    }
+  }, [tab, candles.length])
+
+  // AI auto-run every 3 min — fires even pre-market to load options flow
+  useEffect(() => {
+    if (!keys[ANTH_KEY]) return
+    const run = async () => {
+      setAiLoading(true)
+      const [intel, flow, tide, tiingo, news, calendar, mtf, macro, skew] = await Promise.all([
+        fetchMarketIntel(keys[POLY_KEY] || ''),
+        fetchOptionsFlow(keys[UW_KEY] || ''),
+        fetchMarketTide(keys[UW_KEY] || ''),
+        fetchTiingoContext(keys[TIINGO_KEY] || '', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
+        keys[ANTH_KEY] ? fetchMarketNews(keys[ANTH_KEY]) : Promise.resolve(''),
+        keys[ANTH_KEY] ? fetchEconomicCalendar(keys[ANTH_KEY]) : Promise.resolve(''),
+        keys[POLY_KEY] ? fetchMultiTFConfluence(keys[POLY_KEY], 'SPY') : Promise.resolve(null),
+        keys[ANTH_KEY] ? fetchMacroRegime(keys[ANTH_KEY]) : Promise.resolve(null),
+        keys[UW_KEY] ? fetchZeroDTESkew(keys[UW_KEY]) : Promise.resolve(null),
+      ])
+      setMarketIntel(intel)
+      setOptionsFlow(flow)
+      setMarketTide(tide)
+      setTiingoContext(tiingo)
+      if (news) setMarketNews(news)
+      if (calendar) setEconomicCalendar(calendar)
+      if (mtf) setMultiTFData(mtf)
+      if (macro) setMacroRegime(macro)
+      if (skew) setZeroDTESkew(skew)
+      const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
+      const result = await runAI({
+        candles, levels, currentPrice,
+        impliedMove: morningPlan.impliedMove,
+        anthKey: keys[ANTH_KEY],
+        morningPlan, activePlaybook, tradeStats,
+        optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo
+      })
+      if (result) {
+        setAiResult(result)
+        setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+      }
+      setAiLoading(false)
+    }
+    run()
+    aiIntervalRef.current = setInterval(run, 180000)
+    return () => clearInterval(aiIntervalRef.current)
+  }, [keys[ANTH_KEY], currentPrice, candles.length, activePlaybookId])
+
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+  }, [chatMessages, chatLoading])
+
+  // Speech recognition — stays open until user stops
+  const listeningRef = useRef(false)  // stable ref so speak() can check without stale closure
+
+  const startListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) { alert('Speech recognition not supported in this browser. Use Chrome.'); return }
+    if (recognitionRef.current) { recognitionRef.current.stop() }
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+    recognition.onstart = () => { setListening(true); listeningRef.current = true }
+    recognition.onresult = (event: any) => {
+      let interim = '', final = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) final += event.results[i][0].transcript
+        else interim += event.results[i][0].transcript
+      }
+      setLiveTranscript(interim)
+      if (final.trim()) {
+        setLiveTranscript('')
+        setChatInput(final.trim())
+        setTimeout(() => {
+          setChatInput('')
+          setChatMessages(p => [...p, { role: 'user', content: final.trim() }])
+          sendChatWithText(final.trim())
+        }, 100)
+      }
+    }
+    recognition.onerror = () => { setListening(false); listeningRef.current = false; setLiveTranscript('') }
+    recognition.onend = () => {
+      // Only restart if user hasn't manually stopped AND we're not speaking
+      if (recognitionRef.current === recognition && listeningRef.current) recognition.start()
+    }
+    recognitionRef.current = recognition
+    recognition.start()
+  }
+
+  const stopListening = () => {
+    listeningRef.current = false
+    if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null }
+    setListening(false)
+    setLiveTranscript('')
+  }
+
+  // Voice speak — pauses mic while speaking, resumes after
+  const speak = async (text: string) => {
+    const elKey = keys[EL_KEY] || 'server' // key handled server-side
+
+    // Stop any currently playing audio immediately
+    try {
+      if (audioSourceRef.current) { audioSourceRef.current.stop(); audioSourceRef.current = null }
+      if (audioCtxRef.current) { await audioCtxRef.current.close(); audioCtxRef.current = null }
+    } catch {}
+    audioRef.current = null
+
+    setSpeaking(true)
+
+    // Pause mic so AI can't hear itself
+    const wasListening = listeningRef.current
+    if (wasListening && recognitionRef.current) {
+      recognitionRef.current.stop()
+      setListening(false)
+      setLiveTranscript('')
+    }
+
+    try {
+      const vid = (voiceId === 'custom' || !voiceId) ? (customVoiceId || '21m00Tcm4TlvDq8ikWAM') : voiceId
+      console.log('TZ speak: voice', vid)
+      const res = await fetch('/api/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voiceId: vid, text,
+          model_id: 'eleven_turbo_v2_5',
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+        })
+      })
+      if (!res.ok) {
+        const errText = await res.text()
+        console.error('TZ ElevenLabs error:', res.status, errText)
+        setSpeaking(false)
+        if (res.status === 404) fetchAndSetFirstVoice(elKey)
+        if (wasListening) startListening()
+        return
+      }
+      const arrayBuffer = await res.arrayBuffer()
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+      const audioCtx = new AudioContext()
+      audioCtxRef.current = audioCtx
+      if (audioCtx.state === 'suspended') await audioCtx.resume()
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+      const source = audioCtx.createBufferSource()
+      audioSourceRef.current = source
+      source.buffer = audioBuffer
+      source.connect(audioCtx.destination)
+      source.start(0)
+      source.onended = () => {
+        audioSourceRef.current = null
+        audioCtxRef.current = null
+        setSpeaking(false)
+        audioCtx.close()
+        if (wasListening) setTimeout(() => startListening(), 600)
+      }
+    } catch (e) { 
+      console.error('TZ speak exception:', e)
+      audioSourceRef.current = null
+      audioCtxRef.current = null
+      setSpeaking(false)
+      if (wasListening) startListening()
+    }
+  }
+
+  // Auto-fetch first available voice from user's ElevenLabs account
+  const fetchAndSetFirstVoice = async (elKey: string) => {
+    try {
+      const res = await fetch('https://api.elevenlabs.io/v1/voices', {
+        headers: { 'xi-api-key': elKey }
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const voices = data.voices || []
+      if (voices.length > 0) {
+        const firstId = voices[0].voice_id
+        console.log('TZ: Auto-switching to voice:', voices[0].name, firstId)
+        setVoiceId(firstId)
+        localStorage.setItem(VOICE_ID, firstId)
+      }
+    } catch (e) { console.error('TZ fetchVoices error:', e) }
+  }
+
+  // Build full context string for AI companion
+  const buildCompanionContext = () => {
+    const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
+    const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+    const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
+    const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
+
+    return `You are the trAIde Zone AI companion — a focused, direct trading accountability partner for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
+
+NEVER say you are text-only. Your responses ARE spoken aloud via ElevenLabs.
+
+═══ LIVE MARKET DATA ═══
+SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : '—'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : '—'}%)
+SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
+SPX vs 200 EMA (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE — long-term bullish' : 'BELOW — long-term bearish') : 'No EMA data'}
+PDH: ${fmt(levels.pdh)} | PDL: ${fmt(levels.pdl)} | Prev Close: ${fmt(levels.prevClose)}
+Implied Move Range: ${fmt(levels.impliedLow)} — ${fmt(levels.impliedHigh)}
+SPY: ${fmt(spyPrice)} | VIX: ${vixPrice?.toFixed(2) || '—'} (${vixPrice ? (vixPrice > 30 ? 'EXTREME — high caution' : vixPrice > 25 ? 'HIGH — elevated risk' : vixPrice > 18 ? 'ELEVATED — use caution' : vixPrice > 14 ? 'NORMAL' : 'LOW — complacent market') : '—'})
+
+═══ MARKET INTELLIGENCE ═══
+Breadth: ${marketIntel?.breadth?.bias || 'No data'} (${marketIntel?.breadth?.advancing || 0}↑ ${marketIntel?.breadth?.declining || 0}↓ of 8 sectors)
+QQQ: ${marketIntel?.sectors?.QQQ ? (Number(marketIntel.sectors.QQQ.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.QQQ.todayChange + '%' : '—'} | IWM: ${marketIntel?.sectors?.IWM ? (Number(marketIntel.sectors.IWM.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.IWM.todayChange + '%' : '—'} | XLK: ${marketIntel?.sectors?.XLK ? (Number(marketIntel.sectors.XLK.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.XLK.todayChange + '%' : '—'} | XLF: ${marketIntel?.sectors?.XLF ? (Number(marketIntel.sectors.XLF.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.XLF.todayChange + '%' : '—'}
+TLT (Bonds): ${marketIntel?.sectors?.TLT ? (Number(marketIntel.sectors.TLT.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.TLT.todayChange + '%' : '—'}
+
+═══ OPTIONS FLOW (Unusual Whales) ═══
+Market Tide: ${marketTide?.bias || 'No data'} | P/C Ratio: ${marketTide?.putCallRatio || '—'}
+${optionsFlow.length ? `${optionsFlow.length} SPX/SPY flow alerts:\n${optionsFlow.slice(0, 5).map((f: any) => `  ${f.ticker} ${(f.type || '').toUpperCase()} ${f.strike} — ${f.sentiment}${f.unusual ? ' ⚡UNUSUAL' : ''}`).join('\n')}` : 'No SPX/SPY options flow alerts'}
+
+═══ HISTORICAL CONTEXT (Tiingo) ═══
+${tiingoContext ? tiingoContext.summary : 'No Tiingo key — add for historical gap/implied move data'}
+
+═══ MORNING PLAN ═══
+Bias: ${morningPlan.bias || 'NOT SET — trading without a plan'}
+Implied Move: ±${morningPlan.impliedMove || 'not set'} pts
+Key Levels: ${morningPlan.keyLevels || 'not set'}
+Gap: ${morningPlan.gapDirection || 'flat'} ${morningPlan.gapSize ? morningPlan.gapSize + 'pts' : ''}${morningPlan.notes ? `\nTrader's notes: ${morningPlan.notes}` : ''}
+
+═══ AI SIGNAL ═══
+Signal: ${aiResult?.signal || 'No signal yet'} | Confidence: ${aiResult?.confidence || 0}%
+${aiResult?.marketConditions ? `Conditions: ${aiResult.marketConditions}` : ''}
+${aiResult?.todaysEdge ? `Edge: ${aiResult.todaysEdge}` : ''}
+${aiResult?.riskFlag ? `⚠ Risk: ${aiResult.riskFlag}` : ''}
+${aiResult?.entryZone ? `Entry zone: ${fmt(aiResult.entryZone.low)}–${fmt(aiResult.entryZone.high)} | Stop: ${fmt(aiResult.stopLevel)} | T1: ${fmt(aiResult.target1)} | T2: ${fmt(aiResult.target2)}` : ''}
+
+═══ PROBABILITY BREAKDOWN ═══
+Reversal: ${probs.reversal}% | Continuation: ${probs.continuation}% | Chop: ${probs.chop}%
+Dominant scenario: ${probs.dominant} (${probs.confidence} confidence)
+
+═══ ACTIVE PLAYBOOK ═══
+${activePlaybook ? `${activePlaybook.name}\nEntry: ${activePlaybook.entry}\nStop: ${activePlaybook.stop}\nTarget: ${activePlaybook.target}\nSetup: ${activePlaybook.setup}` : 'No playbook selected — trader has no defined setup'}
+
+═══ PRE-TRADE CHECKLIST: ${score}/13 (Grade: ${grade}) ═══
+MET:\n${metChecks || 'None'}
+UNMET:\n${unmetChecks || 'All conditions met!'}
+
+═══ TODAY'S TRADING ═══
+P&L: ${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)} | Trades today: ${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length}
+${tradeStats ? `All-time: ${tradeStats.winRate}% win rate | ${tradeStats.totalTrades} trades | Profit factor: ${tradeStats.profitFactor}x` : 'No trade history yet'}
+
+═══ DRAWN LEVELS ON CHART ═══
+${drawnLines.length > 0 ? drawnLines.map((l: any) => `${l.type === 'horizontal' ? 'Horizontal line' : 'Trend line'} at Y=${(l.y * 100).toFixed(0)}% of chart`).join('\n') : 'No drawn levels'}
+${drawnZones.length > 0 ? drawnZones.map((z: any) => `S&D Zone: Y ${(z.y1 * 100).toFixed(0)}%–${(z.y2 * 100).toFixed(0)}%`).join('\n') : ''}
+
+${macroRegime ? `\n═══ MACRO REGIME ═══\nFed: ${macroRegime.fedStance} (${macroRegime.rateLevel}) | ${macroRegime.regime}\n${macroRegime.regimeSummary}` : ''}
+${marketNews ? `\n═══ TODAY'S NEWS ═══\n${marketNews}` : ''}
+${economicCalendar ? `\n═══ ECONOMIC CALENDAR ═══\n${economicCalendar}` : ''}
+${multiTFData ? `\n═══ MULTI-TIMEFRAME ═══\nWeekly: ${multiTFData.weekly.trend} | Daily: ${multiTFData.daily.trend} | ${multiTFData.confluence}` : ''}
+${zeroDTESkew ? `\n═══ 0DTE SKEW ═══\n${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
+${marketScore ? `\n═══ MARKET SCORE: ${marketScore.score}/100 — ${marketScore.label} ═══` : ''}
+${tradePatterns ? `\n═══ YOUR PATTERNS ═══\nBest hour: ${tradePatterns.bestHour} | Revenge trades: ${tradePatterns.revengePatterns}${tradePatterns.cutWinnersEarly ? ' | ⚠ Cutting winners early' : ''}` : ''}
+${sessionMemory ? `\n═══ MEMORY ═══\n${sessionMemory}` : ''}
+
+THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
+  }
+
+  // Send chat with explicit text (for voice input)
+  const sendChatWithText = async (text: string) => {
+    if (!keys[ANTH_KEY]) return
+    setChatLoading(true)
+    const context = buildCompanionContext()
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 350,
+          system: context,
+          messages: [...chatMessages, { role: 'user', content: text }].slice(-10).map(m => ({ role: m.role, content: m.content }))
+        })
+      })
+      const data = await res.json()
+      const reply = data.content?.[0]?.text || 'No response'
+      setChatMessages(p => {
+        const updated = [...p, { role: 'assistant', content: reply }]
+        // Extract session memory every 10 messages
+        if (updated.length % 10 === 0 && keys[ANTH_KEY]) {
+          extractMemoryFromSession(keys[ANTH_KEY], updated, tradePatterns)
+        }
+        return updated
+      })
+      speak(reply)
+    } catch {}
+    setChatLoading(false)
+  }
+
+  // Chat send
+  const sendChat = async () => {
+    if (!chatInput.trim() || !keys[ANTH_KEY]) return
+    const msg = chatInput.trim()
+    setChatInput('')
+    setChatMessages(p => [...p, { role: 'user', content: msg }])
+    await sendChatWithText(msg)
+  }
+
+  // Trade import
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportStatus('Parsing...')
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const parsed = parseBrokerCSV(text)
+      if (!parsed.length) { setImportStatus('No trades found — check CSV format'); return }
+      const allTrades = [...trades, ...parsed.map(t => ({ ...t, id: Date.now() + Math.random(), inSystem: true }))]
+      setTrades(allTrades)
+      setImportStatus(`✓ Imported ${parsed.length} trades — AI now has your history`)
+    }
+    reader.readAsText(file)
+  }
+
+  // Computed values
+  const score = CHECKLIST.filter(c => checked[c.id]).length
+  const grade = score >= 11 ? 'A' : score >= 9 ? 'B' : score >= 7 ? 'C' : score >= 5 ? 'D' : 'F'
+  const gradeColor = score >= 9 ? C.teal : score >= 7 ? C.yellow : C.red
+  const signalColor = aiResult?.signal === 'LONG' ? C.teal : aiResult?.signal === 'SHORT' ? C.red : aiResult?.signal === 'WAIT' ? C.yellow : C.textDim
+  const todayPnL = trades.filter(t => t.date === new Date().toISOString().split('T')[0]).reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0)
+  const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
+  const estTime = getEST().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+  if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f0f4fa', color: '#8090b0', fontFamily: font }}>Loading...</div>
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', background: '#f0f4fa', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
+        * { box-sizing: border-box; }
+        input, textarea { font-family: '${font}' !important; }
+      `}</style>
+
+      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} />}
+
+      {/* ── DISCLOSURE MODAL ── */}
+      {showDisclosure && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'rgba(255,255,255,0.98)', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 16, padding: 32, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.yellow }} />
+              <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 800, color: C.text }}>Important Disclosure</div>
+            </div>
+            <div style={{ fontFamily: font, fontSize: 11, color: C.yellow, marginBottom: 24, letterSpacing: '0.5px' }}>READ BEFORE USING trAIde Zone</div>
+
+            <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, lineHeight: 1.8, marginBottom: 20 }}>
+              {[
+                { title: 'NOT FINANCIAL ADVICE', body: 'trAIde Zone is an educational and accountability tool only. Nothing generated by this platform — including AI signals, probability estimates, market analysis, trade suggestions, or voice companion responses — constitutes financial advice, investment advice, or a recommendation to buy or sell any security or financial instrument.' },
+                { title: 'NO GUARANTEE OF ACCURACY', body: 'All market data, AI-generated analysis, historical probabilities, and signals are provided for informational purposes only and may be delayed, inaccurate, or incomplete. Past performance of any analysis or pattern is not indicative of future results.' },
+                { title: 'TRADING INVOLVES SUBSTANTIAL RISK', body: 'Options trading, including SPX intraday options, involves substantial risk of loss and is not appropriate for all investors. You may lose your entire investment. Never trade with money you cannot afford to lose entirely.' },
+                { title: 'YOU ARE SOLELY RESPONSIBLE', body: 'All trading decisions are yours alone. trAIde Zone, its developers, and affiliates are not responsible for any trading losses, damages, or financial harm resulting from your use of this platform or reliance on its outputs.' },
+                { title: 'AI LIMITATIONS', body: 'The AI companion and analysis engine use large language models which can make errors, hallucinate data, or provide incorrect analysis. Always independently verify any information before acting on it.' },
+                { title: 'CONSULT A PROFESSIONAL', body: 'Before trading options or any leveraged instruments, consult a qualified financial advisor, tax professional, and/or legal counsel. This platform is not a substitute for professional financial guidance.' },
+              ].map(({ title, body }) => (
+                <div key={title} style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.text, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>{title}</div>
+                  <div style={{ color: C.textDim }}>{body}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: C.yellowDim, border: `1px solid ${C.yellow}40`, borderRadius: 8, padding: '10px 14px', marginBottom: 20 }}>
+              <div style={{ fontFamily: font, fontSize: 11, color: C.yellow, lineHeight: 1.6 }}>
+                By clicking "I Understand & Accept" below, you acknowledge that you have read, understood, and agree to these terms. You confirm that you understand trading involves substantial risk and that trAIde Zone is a decision-support tool only.
+              </div>
+            </div>
+
+            <button onClick={() => {
+              localStorage.setItem('tz-disclosure-accepted', new Date().toISOString())
+              setShowDisclosure(false)
+            }} style={{
+              width: '100%', background: C.purple, color: '#fff', border: 'none',
+              borderRadius: 10, padding: '14px 0', fontSize: 14, fontWeight: 800,
+              cursor: 'pointer', fontFamily: fontDisplay, letterSpacing: '-0.3px'
+            }}>
+              I Understand & Accept — Enter trAIde Zone
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: C.textMuted }}>
+              You can review this disclosure at any time in Settings
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOP BAR — NEURAL BLACK ── */}
+      <div className="header-scan" style={{ height: 48, background: 'rgba(255,255,255,0.97)', borderBottom: `1px solid rgba(0,229,255,0.12)`, display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0, zIndex: 10, position: 'relative', overflow: 'hidden' }}>
+        {/* Logo */}
+        <div style={{ padding: '0 20px', borderRight: `1px solid rgba(0,229,255,0.08)`, display: 'flex', alignItems: 'center', gap: 10, height: '100%' }}>
+          <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, letterSpacing: 3, display: 'flex', alignItems: 'center', gap: 0 }}>
+            <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}, 0 0 40px rgba(0,229,255,0.15)` }}>tr</span>
+            <span style={{ color: C.pink, textShadow: `0 0 20px ${C.pinkGlow}` }}>AI</span>
+            <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}` }}>de Zone</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? C.synapse : C.red, boxShadow: connected ? `0 0 8px ${C.synapse}` : 'none', animation: connected ? 'pulse 2s infinite' : 'none' }} />
+            <span style={{ fontSize: 8, color: connected ? C.synapse : C.red, fontWeight: 700, letterSpacing: 1 }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
+          </div>
+        </div>
+
+        {/* Tickers */}
+        {[
+          { label: 'SPX', price: currentPrice, change: changes.spx, open: openPrice },
+          { label: 'SPY', price: spyPrice, change: changes.spy, open: spyCandles[0]?.o },
+          { label: 'VIX', price: vixPrice, change: changes.vix, open: vixCandles[0]?.o },
+        ].map(({ label, price, change, open }) => (
+          <div key={label} style={{ padding: '0 14px', borderRight: `1px solid rgba(0,229,255,0.06)`, display: 'flex', alignItems: 'center', gap: 8, height: '100%' }}>
+            <span style={{ fontSize: 8, fontWeight: 700, color: C.textDim, letterSpacing: 1 }}>{label}</span>
+            <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.text }}>{fmt(price)}</span>
+            {change !== undefined && (
+              <span style={{ fontSize: 9, fontWeight: 600, color: change >= 0 ? C.synapse : C.red, textShadow: change >= 0 ? `0 0 6px ${C.synapse}` : `0 0 6px ${C.red}` }}>
+                {change >= 0 ? '▲' : '▼'} {Math.abs(open ? change / open * 100 : 0).toFixed(2)}%
+              </span>
+            )}
+          </div>
+        ))}
+
+        {/* VWAP / EMA quick view */}
+        <div style={{ padding: '0 16px', borderRight: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12, height: '100%' }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: C.yellow, fontWeight: 700 }}>VWAP</span>
+            <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>{fmt(levels.spyVwap)}</span>
+            {currentPrice && levels.spyVwap && (
+              <span style={{ fontSize: 9, color: currentPrice > levels.spyVwap ? C.synapse : C.red, textShadow: currentPrice > levels.spyVwap ? `0 0 6px ${C.synapse}` : `0 0 6px ${C.red}`, fontWeight: 700 }}>
+                {currentPrice > levels.spyVwap ? '▲' : '▼'}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontSize: 8, color: C.violet, fontWeight: 700, letterSpacing: 1 }}>200E</span>
+            <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>{fmt(levels.ema200)}</span>
+            {currentPrice && levels.ema200 && (
+              <span style={{ fontSize: 9, color: currentPrice > levels.ema200 ? C.synapse : C.red, fontWeight: 700 }}>
+                {currentPrice > levels.ema200 ? '▲' : '▼'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right side */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, paddingRight: 16, height: '100%' }}>
+          <span style={{ fontSize: 9, color: C.textDim, letterSpacing: 1 }}>{estTime} EST</span>
+          {/* Score badge */}
+          <div style={{ background: gradeColor + '18', border: `1px solid ${gradeColor}40`, borderRadius: 2, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 900, color: gradeColor, fontFamily: fontDisplay, textShadow: `0 0 12px ${gradeColor}80` }}>{grade}</span>
+            <span style={{ fontSize: 8, color: C.textDim }}>{score}/13</span>
+          </div>
+          {/* Today P&L */}
+          <div style={{ background: todayPnL >= 0 ? 'rgba(0,255,136,0.08)' : C.redDim, border: `1px solid ${todayPnL >= 0 ? 'rgba(0,255,136,0.25)' : C.redBorder}`, borderRadius: 2, padding: '3px 10px' }}>
+            <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: todayPnL >= 0 ? C.synapse : C.red, textShadow: todayPnL >= 0 ? `0 0 8px ${C.synapse}` : `0 0 8px ${C.red}` }}>
+              {todayPnL >= 0 ? '+' : ''}${todayPnL.toFixed(0)} P&L
+            </span>
+          </div>
+          {/* Signal pill */}
+          {aiResult && (
+            <div style={{ position: 'relative', overflow: 'hidden', background: `${signalColor}10`, border: `1px solid ${signalColor}40`, borderRadius: 2, padding: '3px 12px' }}>
+              <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, transparent, ${signalColor}08, transparent)`, animation: 'shimmer 2.5s linear infinite' }} />
+              <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: signalColor, letterSpacing: 2, textShadow: `0 0 12px ${signalColor}60` }}>{aiResult.signal}</span>
+            </div>
+          )}
+          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
+        </div>
+      </div>
+
+      {/* ── TABS — WHITE ── */}
+      <div style={{ height: 44, background: 'rgba(255,255,255,0.92)', borderBottom: `1px solid rgba(102,32,212,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
+        {(['plan', 'cockpit', 'deepdive', 'journal'] as const).map(t => {
+          const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', journal: 'JOURNAL' }
+          return (
+            <button key={t} onClick={() => setTab(t as any)} style={{
+              background: 'transparent',
+              border: 'none',
+              borderBottom: `2px solid ${tab === t ? C.violet : 'transparent'}`,
+              padding: '0 14px', height: '100%',
+              color: tab === t ? C.violet : C.textMuted,
+              cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: tab === t ? 700 : 400,
+              letterSpacing: '1px', transition: 'all 0.2s', textTransform: 'uppercase' as const,
+            }}>
+              {labels[t]}
+              {t === 'deepdive' && <span style={{ fontSize: 7, padding: '1px 5px', background: 'rgba(102,32,212,0.08)', border: '1px solid rgba(102,32,212,0.15)', color: C.violet, borderRadius: 8, marginLeft: 5 }}>chart</span>}
+            </button>
+          )
+        })}
+
+        {activePlaybook && (
+          <div style={{ marginLeft: 12, background: 'rgba(0,229,255,0.06)', border: `1px solid rgba(0,229,255,0.2)`, borderRadius: 99, padding: '2px 10px', display: 'flex', gap: 5, alignItems: 'center' }}>
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.teal, boxShadow: `0 0 6px ${C.teal}`, animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: 8, fontWeight: 700, color: C.teal, letterSpacing: 0.5 }}>{activePlaybook.name}</span>
+          </div>
+        )}
+
+        {speaking && (
+          <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            {[0,1,2,3,4].map(i => (
+              <div key={i} style={{ width: 2, borderRadius: 1, background: C.violet, animation: `waveAnim ${0.4 + i * 0.1}s ease-in-out infinite`, animationDelay: `${i * 0.08}s`, '--wh': `${8 + i * 2}px` } as any} />
+            ))}
+            <span style={{ fontSize: 8, color: C.violet, letterSpacing: 1 }}>SPEAKING</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── TAB CONTENT ── */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* NEW TAB 1 — COCKPIT DASHBOARD (clean white) */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {tab === 'cockpit' && (
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#f0f4fa' }}>
+
+            {/* Left — Dashboard */}
+            <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#edf0f7' }}>
+
+              {/* Signal Hero */}
+              <div style={{ background: '#fff', borderRadius: 10, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 2px 20px rgba(102,32,212,0.1)', borderTop: '3px solid #6620d4' }}>
+                <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(102,32,212,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 1 }}>
+                  <div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 44, fontWeight: 900, color: signalColor, letterSpacing: '3px', textShadow: `0 0 20px ${signalColor}30` }}>{aiResult?.signal || 'LOADING'}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>{aiResult?.marketConditions?.split('.')[0] || 'Analyzing market conditions...'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 30, fontWeight: 900, color: signalColor, opacity: 0.75 }}>{aiResult?.confidence || 0}%</div>
+                    <div style={{ fontSize: 7, color: C.textMuted }}>AI confidence</div>
+                  </div>
+                </div>
+                {/* Probability bars */}
+                {(() => {
+                  const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+                  return (
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                      {[
+                        { label: 'Reversal', value: probs.reversal, color: C.red },
+                        { label: 'Continuation', value: probs.continuation, color: C.synapse },
+                        { label: 'Chop', value: probs.chop, color: C.fire },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 7 }}>
+                          <span style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', width: 88 }}>{label}</span>
+                          <div style={{ flex: 1, height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${value}%`, background: color, borderRadius: 2, transition: 'width 0.5s ease', boxShadow: `0 0 4px ${color}40` }} />
+                          </div>
+                          <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color, width: 32 }}>{value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Stat chips */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {[
+                  { label: 'SPX vs VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲' : 'BELOW ▼') : '—', sub: `${fmt(currentPrice)} vs ${fmt(levels.spyVwap)}`, color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
+                  { label: 'VIX Level', value: vixPrice ? (vixPrice > 25 ? 'HIGH ⚠' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—', sub: vixPrice ? `${vixPrice.toFixed(2)} — caution` : 'Loading...', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
+                  { label: 'Market Tide', value: marketTide?.bias || '—', sub: marketTide ? `P/C ${marketTide.putCallRatio}` : 'Loading...', color: marketTide?.bias === 'CALL HEAVY' ? C.synapse : marketTide?.bias === 'PUT HEAVY' ? C.red : C.teal },
+                  { label: 'Sector Breadth', value: marketIntel?.breadth?.bias || '—', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}↑ ${marketIntel.breadth.declining}↓ of 8` : 'Loading...', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
+                  { label: 'Checklist', value: `${grade} — ${score}/13`, sub: score >= 9 ? 'Ready to trade' : score >= 7 ? 'Proceed with caution' : 'Stay out', color: gradeColor },
+                  { label: 'Today P&L', value: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`, sub: `${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length} trades today`, color: todayPnL >= 0 ? C.synapse : C.red },
+                ].map(({ label, value, sub, color }) => (
+                  <div key={label} style={{ background: '#fff', border: 'none', borderRadius: 7, padding: '8px 10px', boxShadow: '0 2px 8px rgba(100,140,220,0.12)' }}>
+                    <div style={{ fontSize: 9, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{label}</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color }}>{value}</div>
+                    <div style={{ fontSize: 9, color: C.textMuted, marginTop: 1 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Options flow + market conditions */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {/* Options Flow mini */}
+                <div style={{ background: '#fff', borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(0,153,204,0.09)', borderLeft: '3px solid #0099cc' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.synapse, animation: 'pulse 2s infinite' }} />
+                    <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.synapse, letterSpacing: '1px', textTransform: 'uppercase' }}>Options Flow</span>
+                    {optionsFlow.length > 0 && <span style={{ fontSize: 7, color: C.textMuted }}>{optionsFlow.length} alerts</span>}
+                  </div>
+                  {optionsFlow.length === 0 ? (
+                    <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center', padding: '8px 0' }}>{keys[UW_KEY] ? 'No flow alerts' : 'Add UW key in Settings'}</div>
+                  ) : optionsFlow.slice(0, 4).map((f: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: `1px solid rgba(100,140,220,0.06)` }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: (f.type||'').toUpperCase().startsWith('C') ? C.synapse : C.red, width: 24 }}>{(f.ticker||'').toUpperCase()}</span>
+                      <span style={{ fontSize: 7, fontWeight: 700, color: (f.type||'').toUpperCase().startsWith('C') ? C.synapse : C.red, width: 22 }}>{(f.type||'').toUpperCase().startsWith('C') ? 'CALL' : 'PUT'}</span>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 8, flex: 1, color: C.text }}>{f.strike}</span>
+                      <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 2, background: f.sentiment==='BULLISH'?'rgba(0,170,85,0.1)':'rgba(204,16,64,0.08)', color: f.sentiment==='BULLISH'?C.synapse:f.sentiment==='BEARISH'?C.red:C.textMuted, border: `1px solid ${f.sentiment==='BULLISH'?'rgba(0,170,85,0.25)':'rgba(204,16,64,0.2)'}` }}>{f.sentiment||'NEUT'}</span>
+                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>⚡</span>}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive' as any)}>→ Full flow in Deep Dive</div>
+                </div>
+
+                {/* Market conditions mini */}
+                <div style={{ background: '#fff', borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(102,32,212,0.09)', borderLeft: '3px solid #6620d4' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
+                    <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.violet, letterSpacing: '1px', textTransform: 'uppercase' }}>Market Conditions</span>
+                  </div>
+                  {[
+                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : '—', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
+                    { label: 'QQQ', value: marketIntel?.sectors?.QQQ ? `${Number(marketIntel.sectors.QQQ.todayChange)>=0?'+':''}${marketIntel.sectors.QQQ.todayChange}%` : '—', color: Number(marketIntel?.sectors?.QQQ?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'XLK', value: marketIntel?.sectors?.XLK ? `${Number(marketIntel.sectors.XLK.todayChange)>=0?'+':''}${marketIntel.sectors.XLK.todayChange}%` : '—', color: Number(marketIntel?.sectors?.XLK?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'XLF', value: marketIntel?.sectors?.XLF ? `${Number(marketIntel.sectors.XLF.todayChange)>=0?'+':''}${marketIntel.sectors.XLF.todayChange}%` : '—', color: Number(marketIntel?.sectors?.XLF?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'TLT', value: marketIntel?.sectors?.TLT ? `${Number(marketIntel.sectors.TLT.todayChange)>=0?'+':''}${marketIntel.sectors.TLT.todayChange}%` : '—', color: Number(marketIntel?.sectors?.TLT?.todayChange)>=0 ? C.synapse : C.red },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: `1px solid rgba(100,140,220,0.06)` }}>
+                      <span style={{ fontSize: 8, color: C.textMuted }}>{label}</span>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color }}>{value}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive' as any)}>→ Full chart in Deep Dive</div>
+                </div>
+              </div>
+
+              {/* AI insights */}
+              {aiResult?.todaysEdge && (
+                <div style={{ background: '#fff', borderRadius: 7, padding: 12, boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
+                  <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>⚡ Today's Edge</div>
+                  <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div>
+                  {aiResult.riskFlag && <div style={{ marginTop: 8, fontSize: 10, color: C.red, padding: '5px 8px', background: C.redDim, borderRadius: 4, border: `1px solid ${C.redBorder}` }}>⚠ {aiResult.riskFlag}</div>}
+                </div>
+              )}
+
+              {/* Composite Market Score */}
+              {marketScore && (
+                <div style={{ background: '#fff', borderRadius: 8, padding: '12px 14px', boxShadow: '0 2px 10px rgba(100,140,220,0.08)', borderLeft: `3px solid ${marketScore.color}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '1px' }}>MARKET SCORE</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 900, color: marketScore.color }}>{marketScore.score}<span style={{ fontSize: 11, opacity: 0.6 }}>/100</span></div>
+                  </div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: marketScore.color, marginBottom: 6 }}>{marketScore.label}</div>
+                  <div style={{ height: 5, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${marketScore.score}%`, background: marketScore.color, borderRadius: 3, transition: 'width 0.5s' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* News + Calendar */}
+              {(marketNews || economicCalendar) && (
+                <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10 }}>
+                  {marketNews && (
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>📰 TODAY'S NEWS</div>
+                      <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{marketNews}</div>
+                    </div>
+                  )}
+                  {economicCalendar && (
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.fire, letterSpacing: '1px', marginBottom: 6 }}>📅 ECONOMIC CALENDAR</div>
+                      <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{economicCalendar}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Multi-TF + Macro */}
+              {(multiTFData || macroRegime) && (
+                <div style={{ display: 'grid', gridTemplateColumns: multiTFData && macroRegime ? '1fr 1fr' : '1fr', gap: 10 }}>
+                  {multiTFData && (
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px', marginBottom: 8 }}>📊 MULTI-TIMEFRAME</div>
+                      {[{label:'Weekly', value: multiTFData.weekly.trend, sub: `MA20: ${multiTFData.weekly.ma20}`, color: multiTFData.weekly.trend==='BULLISH'?C.synapse:C.red},{label:'Daily', value: multiTFData.daily.trend, sub: `MA5: ${multiTFData.daily.ma5}`, color: multiTFData.daily.trend==='BULLISH'?C.synapse:C.red}].map(({label,value,sub,color}) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.07)' }}>
+                          <span style={{ fontSize: 10, color: C.textDim }}>{label}</span>
+                          <div><span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color }}>{value}</span><span style={{ fontSize: 9, color: C.textMuted, marginLeft: 4 }}>{sub}</span></div>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 6, fontSize: 9, color: multiTFData.aligned ? C.synapse : C.fire, fontWeight: 700 }}>{multiTFData.aligned ? '✓' : '⚠'} {multiTFData.confluence}</div>
+                    </div>
+                  )}
+                  {macroRegime && (
+                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,170,85,0.07)', borderLeft: `3px solid ${macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire}` }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: '1px', marginBottom: 6 }}>🌍 MACRO REGIME</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 900, color: macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire, marginBottom: 4 }}>{macroRegime.regime}</div>
+                      <div style={{ fontSize: 9, color: C.textMuted, marginBottom: 3 }}>Fed: <span style={{ color: C.text, fontWeight: 700 }}>{macroRegime.fedStance} ({macroRegime.rateLevel})</span></div>
+                      <div style={{ fontSize: 10, color: C.text, lineHeight: 1.5 }}>{macroRegime.regimeSummary}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 0DTE Skew */}
+              {zeroDTESkew && (
+                <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>⚡ SPX 0DTE SKEW</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: zeroDTESkew.callPct>55?C.synapse:zeroDTESkew.callPct<45?C.red:C.fire, marginBottom: 8 }}>{zeroDTESkew.skewLabel}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[{label:'CALLS',value:`${zeroDTESkew.callPct}%`,sub:zeroDTESkew.callPremium,color:C.synapse},{label:'PUTS',value:`${zeroDTESkew.putPct}%`,sub:zeroDTESkew.putPremium,color:C.red},{label:'P/C',value:zeroDTESkew.pcRatio,sub:'ratio',color:C.textDim}].map(({label,value,sub,color}) => (
+                      <div key={label} style={{ flex: 1, background: color+'0a', border: `1px solid ${color}20`, borderRadius: 5, padding: '5px 7px', textAlign: 'center' as const }}>
+                        <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                        <div style={{ fontSize: 9, color: C.textMuted }}>{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trade Patterns */}
+              {tradePatterns && tradePatterns.avgWinnerSize > 0 && (
+                <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px', marginBottom: 8 }}>🧠 YOUR PATTERNS</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+                    {[{label:'Best hour',value:tradePatterns.bestHour,color:C.synapse},{label:'Worst hour',value:tradePatterns.worstHour,color:C.red},{label:'Avg winner',value:`$${tradePatterns.avgWinnerSize}`,color:C.synapse},{label:'Avg loser',value:`$${tradePatterns.avgLoserSize}`,color:C.red}].map(({label,value,color}) => (
+                      <div key={label} style={{ background: 'rgba(240,244,250,0.7)', borderRadius: 5, padding: '5px 8px' }}>
+                        <div style={{ fontSize: 9, color: C.textMuted }}>{label}</div>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {tradePatterns.cutWinnersEarly && <div style={{ fontSize: 10, color: C.fire, padding: '4px 8px', background: 'rgba(224,80,0,0.07)', borderRadius: 4, marginBottom: 4 }}>⚠ You cut winners early — avg win ${tradePatterns.avgWinnerSize} vs avg loss ${tradePatterns.avgLoserSize}</div>}
+                  {tradePatterns.revengePatterns > 1 && <div style={{ fontSize: 10, color: C.red, padding: '4px 8px', background: 'rgba(204,16,64,0.06)', borderRadius: 4 }}>⚠ {tradePatterns.revengePatterns} potential revenge trades detected</div>}
+                </div>
+              )}
+
+              {/* Session Memory */}
+              {sessionMemory && (
+                <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(102,32,212,0.06)', borderLeft: '3px solid rgba(102,32,212,0.3)' }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
+                  <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
+                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
+                </div>
+              )}
+            </div>
+
+            {/* Right — AI Companion (HERO) */}
+            {companionOpen && (
+              <div style={{ width: 380, background: '#fff', borderLeft: '2px solid #6620d4', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(102,32,212,0.1)' }}>
+                {/* Companion header */}
+                <div style={{ padding: '10px 14px', background: 'linear-gradient(90deg, rgba(102,32,212,0.1), rgba(0,153,204,0.05))', borderBottom: '2px solid rgba(102,32,212,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(102,32,212,0.3)`, background: 'rgba(102,32,212,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, position: 'relative', boxShadow: '0 0 10px rgba(102,32,212,0.1)' }}>
+                    🧠
+                    <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(102,32,212,0.15)`, animation: 'brainRing 4s linear infinite' }} />
+                  </div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.violet }}>AI COMPANION</div>
+                  <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(102,32,212,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
+                    {listening ? '● LISTENING' : speaking ? '◆ SPEAKING' : chatLoading ? '◌ THINKING' : '○ READY'}
+                  </div>
+                  {aiResult && (
+                    <div style={{ marginLeft: 'auto', background: `${signalColor}12`, border: `1px solid ${signalColor}30`, borderRadius: 2, padding: '2px 8px', display: 'flex', gap: 5, alignItems: 'center' }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 800, color: signalColor, letterSpacing: 2 }}>{aiResult.signal}</span>
+                      <span style={{ fontSize: 8, color: C.textMuted }}>{aiResult.confidence}%</span>
+                    </div>
+                  )}
+                  <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 3, color: C.violet, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
+                  <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>
+                </div>
+
+                {/* Context bar */}
+                <div style={{ display: 'flex', background: 'rgba(248,249,255,0.8)', borderBottom: `1px solid rgba(100,140,220,0.08)` }}>
+                  {[
+                    { label: 'SPX', value: fmt(currentPrice), color: C.text },
+                    { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
+                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : '—', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
+                    { label: 'SCORE', value: `${score}/13`, color: gradeColor },
+                    { label: 'P&L', value: `$${todayPnL.toFixed(0)}`, color: todayPnL >= 0 ? C.synapse : C.red },
+                    { label: 'PLAN', value: activePlaybook ? activePlaybook.name.split(' ')[0] : 'None', color: activePlaybook ? C.teal : C.textMuted },
+                  ].map(({ label, value, color }, i) => (
+                    <div key={label} style={{ flex: 1, textAlign: 'center', padding: '4px 0', borderRight: i < 5 ? `1px solid rgba(100,140,220,0.06)` : 'none' }}>
+                      <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase' }}>{label}</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Messages */}
+                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(248,249,255,0.4)' }}>
+                  {chatMessages.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>🎙️</div>
+                      <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>Your AI companion is watching charts, options flow, and your plan. Ask anything or tap the mic.</div>
+                      <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
+                        {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
+                          <button key={q} onClick={() => setChatInput(q)} style={{ background: 'rgba(102,32,212,0.06)', border: `1px solid rgba(102,32,212,0.15)`, borderRadius: 20, padding: '4px 12px', color: C.violet, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {chatMessages.map((m, i) => (
+                    <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+                      {m.role === 'assistant' && <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 3, letterSpacing: 1 }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.violet, display: 'inline-block' }} />AI COMPANION</div>}
+                      <div style={{ padding: '9px 12px', fontSize: 12, lineHeight: 1.6, color: C.text, background: m.role === 'user' ? 'rgba(0,153,204,0.06)' : 'rgba(102,32,212,0.05)', border: `1px solid ${m.role === 'user' ? 'rgba(0,153,204,0.15)' : 'rgba(102,32,212,0.12)'}`, borderLeft: m.role === 'assistant' ? `2px solid ${C.violet}` : 'none', borderRight: m.role === 'user' ? `2px solid ${C.teal}` : 'none', borderRadius: m.role === 'user' ? '6px 2px 2px 6px' : '2px 6px 6px 2px' }}>
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div style={{ alignSelf: 'flex-start' }}>
+                      <div style={{ fontSize: 7, color: C.violet, marginBottom: 2, letterSpacing: 1 }}>AI COMPANION</div>
+                      <div style={{ padding: '8px 12px', background: 'rgba(102,32,212,0.05)', border: `1px solid rgba(102,32,212,0.12)`, borderLeft: `2px solid ${C.violet}`, borderRadius: '2px 6px 6px 2px', display: 'flex', gap: 4 }}>
+                        {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
+                      </div>
+                    </div>
+                  )}
+                  {listening && liveTranscript && (
+                    <div style={{ alignSelf: 'flex-end', padding: '5px 9px', background: 'rgba(204,16,64,0.06)', border: `1px solid rgba(204,16,64,0.2)`, borderRight: `2px solid ${C.red}`, borderRadius: '6px 2px 2px 6px', fontSize: 10, color: C.red, fontStyle: 'italic' }}>
+                      {liveTranscript}...
+                    </div>
+                  )}
+                </div>
+
+                {/* Speaking waveform */}
+                {speaking && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '5px 0', background: 'rgba(248,248,255,0.8)', borderTop: `1px solid rgba(102,32,212,0.08)` }}>
+                    {[...Array(18)].map((_, i) => (
+                      <div key={i} style={{ width: 2, borderRadius: 1, background: C.violet, animation: `waveAnim ${0.4+(i%5)*0.1}s ease-in-out infinite`, animationDelay: `${(i%4)*0.08}s`, '--wh': `${6+(i%6)*2}px` } as any} />
+                    ))}
+                    <span style={{ fontSize: 8, color: C.violet, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
+                  </div>
+                )}
+
+                {/* Input area */}
+                <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.97)', borderTop: `1px solid rgba(100,140,220,0.1)`, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
+                    <button onClick={listening ? stopListening : startListening} style={{ width: 40, height: 40, borderRadius: '50%', border: `1.5px solid ${listening ? 'rgba(204,16,64,0.4)' : 'rgba(204,16,64,0.25)'}`, background: listening ? 'rgba(204,16,64,0.1)' : 'rgba(204,16,64,0.05)', color: C.red, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? `0 0 0 5px rgba(204,16,64,0.08)` : 'none', animation: listening ? 'none' : 'micGlow 2s infinite', transition: 'all 0.2s', flexShrink: 0 }}>
+                      {listening ? '⏹' : '🎙️'}
+                    </button>
+                    <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ⏹ to stop)' : 'Ask your AI companion...'}
+                      style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
+                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(102,32,212,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(102,32,212,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
+                  </div>
+                  {/* Voice switcher */}
+                  <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                    {[{name:'Rachel',id:'21m00Tcm4TlvDq8ikWAM'},{name:'Drew',id:'29vD33N1CtxCmqQRPOHJ'},{name:'Clyde',id:'2EiwWnXFnvU5JabPnv8n'},{name:'Paul',id:'5Q0t7uMcjvnagumLfvZi'},{name:'Domi',id:'AZnzlk1XvdvUeBnXmlld'},{name:'Sarah',id:'EXAVITQu4vr4xnSDxMaL'},{name:'Thomas',id:'GBv7mTt0atIp3Br8iCZE'}].map(v => (
+                      <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '2px 7px', borderRadius: 2, background: voiceId === v.id ? 'rgba(102,32,212,0.08)' : 'transparent', border: `1px solid ${voiceId === v.id ? 'rgba(102,32,212,0.25)' : 'rgba(100,140,220,0.1)'}`, color: voiceId === v.id ? C.violet : C.textMuted, fontSize: 11, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s' }}>{v.name}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Collapsed companion button */}
+            {tab !== 'cockpit' && !companionOpen && (
+              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.violet, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(102,32,212,0.25)', zIndex: 500 }}>
+                🧠
+              </button>
+            )}
+          </div>
+        )}
+
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* TAB 1 — MORNING PLAN */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {tab === 'plan' && (
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#edf0f7' }}>
+
+            {/* LEFT — Setup form */}
+            <div style={{ width: 240, background: '#fff', borderRight: `1px solid rgba(100,140,220,0.15)`, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, boxShadow: '2px 0 8px rgba(100,140,220,0.06)' }}>
+
+              <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14, letterSpacing: '0.5px' }}>Today's Setup</div>
+
+              {/* Implied Move */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Implied Move (±PTS)</div>
+                <input value={morningPlan.impliedMove} onChange={e => setMorningPlan(p => ({ ...p, impliedMove: e.target.value }))}
+                  placeholder="e.g. 50" style={{ width: '100%', background: 'rgba(240,244,250,0.7)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
+              </div>
+
+              {/* Key Levels */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Key Levels</div>
+                <input value={morningPlan.keyLevels} onChange={e => setMorningPlan(p => ({ ...p, keyLevels: e.target.value }))}
+                  placeholder="e.g. 5840, 5820, 5800" style={{ width: '100%', background: 'rgba(240,244,250,0.7)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
+              </div>
+
+              {/* Gap Size */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Gap Size (PTS)</div>
+                <input value={morningPlan.gapSize} onChange={e => setMorningPlan(p => ({ ...p, gapSize: e.target.value }))}
+                  placeholder="e.g. 60" style={{ width: '100%', background: 'rgba(240,244,250,0.7)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
+              </div>
+
+              {/* Directional Bias */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Directional Bias</div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {[['long', C.synapse], ['short', C.red], ['neutral', C.violet]].map(([b, col]) => (
+                    <button key={b} onClick={() => setMorningPlan(p => ({ ...p, bias: b }))} style={{
+                      flex: 1, background: morningPlan.bias === b ? col + '15' : 'transparent',
+                      border: `1.5px solid ${morningPlan.bias === b ? col : 'rgba(100,140,220,0.2)'}`,
+                      borderRadius: 6, padding: '7px 0', color: morningPlan.bias === b ? col : C.textMuted,
+                      cursor: 'pointer', fontSize: 10, fontWeight: 700, fontFamily: font, textTransform: 'uppercase' as const, transition: 'all 0.15s'
+                    }}>{b}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gap Direction */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Gap Direction</div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {[['gap up', C.synapse], ['gap down', C.red], ['flat', C.violet]].map(([g, col]) => (
+                    <button key={g} onClick={() => setMorningPlan(p => ({ ...p, gapDirection: g }))} style={{
+                      flex: 1, background: morningPlan.gapDirection === g ? col + '15' : 'transparent',
+                      border: `1.5px solid ${morningPlan.gapDirection === g ? col : 'rgba(100,140,220,0.2)'}`,
+                      borderRadius: 6, padding: '7px 0', color: morningPlan.gapDirection === g ? col : C.textMuted,
+                      cursor: 'pointer', fontSize: 9, fontWeight: 700, fontFamily: font, textTransform: 'uppercase' as const, transition: 'all 0.15s'
+                    }}>{g === 'gap up' ? 'GAP UP' : g === 'gap down' ? 'GAP DN' : 'FLAT'}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Morning Notes — free text */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Morning Plan / Notes</div>
+                <textarea
+                  value={morningPlan.notes}
+                  onChange={e => setMorningPlan(p => ({ ...p, notes: e.target.value }))}
+                  placeholder={'e.g. Gap up on CPI. Fade the open if we reject VWAP in first 30 min. Look for continuation if we reclaim PDH with volume...'}
+                  rows={5}
+                  style={{ width: '100%', background: 'rgba(240,244,250,0.7)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 12, outline: 'none', fontFamily: font, resize: 'vertical' as const, lineHeight: 1.6, boxSizing: 'border-box' as const }}
+                />
+              </div>
+
+              <div style={{ height: 1, background: 'rgba(100,140,220,0.12)', margin: '4px 0 14px' }} />
+
+              {/* Playbook Picker */}
+              <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Today's Playbook</div>
+              {playbooks.map(pb => (
+                <div key={pb.id} onClick={() => setActivePlaybookId(activePlaybookId === pb.id ? null : pb.id)} style={{
+                  background: activePlaybookId === pb.id ? 'rgba(0,153,204,0.08)' : 'rgba(248,249,255,0.8)',
+                  border: `1.5px solid ${activePlaybookId === pb.id ? 'rgba(0,153,204,0.3)' : 'rgba(100,140,220,0.15)'}`,
+                  borderRadius: 8, padding: '9px 11px', marginBottom: 6, cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: activePlaybookId === pb.id ? '0 2px 8px rgba(0,153,204,0.1)' : 'none'
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: activePlaybookId === pb.id ? C.teal : C.text }}>{pb.name}</div>
+                  <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2, lineHeight: 1.4 }}>{pb.setup}</div>
+                </div>
+              ))}
+              <button onClick={() => setShowAddPlaybook(!showAddPlaybook)} style={{
+                width: '100%', background: 'transparent', border: `1px dashed rgba(100,140,220,0.3)`,
+                borderRadius: 6, padding: '7px 0', color: C.textMuted, cursor: 'pointer', fontSize: 10, fontFamily: font, marginTop: 4
+              }}>+ Add Playbook</button>
+              {showAddPlaybook && (
+                <div style={{ marginTop: 8, background: 'rgba(248,249,255,0.8)', border: '1px solid rgba(100,140,220,0.15)', borderRadius: 8, padding: 10 }}>
+                  {[{key:'name',ph:'Playbook name'},{key:'setup',ph:'Setup conditions'},{key:'entry',ph:'Entry trigger'},{key:'stop',ph:'Stop rule'},{key:'target',ph:'Target'},{key:'notes',ph:'Notes (optional)'}].map(({key,ph}) => (
+                    <input key={key} value={(newPlaybook as any)[key]} onChange={e => setNewPlaybook(p => ({...p,[key]:e.target.value}))}
+                      placeholder={ph} style={{width:'100%',background:'#fff',border:'1px solid rgba(100,140,220,0.2)',borderRadius:5,padding:'6px 8px',color:C.text,fontSize:11,outline:'none',marginBottom:5,fontFamily:font,boxSizing:'border-box' as const}} />
+                  ))}
+                  <button onClick={() => {
+                    if (!newPlaybook.name) return
+                    setPlaybooks(p => [...p, {...newPlaybook, id: Date.now().toString()}])
+                    setNewPlaybook({name:'',setup:'',entry:'',stop:'',target:'',notes:''})
+                    setShowAddPlaybook(false)
+                  }} style={{width:'100%',background:C.teal,border:'none',borderRadius:5,padding:'7px 0',color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:font}}>Save Playbook</button>
+                </div>
+              )}
+            </div>
+
+            {/* CENTER — AI Brief + Probability */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+              {/* Probability section */}
+              {(() => {
+                const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+                return (
+                  <div style={{ background: '#fff', margin: '14px 14px 0', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 12px rgba(100,140,220,0.08)', borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(100,140,220,0.2)'}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Probability Breakdown</div>
+                      {probs.hasData && (
+                        <div style={{ background: probs.dominantColor + '15', border: `1px solid ${probs.dominantColor}40`, borderRadius: 4, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: probs.dominantColor, fontFamily: fontDisplay }}>{probs.dominant}</span>
+                          <span style={{ fontSize: 9, color: C.textMuted }}>{probs.confidence}</span>
+                        </div>
+                      )}
+                    </div>
+                    {probs.hasData ? (
+                      <>
+                        {[{label:'Reversal',value:probs.reversal,color:C.red},{label:'Continuation',value:probs.continuation,color:C.synapse},{label:'Chop / Range',value:probs.chop,color:C.fire}].map(({label,value,color}) => (
+                          <div key={label} style={{ marginBottom: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span style={{ fontSize: 10, color: C.textDim }}>{label}</span>
+                              <span style={{ fontSize: 12, fontWeight: 800, color, fontFamily: fontDisplay }}>{value}%</span>
+                            </div>
+                            <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${value}%`, background: color, borderRadius: 3, transition: 'width 0.5s ease', opacity: value === Math.max(probs.reversal, probs.continuation, probs.chop) ? 1 : 0.5 }} />
+                            </div>
+                          </div>
+                        ))}
+                        {tiingoContext?.summary && (
+                          <div style={{ marginTop: 8, fontSize: 9, color: C.textMuted, lineHeight: 1.5, padding: '8px 10px', background: 'rgba(240,244,250,0.6)', borderRadius: 5 }}>
+                            📊 {tiingoContext.summary}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center', padding: '10px 0' }}>Fill in implied move, bias, and gap direction to generate probabilities</div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* AI Morning Brief */}
+              <div style={{ background: '#fff', margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(102,32,212,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
+                {/* Header */}
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(102,32,212,0.04)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.violet, animation: aiLoading ? 'pulse 0.6s infinite' : 'pulse 3s infinite' }} />
+                    <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.violet }}>AI Morning Brief</div>
+                    {lastAITime && <span style={{ fontSize: 9, color: C.textMuted }}>{lastAITime}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {/* Read It button */}
+                    {aiResult && keys[EL_KEY] && (
+                      <button onClick={() => {
+                        const narrative = [
+                          aiResult.signal ? `Signal: ${aiResult.signal} at ${aiResult.confidence}% confidence.` : '',
+                          aiResult.marketConditions || '',
+                          aiResult.todaysEdge || '',
+                          aiResult.accountability || '',
+                          aiResult.riskFlag ? `Risk alert: ${aiResult.riskFlag}` : '',
+                        ].filter(Boolean).join(' ')
+                        if (narrative) speak(narrative)
+                      }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'rgba(102,32,212,0.08)', border: '1px solid rgba(102,32,212,0.25)', borderRadius: 6, color: C.violet, cursor: 'pointer', fontSize: 10, fontFamily: font, fontWeight: 700 }}>
+                        🔊 Read It
+                      </button>
+                    )}
+                    {aiLoading && <div style={{ width: 10, height: 10, border: `1.5px solid rgba(100,140,220,0.2)`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite', alignSelf: 'center' }} />}
+                  </div>
+                </div>
+
+                {/* Signal badge */}
+                {aiResult ? (
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.08)' }}>
+                    <div style={{ background: signalColor + '12', border: `1.5px solid ${signalColor}35`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 26, fontWeight: 900, color: signalColor, letterSpacing: '2px' }}>{aiResult.signal}</div>
+                      <ProbMeter value={aiResult.confidence || 0} color={signalColor} />
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.08)' }}>
+                    <div style={{ background: 'rgba(240,244,250,0.8)', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: C.textMuted }}>{keys[ANTH_KEY] ? 'Loading AI analysis...' : 'Add Anthropic key in ⚙ Settings'}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Narrative sections */}
+                {aiResult && (
+                  <div>
+                    {aiResult.marketConditions && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
+                        <div style={{ fontSize: 9, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>📊 Market Conditions</div>
+                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.marketConditions}</div>
+                      </div>
+                    )}
+                    {aiResult.todaysEdge && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
+                        <div style={{ fontSize: 9, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>⚡ Today's Edge</div>
+                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.todaysEdge}</div>
+                      </div>
+                    )}
+                    {aiResult.accountability && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
+                        <div style={{ fontSize: 9, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>🎯 Accountability</div>
+                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.accountability}</div>
+                      </div>
+                    )}
+                    {aiResult.riskFlag && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(204,16,64,0.1)', background: 'rgba(204,16,64,0.03)' }}>
+                        <div style={{ fontSize: 9, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>⚠ Risk Flag</div>
+                        <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7 }}>{aiResult.riskFlag}</div>
+                      </div>
+                    )}
+                    {aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && aiResult.entryZone && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
+                        <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Trade Levels</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                          {[
+                            {label:'Entry', value: aiResult.entryZone ? `${fmt(aiResult.entryZone.low)}–${fmt(aiResult.entryZone.high)}` : '—', color: signalColor},
+                            {label:'Stop', value: fmt(aiResult.stopLevel), color: C.red},
+                            {label:'Target 1', value: fmt(aiResult.target1), color: C.synapse},
+                            {label:'Target 2', value: fmt(aiResult.target2), color: C.synapse},
+                          ].map(({label, value, color}) => (
+                            <div key={label} style={{ background: color + '0a', border: `1px solid ${color}25`, borderRadius: 6, padding: '7px 10px' }}>
+                              <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{label}</div>
+                              <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color }}>{value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Live data inputs */}
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
+                  <div style={{ fontSize: 9, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Live Data Inputs</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                    {[
+                      {label:'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲ ABOVE' : '▼ BELOW') : '—', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted},
+                      {label:'200 EMA', value: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? '▲ ABOVE' : '▼ BELOW') : '—', color: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? C.synapse : C.red) : C.textMuted},
+                      {label:'VIX', value: vixPrice ? (vixPrice > 25 ? 'HIGH ⚠' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted},
+                      {label:'Breadth', value: marketIntel?.breadth?.bias || '—', color: C.textDim},
+                      {label:'Flow', value: optionsFlow.length ? `${optionsFlow.length} alerts` : 'No UW key', color: optionsFlow.length ? C.synapse : C.textMuted},
+                      {label:'Tide', value: marketTide?.bias || '—', color: C.textDim},
+                    ].map(({label, value, color}) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.06)' }}>
+                        <span style={{ fontSize: 9, color: C.textMuted }}>{label}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Refresh */}
+                <div style={{ padding: '12px 16px' }}>
+                  <button onClick={async () => {
+                    setAiLoading(true)
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||''), fetchOptionsFlow(keys[UW_KEY]||''), fetchMarketTide(keys[UW_KEY]||''), fetchTiingoContext(keys[TIINGO_KEY]||'', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
+                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory})
+                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
+                    setAiLoading(false)
+                  }} disabled={aiLoading || !keys[ANTH_KEY]} style={{
+                    width: '100%', background: aiLoading ? 'rgba(240,244,250,0.8)' : 'rgba(102,32,212,0.08)',
+                    border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(102,32,212,0.25)'}`,
+                    borderRadius: 8, padding: '10px 0', color: aiLoading ? C.textMuted : C.violet,
+                    cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 11, fontWeight: 700, letterSpacing: '0.5px'
+                  }}>{aiLoading ? 'Analyzing...' : '↻ Refresh AI Analysis'}</button>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT — Checklist */}
+            <div style={{ width: 280, background: '#fff', borderLeft: `1px solid rgba(100,140,220,0.15)`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Pre-Trade Check</div>
+                <div style={{ background: gradeColor + '15', border: `1px solid ${gradeColor}35`, borderRadius: 6, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 800, color: gradeColor }}>{grade}</span>
+                  <span style={{ fontSize: 9, color: C.textMuted }}>{score}/13</span>
+                </div>
+              </div>
+              <div style={{ height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, marginBottom: 12, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(score/13)*100}%`, background: gradeColor, borderRadius: 2, transition: 'width 0.3s ease' }} />
+              </div>
+              {(['TIMING', 'CONFLUENCE', 'RISK', 'SYSTEM'] as const).map(cat => (
+                <div key={cat} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 5 }}>{cat}</div>
+                  {CHECKLIST.filter(c => c.category === cat).map(item => (
+                    <div key={item.id} onClick={() => setChecked(p => ({...p, [item.id]: !p[item.id]}))}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, marginBottom: 3, cursor: 'pointer',
+                        background: checked[item.id] ? 'rgba(0,170,85,0.08)' : 'transparent',
+                        border: `1px solid ${checked[item.id] ? 'rgba(0,170,85,0.25)' : 'rgba(100,140,220,0.12)'}`,
+                        transition: 'all 0.12s' }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked[item.id] ? C.synapse : 'rgba(100,140,220,0.3)'}`, background: checked[item.id] ? C.synapse : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
+                        {checked[item.id] && <span style={{ fontSize: 9, color: '#fff', fontWeight: 800 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize: 12, color: checked[item.id] ? C.text : C.textDim, lineHeight: 1.3 }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* TAB 2 — COCKPIT */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {tab === 'deepdive' && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+            {/* Top row */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+
+              {/* Left panel */}
+              <div style={{ width: 180, background: C.surface, borderRight: `1px solid ${C.border}`, padding: 10, overflowY: 'auto', flexShrink: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Auto Levels</div>
+                {[
+                  { label: 'SPY VWAP', price: levels.spyVwap, color: C.fire },
+                  { label: '200 EMA', price: levels.ema200, color: C.violet },
+                  { label: 'PDH', price: levels.pdh, color: C.blue },
+                  { label: 'PDL', price: levels.pdl, color: C.red },
+                  { label: 'Day Open', price: levels.dayOpen, color: C.fire },
+                  { label: 'Prev Close', price: levels.prevClose, color: C.textDim },
+                  { label: '+Impl Move', price: levels.impliedHigh, color: C.synapse },
+                  { label: '-Impl Move', price: levels.impliedLow, color: C.red },
+                ].map(({ label, price, color }) => {
+                  const active = !!(currentPrice && price && Math.abs(currentPrice - price) < 5)
+                  return (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 7px', borderRadius: 3, marginBottom: 2, background: active ? color + '12' : 'transparent', border: `1px solid ${active ? color + '40' : C.border}` }}>
+                      <span style={{ fontSize: 10, color: active ? color : C.textDim, fontWeight: 600, textTransform: 'uppercase' }}>{label}</span>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: active ? color : C.text }}>{fmt(price)}</span>
+                    </div>
+                  )
+                })}
+
+                <div style={{ height: 1, background: `linear-gradient(90deg,transparent,${C.teal}30,transparent)`, margin: '8px 0' }} />
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>Drawing Tools</div>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 6 }}>
+                  {[C.synapse, C.red, C.fire, C.violet, C.teal, '#ffffff'].map(col => (
+                    <div key={col} onClick={() => setDrawColor(col)} style={{ width: 16, height: 16, borderRadius: 2, background: col, cursor: 'pointer', border: drawColor === col ? '2px solid #fff' : '2px solid transparent', boxSizing: 'border-box' as const }} />
+                  ))}
+                </div>
+                {[{ mode: 'horizontal', label: '— Horizontal' }, { mode: 'trendline', label: '↗ Trend Line' }, { mode: 'zone', label: '▬ S&D Zone' }].map(({ mode, label }) => (
+                  <button key={mode} onClick={() => setDrawMode(drawMode === mode ? null : mode)} style={{ width: '100%', background: drawMode === mode ? drawColor + '18' : 'transparent', border: `1px solid ${drawMode === mode ? drawColor : C.border}`, borderRadius: 3, padding: '4px 8px', color: drawMode === mode ? drawColor : C.textDim, cursor: 'pointer', fontFamily: font, fontSize: 9, textAlign: 'left' as const, marginBottom: 2 }}>{label}{drawMode === mode ? ' ✓' : ''}</button>
+                ))}
+                {drawMode && <div style={{ fontSize: 8, color: C.fire, padding: '3px 6px', background: C.fireDim, borderRadius: 3, marginBottom: 4 }}>{drawMode === 'zone' || drawMode === 'trendline' ? 'Click 2 pts' : 'Click to place'}</div>}
+                {(drawnLines.length > 0 || drawnZones.length > 0) && (
+                  <button onClick={() => { setDrawnLines([]); setDrawnZones([]) }} style={{ width: '100%', background: 'transparent', border: `1px solid ${C.red}40`, borderRadius: 3, padding: '3px 0', color: C.red, cursor: 'pointer', fontSize: 9, fontFamily: font, marginBottom: 6 }}>Clear ({drawnLines.length + drawnZones.length})</button>
+                )}
+
+                <div style={{ height: 1, background: `linear-gradient(90deg,transparent,${C.teal}30,transparent)`, margin: '8px 0' }} />
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>Morning Plan</div>
+                {morningPlan.bias ? (
+                  <div style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, padding: '7px 8px', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 8, color: C.textDim }}>BIAS</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: morningPlan.bias === 'long' ? C.synapse : morningPlan.bias === 'short' ? C.red : C.textDim, textTransform: 'uppercase' }}>{morningPlan.bias}</span>
+                    </div>
+                    {morningPlan.impliedMove && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 8, color: C.textDim }}>IMPLIED</span><span style={{ fontSize: 9, color: C.text }}>±{morningPlan.impliedMove}</span></div>}
+                    {morningPlan.keyLevels && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 3 }}>Lvls: <span style={{ color: C.textDim }}>{morningPlan.keyLevels}</span></div>}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 9, color: C.textMuted }}>Set in Morning Plan tab</div>
+                )}
+                {aiResult && (
+                  <div style={{ background: signalColor + '12', border: `1px solid ${signalColor}30`, borderRadius: 4, padding: '7px 8px', textAlign: 'center' }}>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: signalColor }}>{aiResult.signal}</div>
+                    <div style={{ fontSize: 8, color: C.textDim, marginTop: 2 }}>{aiResult.confidence}% conf</div>
+                    {aiResult.stopLevel && <div style={{ fontSize: 8, color: C.red, marginTop: 2 }}>Stop: {fmt(aiResult.stopLevel)}</div>}
+                    {aiResult.target1 && <div style={{ fontSize: 8, color: C.synapse }}>T1: {fmt(aiResult.target1)}</div>}
+                  </div>
+                )}
+              </div>
+
+              {/* Center — Chart */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Timeframe bar */}
+                <div style={{ height: 34, background: C.surface, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 2, padding: '0 10px', flexShrink: 0 }}>
+                  {(['1', '5', '15', '60', '1D'] as const).map(tf => (
+                    <button key={tf} onClick={() => setChartTf(tf)} style={{ padding: '3px 10px', borderRadius: 3, border: `1px solid ${chartTf === tf ? C.teal : C.border}`, background: chartTf === tf ? C.tealDim : 'transparent', color: chartTf === tf ? C.teal : C.textDim, cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: chartTf === tf ? 700 : 400, transition: 'all 0.15s' }}>{tf === '60' ? '1H' : tf === '1D' ? '1D' : tf + 'm'}</button>
+                  ))}
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {currentPrice && <span style={{ fontFamily: fontDisplay, fontSize: 11, color: C.text, fontWeight: 700 }}>{fmt(currentPrice)}</span>}
+                    {levels.spyVwap && <span style={{ fontSize: 9, color: C.fire }}>VWAP {fmt(levels.spyVwap)}</span>}
+                    {levels.ema200 && <span style={{ fontSize: 9, color: C.violet }}>200E {fmt(levels.ema200)}</span>}
+                  </div>
+                </div>
+                <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                  <div ref={chartContainerRef} style={{ position: 'absolute', inset: 0 }}>
+                    {candles.length === 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12 }}>
+                        {keys[POLY_KEY] ? (
+                          <><div style={{ width: 24, height: 24, border: `2px solid ${C.border}`, borderTopColor: C.teal, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /><div style={{ fontSize: 12, color: C.textDim }}>Loading SPX data...</div></>
+                        ) : (
+                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: 12, color: C.textDim, marginBottom: 8 }}>Add Polygon API key in Settings</div><button onClick={() => setShowSettings(true)} style={{ background: C.violet, color: '#fff', border: 'none', borderRadius: 4, padding: '6px 12px', fontFamily: font, fontSize: 10, cursor: 'pointer' }}>Open Settings</button></div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <canvas ref={overlayCanvasRef} style={{ position: 'absolute', inset: 0, cursor: drawMode ? 'crosshair' : 'default', pointerEvents: drawMode ? 'auto' : 'none', zIndex: 10 }} onMouseDown={handleOverlayMouseDown} onMouseMove={handleOverlayMouseMove} onMouseUp={handleOverlayMouseUp} onMouseLeave={() => { setOverlayCrosshair(null); setDrawPreview(null) }} />
+                </div>
+              </div>
+
+              {/* Right — AI Detail */}
+              <div style={{ width: 260, background: C.surface, borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.violetDim, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
+                    <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.violet, letterSpacing: '1px' }}>AI ENGINE</span>
+                    {aiLoading && <div style={{ marginLeft: 'auto', width: 8, height: 8, border: `1.5px solid ${C.border}`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                    {lastAITime && !aiLoading && <span style={{ marginLeft: 'auto', fontSize: 8, color: C.textMuted }}>{lastAITime}</span>}
+                  </div>
+                  {aiResult ? (
+                    <div style={{ background: signalColor + '15', border: `1.5px solid ${signalColor}40`, borderRadius: 4, padding: '8px 10px', textAlign: 'center' }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 26, fontWeight: 900, color: signalColor, letterSpacing: '2px' }}>{aiResult.signal}</div>
+                      <ProbMeter value={aiResult.confidence || 0} color={signalColor} />
+                    </div>
+                  ) : <div style={{ fontSize: 10, color: C.textDim, textAlign: 'center', padding: '6px 0' }}>Analyzing...</div>}
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  {aiResult && aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && aiResult.entryZone && (
+                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ fontSize: 8, color: C.textDim, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontWeight: 700 }}>Trade Levels</div>
+                      {[
+                        { label: 'Entry', value: `${fmt(aiResult.entryZone?.low)} – ${fmt(aiResult.entryZone?.high)}`, color: signalColor },
+                        { label: 'Stop', value: fmt(aiResult.stopLevel), color: C.red },
+                        { label: 'Target 1', value: fmt(aiResult.target1), color: C.synapse },
+                        { label: 'Target 2', value: fmt(aiResult.target2), color: C.synapse },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 7px', borderRadius: 3, marginBottom: 2, background: color + '08' }}>
+                          <span style={{ fontSize: 9, color: C.textDim }}>{label}</span>
+                          <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {aiResult?.marketConditions && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>📊 Market Conditions</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.marketConditions}</div></div>}
+                  {aiResult?.todaysEdge && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>⚡ Today's Edge</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div></div>}
+                  {aiResult?.accountability && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>🎯 Accountability</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.accountability}</div></div>}
+                  {aiResult?.riskFlag && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>⚠ Risk Flag</div><div style={{ fontSize: 10, color: C.red, lineHeight: 1.6 }}>{aiResult.riskFlag}</div></div>}
+
+                  {/* Positioning */}
+                  {aiResult && (
+                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ fontSize: 8, color: C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>📍 Positioning</div>
+                      <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                        <div style={{ flex: 1, background: C.synapse + '10', border: `1px solid ${C.synapse}25`, borderRadius: 3, padding: '4px 6px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 7, color: C.textDim }}>BULLISH ABOVE</div>
+                          <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.synapse }}>{fmt(levels.spyVwap)}</div>
+                        </div>
+                        <div style={{ flex: 1, background: C.red + '10', border: `1px solid ${C.red}25`, borderRadius: 3, padding: '4px 6px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 7, color: C.textDim }}>BEARISH BELOW</div>
+                          <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.red }}>{fmt(levels.spyVwap)}</div>
+                        </div>
+                      </div>
+                      {[
+                        { label: 'VIX', value: vixPrice ? `${vixPrice.toFixed(2)} — ${vixPrice > 25 ? 'EXTREME' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL'}` : '—', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
+                        { label: 'Breadth', value: marketIntel?.breadth?.bias || 'No data', color: C.textDim },
+                        { label: 'Score', value: `${score}/13 — Grade ${grade}`, color: gradeColor },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <span style={{ fontSize: 8, color: C.textDim }}>{label}</span>
+                          <span style={{ fontSize: 8, fontWeight: 700, color }}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button onClick={async () => {
+                    setAiLoading(true)
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY] || ''), fetchOptionsFlow(keys[UW_KEY] || ''), fetchMarketTide(keys[UW_KEY] || ''), fetchTiingoContext(keys[TIINGO_KEY] || '', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
+                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
+                    setAiLoading(false)
+                  }} disabled={aiLoading || !keys[ANTH_KEY]} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.violetDim, border: `1px solid ${aiLoading ? C.border : C.violetBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── BOTTOM DATA PANELS ── */}
+            <div style={{ height: 160, background: C.bg, borderTop: `1px solid ${C.border}`, display: 'flex', overflow: 'hidden', flexShrink: 0 }}>
+
+              {/* Options Flow */}
+              <div style={{ flex: 1, borderRight: `1px solid ${C.border}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '5px 10px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, background: C.surface }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.synapse, boxShadow: `0 0 5px ${C.synapse}`, animation: 'pulse 2s infinite' }} />
+                  <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.synapse, letterSpacing: '1px' }}>OPTIONS FLOW</span>
+                  {optionsFlow.length > 0 && <span style={{ fontSize: 8, color: C.textDim }}>{optionsFlow.length} alerts</span>}
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  {optionsFlow.length === 0 ? (
+                    <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center', marginTop: 16 }}>{keys[UW_KEY] ? 'No SPX/SPY flow alerts' : 'Add UW key in Settings'}</div>
+                  ) : optionsFlow.slice(0, 8).map((f: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 10px', borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: (f.type || '').toUpperCase().startsWith('C') ? C.synapse : C.red, width: 30 }}>{(f.ticker || '').toUpperCase()}</span>
+                      <span style={{ fontSize: 8, color: (f.type || '').toUpperCase().startsWith('C') ? C.synapse : C.red, width: 22, fontWeight: 700 }}>{(f.type || '').toUpperCase().startsWith('C') ? 'CALL' : 'PUT'}</span>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 9, color: C.text, width: 50 }}>{f.strike}</span>
+                      <span style={{ fontSize: 8, color: C.textDim, flex: 1 }}>{f.expiry || ''}</span>
+                      {f.premium && <span style={{ fontFamily: fontDisplay, fontSize: 8, color: C.fire, fontWeight: 700 }}>${((f.premium || 0)/1000).toFixed(0)}K</span>}
+                      <div style={{ padding: '1px 5px', borderRadius: 2, background: f.sentiment === 'BULLISH' ? C.synapse + '18' : f.sentiment === 'BEARISH' ? C.red + '18' : C.surface2, border: `1px solid ${f.sentiment === 'BULLISH' ? C.synapse + '40' : f.sentiment === 'BEARISH' ? C.red + '40' : C.border}` }}>
+                        <span style={{ fontSize: 7, fontWeight: 700, color: f.sentiment === 'BULLISH' ? C.synapse : f.sentiment === 'BEARISH' ? C.red : C.textDim }}>{f.sentiment || 'NEUT'}</span>
+                      </div>
+                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>⚡</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Market Tide */}
+              <div style={{ width: 190, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+                <div style={{ padding: '5px 10px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, background: C.surface }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.teal, animation: 'pulse 2s infinite' }} />
+                  <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px' }}>MARKET TIDE</span>
+                </div>
+                <div style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  {marketTide ? (
+                    <>
+                      <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 800, color: marketTide.bias === 'CALL HEAVY' ? C.synapse : marketTide.bias === 'PUT HEAVY' ? C.red : C.fire, marginBottom: 2 }}>{marketTide.bias}</div>
+                        <div style={{ fontSize: 8, color: C.textDim }}>P/C Ratio: <span style={{ color: C.text, fontWeight: 700 }}>{marketTide.putCallRatio}</span></div>
+                      </div>
+                      {[
+                        { label: 'CALLS', value: marketTide.callPremium, pct: marketTide.callPct, color: C.synapse },
+                        { label: 'PUTS', value: marketTide.putPremium, pct: marketTide.putPct, color: C.red },
+                      ].map(({ label, value, pct, color }) => (
+                        <div key={label} style={{ marginBottom: 6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <span style={{ fontSize: 8, color }}>{label}</span>
+                            <span style={{ fontSize: 8, color, fontFamily: fontDisplay }}>{value}</span>
+                          </div>
+                          <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct || 50}%`, background: color, borderRadius: 2, transition: 'width 0.5s' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center' }}>{keys[UW_KEY] ? 'Loading tide...' : 'No UW key'}</div>}
+                </div>
+              </div>
+
+              {/* Market Conditions */}
+              <div style={{ width: 220, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+                <div style={{ padding: '5px 10px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, background: C.surface }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
+                  <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px' }}>MARKET CONDITIONS</span>
+                </div>
+                <div style={{ flex: 1, padding: '4px 10px', overflowY: 'auto' }}>
+                  {[
+                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : '—', sub: vixPrice ? (vixPrice > 25 ? 'EXTREME' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textDim },
+                    { label: 'Breadth', value: marketIntel?.breadth?.bias || '—', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}↑ ${marketIntel.breadth.declining}↓` : '', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
+                    { label: 'QQQ', value: marketIntel?.sectors?.QQQ ? `${Number(marketIntel.sectors.QQQ.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.QQQ.todayChange}%` : '—', sub: 'Tech', color: Number(marketIntel?.sectors?.QQQ?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'IWM', value: marketIntel?.sectors?.IWM ? `${Number(marketIntel.sectors.IWM.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.IWM.todayChange}%` : '—', sub: 'Small Cap', color: Number(marketIntel?.sectors?.IWM?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'XLK', value: marketIntel?.sectors?.XLK ? `${Number(marketIntel.sectors.XLK.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.XLK.todayChange}%` : '—', sub: 'Tech Sector', color: Number(marketIntel?.sectors?.XLK?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'XLF', value: marketIntel?.sectors?.XLF ? `${Number(marketIntel.sectors.XLF.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.XLF.todayChange}%` : '—', sub: 'Financials', color: Number(marketIntel?.sectors?.XLF?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'TLT', value: marketIntel?.sectors?.TLT ? `${Number(marketIntel.sectors.TLT.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.TLT.todayChange}%` : '—', sub: 'Bonds', color: Number(marketIntel?.sectors?.TLT?.todayChange) > 0 ? C.synapse : C.red },
+                  ].map(({ label, value, sub, color }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: `1px solid ${C.border}` }}>
+                      <div><span style={{ fontSize: 11, color: C.textDim }}>{label}</span>{sub && <span style={{ fontSize: 7, color: C.textMuted, marginLeft: 4 }}>{sub}</span>}</div>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* TAB 3 — LOG TRADE */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {tab === 'log' && (
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+            {/* Left — Trade entry */}
+            <div style={{ width: 300, background: C.surface, borderRight: `1px solid ${C.border}`, padding: 16, overflowY: 'auto', flexShrink: 0 }}>
+              <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>Log Trade</div>
+
+              {[
+                { label: 'Symbol', key: 'symbol', ph: 'SPX' },
+                { label: 'Entry Price', key: 'entry', ph: '5840.00' },
+                { label: 'Exit Price', key: 'exit', ph: '5855.00' },
+                { label: 'P&L ($)', key: 'pnl', ph: '+850' },
+                { label: 'Notes', key: 'notes', ph: 'What happened?' },
+              ].map(({ label, key, ph }) => (
+                <div key={key} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{label}</div>
+                  <input value={(newTrade as any)[key]} onChange={e => setNewTrade(p => ({ ...p, [key]: e.target.value }))}
+                    placeholder={ph} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 6, padding: '6px 10px', color: C.text, fontSize: 12, outline: 'none' }} />
+                </div>
+              ))}
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Direction</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {['call', 'put'].map(d => (
+                    <button key={d} onClick={() => setNewTrade(p => ({ ...p, direction: d }))} style={{
+                      flex: 1, background: newTrade.direction === d ? (d === 'call' ? C.tealDim : C.redDim) : 'transparent',
+                      border: `1px solid ${newTrade.direction === d ? (d === 'call' ? C.teal : C.red) : C.border2}`,
+                      borderRadius: 5, padding: '5px 0', color: newTrade.direction === d ? (d === 'call' ? C.teal : C.red) : C.textDim,
+                      cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: font, textTransform: 'uppercase'
+                    }}>{d}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Playbook Used</div>
+                <select value={newTrade.playbook} onChange={e => setNewTrade(p => ({ ...p, playbook: e.target.value }))}
+                  style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 6, padding: '6px 10px', color: C.text, fontSize: 12, outline: 'none' }}>
+                  <option value="">None / Free trade</option>
+                  {playbooks.map(pb => <option key={pb.id} value={pb.name}>{pb.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <div onClick={() => setNewTrade(p => ({ ...p, inSystem: !p.inSystem }))} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
+                  background: newTrade.inSystem ? C.tealDim : C.redDim, border: `1px solid ${newTrade.inSystem ? C.tealBorder : C.redBorder}`
+                }}>
+                  <div style={{ width: 14, height: 14, borderRadius: 3, background: newTrade.inSystem ? C.teal : C.red, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 9, color: C.bg, fontWeight: 800 }}>✓</span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: newTrade.inSystem ? C.teal : C.red }}>
+                    {newTrade.inSystem ? 'IN-SYSTEM trade' : 'OUT-OF-SYSTEM trade'}
+                  </span>
+                </div>
+              </div>
+
+              <button onClick={() => {
+                const trade = {
+                  ...newTrade,
+                  id: Date.now(),
+                  date: new Date().toISOString().split('T')[0],
+                  pnl: parseFloat(newTrade.pnl) || 0,
+                }
+                setTrades(p => [trade, ...p])
+                setNewTrade({ symbol: 'SPX', direction: 'call', entry: '', exit: '', pnl: '', inSystem: true, notes: '', playbook: '' })
+              }} style={{ width: '100%', background: C.purple, border: 'none', borderRadius: 8, padding: '10px 0', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>
+                Save Trade
+              </button>
+
+              {/* CSV Import */}
+              <div style={{ marginTop: 20, borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 6 }}>Import from Broker</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10, lineHeight: 1.5 }}>Upload a CSV export from ThinkorSwim, Tradovate, Webull, or any broker. Your trade history will feed the AI to improve its analysis.</div>
+                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
+                <button onClick={() => fileInputRef.current?.click()} style={{ width: '100%', background: C.surface2, border: `1px dashed ${C.border2}`, borderRadius: 6, padding: '10px 0', color: C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
+                  📂 Upload CSV
+                </button>
+                {importStatus && (
+                  <div style={{ marginTop: 8, fontSize: 10, color: importStatus.startsWith('✓') ? C.teal : C.yellow, padding: '6px 8px', background: importStatus.startsWith('✓') ? C.tealDim : C.yellowDim, borderRadius: 5 }}>
+                    {importStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right — Today's trades */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 700, color: C.text }}>Trade History</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ fontSize: 12, color: todayPnL >= 0 ? C.teal : C.red, fontWeight: 700 }}>Today: {todayPnL >= 0 ? '+' : ''}${todayPnL.toFixed(0)}</div>
+                  {tradeStats && (
+                    <div style={{ fontSize: 10, color: C.textDim, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 5, padding: '2px 8px' }}>
+                      {tradeStats.winRate}% win rate
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {trades.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: C.textDim, fontSize: 12 }}>No trades logged yet. Log manually or import a CSV.</div>
+              ) : (
+                trades.map((t: any) => (
+                  <div key={t.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 6, background: t.pnl >= 0 ? C.tealDim : C.redDim, border: `1px solid ${t.pnl >= 0 ? C.tealBorder : C.redBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>{t.pnl >= 0 ? '+' : '−'}</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{t.symbol}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: t.direction === 'call' ? C.tealDim : C.redDim, color: t.direction === 'call' ? C.teal : C.red }}>{(t.direction || '').toUpperCase()}</span>
+                        <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: t.inSystem ? C.tealDim : C.redDim, color: t.inSystem ? C.teal : C.red }}>{t.inSystem ? 'IN-SYS' : 'OUT-SYS'}</span>
+                        {t.playbook && <span style={{ fontSize: 9, color: C.textDim }}>{t.playbook}</span>}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{t.date} {t.notes && `· ${t.notes}`}</div>
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>
+                      {t.pnl >= 0 ? '+' : ''}${typeof t.pnl === 'number' ? t.pnl.toFixed(0) : t.pnl}
+                    </div>
+                    <button onClick={() => setTrades(p => p.filter((x: any) => x.id !== t.id))} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: 0 }}>×</button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* TAB 4 — JOURNAL */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {tab === 'journal' && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 20 }}>Performance Journal</div>
+
+            {!tradeStats ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+                <div style={{ fontSize: 14, color: C.textDim, marginBottom: 8 }}>No trade data yet</div>
+                <div style={{ fontSize: 12, color: C.textMuted }}>Log trades manually or import a CSV from your broker to unlock AI-powered pattern analysis</div>
+              </div>
+            ) : (
+              <>
+                {/* Stats grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                  {[
+                    { label: 'Win Rate', value: tradeStats.winRate + '%', color: tradeStats.winRate >= 60 ? C.teal : tradeStats.winRate >= 50 ? C.yellow : C.red },
+                    { label: 'Total Trades', value: tradeStats.totalTrades, color: C.text },
+                    { label: 'Avg Winner', value: '$' + tradeStats.avgWin, color: C.teal },
+                    { label: 'Avg Loser', value: '$' + tradeStats.avgLoss, color: C.red },
+                    { label: 'Profit Factor', value: tradeStats.profitFactor + 'x', color: parseFloat(tradeStats.profitFactor) >= 1.5 ? C.teal : C.yellow },
+                    { label: 'Total P&L', value: '$' + tradeStats.totalPnl, color: parseFloat(tradeStats.totalPnl) >= 0 ? C.teal : C.red },
+                    { label: 'In-System W%', value: tradeStats.inSystemWinRate + '%', color: C.teal },
+                    { label: 'Recent Form', value: tradeStats.recentForm, color: C.textDim },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 10, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color, fontFamily: fontDisplay }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* AI Pattern Analysis */}
+                <div style={{ background: C.surface, border: `1px solid ${C.purpleBorder}`, borderRadius: 12, padding: 18, marginBottom: 16, animation: 'aiGlow 4s ease-in-out infinite' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.purple, animation: 'pulse 2s infinite' }} />
+                    <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: C.purple }}>AI Pattern Recognition</div>
+                  </div>
+                  <button onClick={async () => {
+                    if (!keys[ANTH_KEY] || !tradeStats) return
+                    setAiLoading(true)
+                    try {
+                      const res = await fetch('/api/ai', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-api-key': keys[ANTH_KEY], 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+                        body: JSON.stringify({
+                          model: 'claude-sonnet-4-20250514',
+                          max_tokens: 500,
+                          messages: [{
+                            role: 'user',
+                            content: `Analyze this trader's performance data and give 3 specific, actionable insights. Be direct and honest — call out patterns that are costing them money.
+
+Stats: Win rate ${tradeStats.winRate}%, ${tradeStats.totalTrades} trades, avg winner $${tradeStats.avgWin}, avg loser $${tradeStats.avgLoss}, profit factor ${tradeStats.profitFactor}x
+In-system win rate: ${tradeStats.inSystemWinRate}%
+Recent: ${tradeStats.recentForm}
+
+Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on the biggest edge improvements.`
+                          }]
+                        })
+                      })
+                      const data = await res.json()
+                      const analysis = data.content?.[0]?.text || 'No analysis available'
+                      setChatMessages([{ role: 'assistant', content: '📊 Journal Analysis:\n\n' + analysis }])
+                      setTab('cockpit')
+                    } catch {}
+                    setAiLoading(false)
+                  }} disabled={aiLoading || !keys[ANTH_KEY]} style={{
+                    background: C.purpleDim, border: `1px solid ${C.purpleBorder}`, borderRadius: 8,
+                    padding: '10px 16px', color: C.purple, cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, marginBottom: 12
+                  }}>
+                    {aiLoading ? '↺ Analyzing...' : '🔍 Analyze My Patterns'}
+                  </button>
+                  <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+                    Your trade history is feeding the AI engine — it uses your actual win rates, patterns, and playbook performance to personalize every signal and accountability call.
+                  </div>
+                </div>
+
+                {/* Playbook breakdown */}
+                {playbooks.length > 0 && (
+                  <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Playbook Performance</div>
+                    {playbooks.map(pb => {
+                      const pbTrades = trades.filter((t: any) => t.playbook === pb.name)
+                      const pbWins = pbTrades.filter((t: any) => t.pnl > 0).length
+                      const pbWinRate = pbTrades.length ? Math.round(pbWins / pbTrades.length * 100) : null
+                      return (
+                        <div key={pb.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 6, marginBottom: 4, background: C.surface2, border: `1px solid ${C.border}` }}>
+                          <span style={{ fontSize: 11, color: C.text }}>{pb.name}</span>
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                            <span style={{ fontSize: 10, color: C.textDim }}>{pbTrades.length} trades</span>
+                            {pbWinRate !== null ? (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: pbWinRate >= 60 ? C.teal : pbWinRate >= 50 ? C.yellow : C.red }}>{pbWinRate}%</span>
+                            ) : (
+                              <span style={{ fontSize: 10, color: C.textMuted }}>No data</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+        {/* ── AI VOICE COMPANION (STAR FEATURE — always visible) ── */}
+      <div style={{
+        position: 'fixed', bottom: 0, right: 0,
+        width: companionOpen ? 420 : 64,
+        height: companionOpen ? 580 : 64,
+        zIndex: 600,
+        transition: 'all 0.35s cubic-bezier(0.16,1,0.3,1)',
+      }}>
+        {/* Collapsed brain button */}
+        {!companionOpen && (
+          <button onClick={() => setCompanionOpen(true)} style={{
+            position: 'absolute', bottom: 20, right: 20,
+            width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: `radial-gradient(circle, rgba(124,58,237,0.3) 0%, rgba(60,20,120,0.9) 60%)`,
+            boxShadow: `0 0 20px rgba(124,58,237,0.4), 0 0 40px rgba(124,58,237,0.15)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 24, animation: 'aiGlow 3s ease-in-out infinite',
+          }}>
+            🧠
+          </button>
+        )}
+
+        {/* Expanded companion panel */}
+        {tab !== 'cockpit' && companionOpen && (
+          <div style={{
+            position: 'absolute', bottom: 0, right: 0,
+            width: 420, height: 580,
+            background: 'rgba(255,255,255,0.97)',
+            border: `1px solid rgba(102,32,212,0.2)`,
+            borderRadius: '16px 0 0 0',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: `-4px -4px 30px rgba(102,32,212,0.1), 0 -2px 10px rgba(100,140,220,0.08)`,
+            overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '10px 14px',
+              background: `linear-gradient(90deg, rgba(102,32,212,0.07), rgba(0,153,204,0.04))`,
+              borderBottom: `1px solid rgba(102,32,212,0.12)`,
+              display: 'flex', alignItems: 'center', gap: 10,
+              flexShrink: 0, position: 'relative', zIndex: 2,
+            }}>
+              {/* Brain orb */}
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(124,58,237,0.5)`, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                  🧠
+                </div>
+                <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(124,58,237,0.2)`, animation: 'brainRing 4s linear infinite' }} />
+              </div>
+              <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.violet, textShadow: `0 0 12px rgba(124,58,237,0.5)` }}>
+                AI COMPANION
+              </div>
+              {/* Status */}
+              <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(255,60,96,0.4)' : speaking ? 'rgba(124,58,237,0.4)' : 'rgba(0,229,255,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(255,60,96,0.08)' : speaking ? 'rgba(124,58,237,0.08)' : 'rgba(0,229,255,0.05)', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
+                {listening ? '● LISTENING' : speaking ? '◆ SPEAKING' : chatLoading ? '◌ THINKING' : '○ READY'}
+              </div>
+              {aiResult && (
+                <div style={{ marginLeft: 'auto', background: `${signalColor}15`, border: `1px solid ${signalColor}35`, borderRadius: 2, padding: '2px 8px', display: 'flex', gap: 5, alignItems: 'center' }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 800, color: signalColor, letterSpacing: 2 }}>{aiResult.signal}</span>
+                  <span style={{ fontSize: 8, color: C.textDim }}>{aiResult.confidence}%</span>
+                </div>
+              )}
+              <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 3, color: C.violet, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
+              <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: 16, padding: 0, marginLeft: 2 }}>×</button>
+            </div>
+
+            {/* Context snapshot */}
+            <div style={{
+              padding: '5px 14px',
+              background: 'rgba(248,249,255,0.8)',
+              borderBottom: `1px solid rgba(100,140,220,0.08)`,
+              display: 'flex', gap: 0, flexShrink: 0, position: 'relative', zIndex: 2,
+            }}>
+              {[
+                { label: 'SPX', value: fmt(currentPrice), color: C.text },
+                { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textDim },
+                { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : '—', color: vixPrice && vixPrice > 25 ? C.red : vixPrice && vixPrice > 18 ? C.fire : C.synapse },
+                { label: 'SCORE', value: `${score}/13`, color: gradeColor },
+                { label: 'P&L', value: `$${todayPnL.toFixed(0)}`, color: todayPnL >= 0 ? C.synapse : C.red },
+                { label: 'BOOK', value: activePlaybook ? activePlaybook.name.split(' ')[0] : 'None', color: activePlaybook ? C.teal : C.textMuted },
+              ].map(({ label, value, color }, i) => (
+                <div key={label} style={{ flex: 1, textAlign: 'center', borderRight: i < 5 ? `1px solid rgba(100,140,220,0.06)` : 'none' }}>
+                  <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Messages */}
+            <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, position: 'relative', zIndex: 2, background: 'rgba(248,249,255,0.5)' }}>
+              {chatMessages.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                  <div style={{ fontSize: 32, marginBottom: 10 }}>🧠</div>
+                  <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+                    Watching your session live. All market data, your plan, and the chart are loaded. Ask anything or use the mic.
+                  </div>
+                  <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
+                    {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
+                      <button key={q} onClick={() => setChatInput(q)} style={{ background: C.violetDim, border: `1px solid ${C.violetBorder}`, borderRadius: 99, padding: '3px 10px', color: C.textDim, cursor: 'pointer', fontSize: 9, fontFamily: font }}>
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {chatMessages.map((m, i) => (
+                <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+                  {m.role === 'assistant' && (
+                    <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, marginBottom: 3, display: 'flex', gap: 4, alignItems: 'center', letterSpacing: 1 }}>
+                      <div style={{ width: 3, height: 3, borderRadius: '50%', background: C.violet, boxShadow: `0 0 4px ${C.violet}` }} />
+                      AI COMPANION
+                    </div>
+                  )}
+                  <div style={{
+                    padding: '7px 11px',
+                    borderRadius: m.role === 'user' ? '8px 8px 2px 8px' : '2px 8px 8px 8px',
+                    fontSize: 11, lineHeight: 1.65,
+                    background: m.role === 'user' ? 'rgba(0,229,255,0.06)' : 'rgba(124,58,237,0.08)',
+                    border: m.role === 'user' ? `1px solid rgba(0,229,255,0.15)` : `1px solid rgba(124,58,237,0.2)`,
+                    borderRight: m.role === 'user' ? `2px solid ${C.teal}` : undefined,
+                    borderLeft: m.role === 'assistant' ? `2px solid ${C.violet}` : undefined,
+                    color: C.text,
+                  }}>{m.content}</div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ alignSelf: 'flex-start' }}>
+                  <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, marginBottom: 3, letterSpacing: 1 }}>AI COMPANION</div>
+                  <div style={{ padding: '8px 12px', borderRadius: '2px 8px 8px 8px', background: 'rgba(124,58,237,0.08)', border: `1px solid rgba(124,58,237,0.18)`, borderLeft: `2px solid ${C.violet}`, display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
+                  </div>
+                </div>
+              )}
+              {listening && liveTranscript && (
+                <div style={{ alignSelf: 'flex-end', padding: '5px 9px', borderRadius: '8px 8px 2px 8px', background: 'rgba(255,60,96,0.08)', border: `1px solid rgba(255,60,96,0.3)`, borderRight: `2px solid ${C.red}`, fontSize: 10, color: C.red, fontStyle: 'italic' }}>
+                  {liveTranscript}...
+                </div>
+              )}
+            </div>
+
+            {/* MIC + Input bar */}
+            <div style={{
+              padding: '8px 12px',
+              borderTop: `1px solid rgba(102,32,212,0.1)`,
+              background: 'rgba(255,255,255,0.95)',
+              flexShrink: 0, position: 'relative', zIndex: 2,
+            }}>
+              {/* Waveform when speaking */}
+              {speaking && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, marginBottom: 8, height: 20 }}>
+                  {[...Array(20)].map((_, i) => (
+                    <div key={i} style={{ width: 2, borderRadius: 1, background: C.violet, animation: `waveAnim ${0.4 + (i % 5) * 0.1}s ease-in-out infinite`, animationDelay: `${(i % 4) * 0.08}s`, '--wh': `${6 + (i % 6) * 2}px` } as any} />
+                  ))}
+                  <span style={{ fontSize: 8, color: C.violet, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {/* MIC BUTTON */}
+                <button onClick={listening ? stopListening : startListening} style={{
+                  width: 42, height: 42, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  background: listening ? 'rgba(255,60,96,0.15)' : 'rgba(124,58,237,0.12)',
+                  border: `1.5px solid ${listening ? C.red : C.violetBorder}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                  flexShrink: 0, boxShadow: listening ? `0 0 0 5px rgba(255,60,96,0.12), 0 0 20px rgba(255,60,96,0.25)` : `0 0 16px rgba(124,58,237,0.15)`,
+                  transition: 'all 0.2s ease',
+                  animation: listening ? 'none' : 'micGlow 2s ease-in-out infinite',
+                }}>
+                  {listening ? '⏹' : '🎙️'}
+                </button>
+
+                <input
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChat()}
+                  placeholder={listening ? 'Listening... (tap ⏹ to stop)' : 'Ask your AI companion...'}
+                  style={{
+                    flex: 1, background: 'rgba(0,229,255,0.04)',
+                    border: `1px solid ${listening ? 'rgba(255,60,96,0.4)' : 'rgba(0,229,255,0.12)'}`,
+                    borderRadius: 2, padding: '8px 12px', color: C.text,
+                    fontFamily: font, fontSize: 11, outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+
+                <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{
+                  width: 36, height: 36, borderRadius: 2, border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? C.violetBorder : 'rgba(0,229,255,0.08)'}`,
+                  background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(124,58,237,0.18)' : 'transparent',
+                  color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textDim,
+                  cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed',
+                  fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0,
+                }}>↑</button>
+              </div>
+
+              {/* Voice switcher — compact */}
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid rgba(124,58,237,0.12)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                  <span style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px', textTransform: 'uppercase' }}>Voice</span>
+                  {speaking && <span style={{ fontSize: 8, color: C.violet, animation: 'pulse 0.8s infinite' }}>● speaking</span>}
+                  <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>+ more voices</button>
+                </div>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  {[
+                    { name: 'Rachel', id: '21m00Tcm4TlvDq8ikWAM' },
+                    { name: 'Drew', id: '29vD33N1CtxCmqQRPOHJ' },
+                    { name: 'Clyde', id: '2EiwWnXFnvU5JabPnv8n' },
+                    { name: 'Paul', id: '5Q0t7uMcjvnagumLfvZi' },
+                    { name: 'Domi', id: 'AZnzlk1XvdvUeBnXmlld' },
+                    { name: 'Dave', id: 'CYw3kZ78EXmF4bPxNGZ2' },
+                    { name: 'Sarah', id: 'EXAVITQu4vr4xnSDxMaL' },
+                    { name: 'Thomas', id: 'GBv7mTt0atIp3Br8iCZE' },
+                  ].map(v => (
+                    <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{
+                      padding: '2px 7px', borderRadius: 2,
+                      background: voiceId === v.id ? C.violetDim : 'transparent',
+                      border: `1px solid ${voiceId === v.id ? C.violetBorder : 'rgba(0,229,255,0.08)'}`,
+                      color: voiceId === v.id ? C.teal : C.textDim,
+                      fontSize: 9, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s',
+                    }}>{v.name}</button>
+                  ))}
+                </div>
+                <input
+                  value={voiceId && !['21m00Tcm4TlvDq8ikWAM','29vD33N1CtxCmqQRPOHJ','2EiwWnXFnvU5JabPnv8n','5Q0t7uMcjvnagumLfvZi','AZnzlk1XvdvUeBnXmlld','CYw3kZ78EXmF4bPxNGZ2','EXAVITQu4vr4xnSDxMaL','GBv7mTt0atIp3Br8iCZE'].includes(voiceId) ? voiceId : ''}
+                  onChange={e => { setVoiceId(e.target.value); localStorage.setItem(VOICE_ID, e.target.value) }}
+                  placeholder="Custom ElevenLabs voice ID..."
+                  style={{ width: '100%', marginTop: 5, background: 'rgba(0,229,255,0.03)', border: `1px solid rgba(0,229,255,0.08)`, borderRadius: 2, padding: '4px 8px', color: C.text, fontSize: 9, outline: 'none', fontFamily: font }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
