@@ -920,7 +920,7 @@ function analyzeTradeHistory(trades: any[]) {
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
 function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode }: any) {
-  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM' })
+  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
@@ -1067,7 +1067,7 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => false)
 
   // Market data
   const [candles, setCandles] = useState<any[]>([])
@@ -1673,7 +1673,7 @@ export default function CockpitPage() {
 
   // Voice speak — pauses mic while speaking, resumes after
   const speak = async (text: string) => {
-    const elKey = keys[EL_KEY] || 'server' // key handled server-side
+    const elKey = keys[EL_KEY] || 'server'
 
     // Stop any currently playing audio immediately
     try {
@@ -3544,7 +3544,4 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
-
-
-
 
