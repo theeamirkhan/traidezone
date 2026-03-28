@@ -919,35 +919,52 @@ function analyzeTradeHistory(trades: any[]) {
 }
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
-function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId }: any) {
-  const [vals, setVals] = useState({ ...keys, [VOICE_ID]: voiceId || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM' })
+function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode }: any) {
+  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM' })
+  const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
-    Object.entries(vals).forEach(([k, v]) => { if (v) localStorage.setItem(k, v as string) })
-    setKeys((p: any) => ({ ...p, ...vals }))
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
     onClose()
   }
-  const fields = [
-    { key: POLY_KEY, label: 'Polygon.io API Key', hint: 'polygon.io — live price data' },
-    { key: ANTH_KEY, label: 'Anthropic API Key', hint: 'console.anthropic.com — AI engine' },
-    { key: TIINGO_KEY, label: 'Tiingo API Key', hint: 'tiingo.com — historical gap & implied move data (free)' },
-    { key: UW_KEY, label: 'Unusual Whales API Key', hint: 'unusualwhales.com — options flow' },
-    { key: EL_KEY, label: 'ElevenLabs API Key', hint: 'elevenlabs.io — voice companion' },
-  ]
+
+  const testVoice = async (vId: string, name: string) => {
+    setPreviewingVoice(vId)
+    try {
+      const res = await fetch('/api/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceId: vId, text: `Hi, I'm ${name}. Ready to help you trade with discipline today.`, model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.5, similarity_boost: 0.75 } })
+      })
+      if (res.ok) {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const buf = await ctx.decodeAudioData(await res.arrayBuffer())
+        const src = ctx.createBufferSource()
+        src.buffer = buf; src.connect(ctx.destination)
+        src.onended = () => { setPreviewingVoice(null); ctx.close() }
+        src.start(0)
+      } else { setPreviewingVoice(null) }
+    } catch { setPreviewingVoice(null) }
+  }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 460 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 4 }}>Settings</div>
-        <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, marginBottom: 24 }}>Keys stored locally on your device only</div>
-        {fields.map(f => (
-          <div key={f.key} style={{ marginBottom: 18 }}>
-            <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{f.label}</div>
-            <input type="password" value={vals[f.key] || ''} onChange={e => setVals((p: any) => ({ ...p, [f.key]: e.target.value }))}
-              placeholder={f.hint}
-              style={{ width: '100%', background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+        <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, marginBottom: 20 }}>Customize your trAIde Zone experience</div>
+
+        {/* Dark Mode Toggle */}
+        <div style={{ marginBottom: 20, padding: '12px 14px', background: C.surface2, borderRadius: 10, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Appearance</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? '🌙 Dark mode' : '☀️ Light mode'}</div>
           </div>
-        ))}
+          <button onClick={() => setDarkMode(!darkMode)} style={{
+            width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative' as const,
+            background: darkMode ? C.violet : 'rgba(100,140,220,0.2)', transition: 'background 0.2s'
+          }}>
+            <div style={{ position: 'absolute' as const, top: 3, left: darkMode ? 25 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+          </button>
+        </div>
 
         {/* Voice Selector */}
         <div style={{ marginBottom: 18 }}>
@@ -967,15 +984,21 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId }: any) {
             ].map(v => {
               const selected = (vals[VOICE_ID] || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM') === v.id
               return (
-                <button key={v.id} type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{
-                  padding: '7px 10px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const,
-                  background: selected ? C.violetDim : C.bg,
-                  border: `1px solid ${selected ? C.violetBorder : C.border2}`,
-                  transition: 'all 0.15s',
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.teal : C.text }}>{v.name}</div>
-                  <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>{v.desc}</div>
-                </button>
+                <div key={v.id} style={{ position: 'relative' as const }}>
+                  <button type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{
+                    width: '100%', padding: '7px 10px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const,
+                    background: selected ? C.violetDim : C.bg,
+                    border: `1px solid ${selected ? C.violetBorder : C.border2}`,
+                    transition: 'all 0.15s',
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.violet : C.text }}>{v.name}</div>
+                    <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>{v.desc}</div>
+                  </button>
+                  <button type="button" onClick={e => { e.stopPropagation(); testVoice(v.id, v.name) }}
+                    style={{ position: 'absolute' as const, top: 5, right: 5, fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${C.violetBorder}`, background: previewingVoice === v.id ? C.violetDim : 'transparent', color: C.violet, cursor: 'pointer' }}>
+                    {previewingVoice === v.id ? '⏸' : '▶'}
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -1044,6 +1067,7 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
+  const [darkMode, setDarkMode] = useState(false)
 
   // Market data
   const [candles, setCandles] = useState<any[]>([])
@@ -1074,6 +1098,9 @@ export default function CockpitPage() {
 
   // Checklist
   const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [customChecklist, setCustomChecklist] = useState<any[]>(CHECKLIST)
+  const [editingChecklist, setEditingChecklist] = useState(false)
+  const [newCheckItem, setNewCheckItem] = useState('')
 
   // AI
   const [aiResult, setAiResult] = useState<any>(null)
@@ -1090,7 +1117,7 @@ export default function CockpitPage() {
   const [zeroDTESkew, setZeroDTESkew] = useState<any>(null)
   const [tradePatterns, setTradePatterns] = useState<any>(null)
   const [macroRegime, setMacroRegime] = useState<any>(null)
-  const [sessionMemory] = useState<string>(() => loadSessionMemory())
+  const [sessionMemory, setSessionMemory] = useState<string>('')
 
   // Trade log
   const [trades, setTrades] = useState<any[]>([])
@@ -1863,7 +1890,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   }
 
   // Computed values
-  const score = CHECKLIST.filter(c => checked[c.id]).length
+  const score = customChecklist.filter((c: any) => checked[c.id]).length
   const grade = score >= 11 ? 'A' : score >= 9 ? 'B' : score >= 7 ? 'C' : score >= 5 ? 'D' : 'F'
   const gradeColor = score >= 9 ? C.teal : score >= 7 ? C.yellow : C.red
   const todayPnL = trades.filter((t: any) => t.date === new Date().toISOString().split('T')[0]).reduce((s: number, t: any) => s + (parseFloat(t.pnl) || 0), 0)
@@ -1898,15 +1925,28 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
   if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f0f4fa', color: '#8090b0', fontFamily: font }}>Loading...</div>
 
+  const DC = darkMode ? {
+    bg: '#0d1117', deep: '#090d13', surface: '#161b22', surface2: '#21262d', surface3: '#2d333b',
+    border: 'rgba(255,255,255,0.08)', border2: 'rgba(255,255,255,0.12)',
+    text: '#e6edf3', textDim: '#8b949e', textMuted: '#6e7681',
+    teal: '#58a6ff', tealDim: 'rgba(88,166,255,0.1)', tealBorder: 'rgba(88,166,255,0.3)',
+    violet: '#a371f7', violetDim: 'rgba(163,113,247,0.1)', violetBorder: 'rgba(163,113,247,0.3)',
+    purpleDim: 'rgba(163,113,247,0.1)', purpleBorder: 'rgba(163,113,247,0.3)', purpleGlow: 'rgba(163,113,247,0.05)',
+    purple: '#a371f7', synapse: '#3fb950', fire: '#f0883e', red: '#f85149',
+    yellow: '#e3b341', redDim: 'rgba(248,81,73,0.1)', redBorder: 'rgba(248,81,73,0.3)',
+    tealGlow: 'rgba(88,166,255,0.15)', pink: '#f778ba', redBorderLegacy: 'rgba(248,81,73,0.3)',
+  } : null
+  const CC = DC || C
+
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#f0f4fa', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font }}>
+    <div style={{ width: '100vw', height: '100vh', background: darkMode ? '#0d1117' : '#f0f4fa', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
         * { box-sizing: border-box; }
         input, textarea { font-family: '${font}' !important; }
       `}</style>
 
-      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} />}
+      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} darkMode={darkMode} setDarkMode={setDarkMode} />}
 
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
@@ -1963,7 +2003,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         <div style={{ padding: '0 20px', borderRight: `1px solid rgba(0,229,255,0.08)`, display: 'flex', alignItems: 'center', gap: 10, height: '100%' }}>
           <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, letterSpacing: 3, display: 'flex', alignItems: 'center', gap: 0 }}>
             <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}, 0 0 40px rgba(0,229,255,0.15)` }}>tr</span>
-            <span style={{ color: C.pink, textShadow: `0 0 20px ${'rgba(192,32,224,0.15)'}` }}>AI</span>
+            <span style={{ color: C.pink, textShadow: `0 0 20px rgba(192,32,224,0.15)` }}>AI</span>
             <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}` }}>de Zone</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -2037,7 +2077,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       </div>
 
       {/* ── TABS — WHITE ── */}
-      <div style={{ height: 44, background: 'rgba(255,255,255,0.92)', borderBottom: `1px solid rgba(102,32,212,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
+      <div style={{ height: 44, background: darkMode ? 'rgba(22,27,34,0.95)' : 'rgba(255,255,255,0.92)', borderBottom: `1px solid rgba(102,32,212,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
         {(['plan', 'cockpit', 'deepdive', 'journal'] as const).map(t => {
           const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', journal: 'JOURNAL' }
           return (
@@ -2131,7 +2171,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   { label: 'Checklist', value: `${grade} — ${score}/13`, sub: score >= 9 ? 'Ready to trade' : score >= 7 ? 'Proceed with caution' : 'Stay out', color: gradeColor },
                   { label: 'Today P&L', value: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`, sub: `${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length} trades today`, color: todayPnL >= 0 ? C.synapse : C.red },
                 ].map(({ label, value, sub, color }) => (
-                  <div key={label} style={{ background: '#fff', border: 'none', borderRadius: 7, padding: '8px 10px', boxShadow: '0 2px 8px rgba(100,140,220,0.12)' }}>
+                  <div key={label} style={{ background: darkMode ? '#161b22' : '#fff', border: darkMode ? '1px solid rgba(255,255,255,0.06)' : 'none', borderRadius: 7, padding: '8px 10px', boxShadow: '0 2px 8px rgba(100,140,220,0.12)' }}>
                     <div style={{ fontSize: 9, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{label}</div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color }}>{value}</div>
                     <div style={{ fontSize: 9, color: C.textMuted, marginTop: 1 }}>{sub}</div>
@@ -2195,7 +2235,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Composite Market Score */}
               {marketScore && (
-                <div style={{ background: '#fff', borderRadius: 8, padding: '12px 14px', boxShadow: '0 2px 10px rgba(100,140,220,0.08)', borderLeft: `3px solid ${marketScore.color}` }}>
+                <div style={{ background: darkMode ? '#161b22' : '#fff', borderRadius: 8, padding: '12px 14px', boxShadow: '0 2px 10px rgba(100,140,220,0.08)', borderLeft: `3px solid ${marketScore.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '1px' }}>MARKET SCORE</div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 900, color: marketScore.color }}>{marketScore.score}<span style={{ fontSize: 11, opacity: 0.6 }}>/100</span></div>
@@ -2290,7 +2330,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(102,32,212,0.06)', borderLeft: '3px solid rgba(102,32,212,0.3)' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
                   <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
-                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
+                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
                 </div>
               )}
             </div>
@@ -2405,7 +2445,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Collapsed companion button */}
             {tab !== 'cockpit' && !companionOpen && (
-              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.violet, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(102,32,212,0.25)', zIndex: 500 }}>
+              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.violet, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(102,32,212,0.25)', zIndex: 500 }}>
                 🧠
               </button>
             )}
@@ -2420,7 +2460,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#edf0f7' }}>
 
             {/* LEFT — Setup form */}
-            <div style={{ width: 240, background: '#fff', borderRight: `1px solid rgba(100,140,220,0.15)`, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, boxShadow: '2px 0 8px rgba(100,140,220,0.06)' }}>
+            <div style={{ width: 240, background: darkMode ? '#161b22' : '#fff', borderRight: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(100,140,220,0.15)'}`, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, boxShadow: '2px 0 8px rgba(100,140,220,0.06)' }}>
 
               <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14, letterSpacing: '0.5px' }}>Today's Setup</div>
 
@@ -2483,7 +2523,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   onChange={e => setMorningPlan(p => ({ ...p, notes: e.target.value }))}
                   placeholder={'e.g. Gap up on CPI. Fade the open if we reject VWAP in first 30 min. Look for continuation if we reclaim PDH with volume...'}
                   rows={5}
-                  style={{ width: '100%', background: 'rgba(240,244,250,0.7)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 12, outline: 'none', fontFamily: font, resize: 'vertical' as const, lineHeight: 1.6, boxSizing: 'border-box' as const }}
+                  style={{ width: '100%', background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(240,244,250,0.7)', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(100,140,220,0.2)'}`, borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 12, outline: 'none', fontFamily: font, resize: 'vertical' as const, lineHeight: 1.6, boxSizing: 'border-box' as const }}
                 />
               </div>
 
@@ -2523,13 +2563,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </div>
 
             {/* CENTER — AI Brief + Probability */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0, background: darkMode ? '#090d13' : '#edf0f7' }}>
 
               {/* Probability section */}
               {(() => {
                 const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
                 return (
-                  <div style={{ background: '#fff', margin: '14px 14px 0', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 12px rgba(100,140,220,0.08)', borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(100,140,220,0.2)'}` }}>
+                  <div style={{ background: darkMode ? '#161b22' : '#fff', margin: '14px 14px 0', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 12px rgba(100,140,220,0.08)', borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(100,140,220,0.2)'}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Probability Breakdown</div>
                       {probs.hasData && (
@@ -2566,7 +2606,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               })()}
 
               {/* AI Morning Brief */}
-              <div style={{ background: '#fff', margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(102,32,212,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
+              <div style={{ background: darkMode ? '#161b22' : '#fff', margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(102,32,212,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
                 {/* Header */}
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(102,32,212,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2698,7 +2738,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </div>
 
             {/* RIGHT — Checklist */}
-            <div style={{ width: 280, background: '#fff', borderLeft: `1px solid rgba(100,140,220,0.15)`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
+            <div style={{ width: 280, background: darkMode ? '#161b22' : '#fff', borderLeft: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(100,140,220,0.15)'}`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Pre-Trade Check</div>
                 <div style={{ background: gradeColor + '15', border: `1px solid ${gradeColor}35`, borderRadius: 6, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -2709,23 +2749,56 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               <div style={{ height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, marginBottom: 12, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${(score/13)*100}%`, background: gradeColor, borderRadius: 2, transition: 'width 0.3s ease' }} />
               </div>
-              {(['TIMING', 'CONFLUENCE', 'RISK', 'SYSTEM'] as const).map(cat => (
-                <div key={cat} style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 5 }}>{cat}</div>
-                  {CHECKLIST.filter(c => c.category === cat).map(item => (
-                    <div key={item.id} onClick={() => setChecked(p => ({...p, [item.id]: !p[item.id]}))}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, marginBottom: 3, cursor: 'pointer',
-                        background: checked[item.id] ? 'rgba(0,170,85,0.08)' : 'transparent',
-                        border: `1px solid ${checked[item.id] ? 'rgba(0,170,85,0.25)' : 'rgba(100,140,220,0.12)'}`,
-                        transition: 'all 0.12s' }}>
-                      <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked[item.id] ? C.synapse : 'rgba(100,140,220,0.3)'}`, background: checked[item.id] ? C.synapse : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
-                        {checked[item.id] && <span style={{ fontSize: 9, color: '#fff', fontWeight: 800 }}>✓</span>}
-                      </div>
-                      <span style={{ fontSize: 12, color: checked[item.id] ? C.text : C.textDim, lineHeight: 1.3 }}>{item.label}</span>
+              {/* Edit toggle */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                <button onClick={() => setEditingChecklist(!editingChecklist)} style={{ fontSize: 10, color: C.violet, background: 'transparent', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontFamily: font }}>
+                  {editingChecklist ? '✓ Done' : '✎ Edit'}
+                </button>
+              </div>
+
+              {editingChecklist ? (
+                /* Edit mode */
+                <div>
+                  {customChecklist.map((item: any, idx: number) => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                      <input value={item.label} onChange={e => setCustomChecklist((p: any[]) => p.map((c, i) => i === idx ? {...c, label: e.target.value} : c))}
+                        style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 5, padding: '5px 8px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
+                      <select value={item.category} onChange={e => setCustomChecklist((p: any[]) => p.map((c, i) => i === idx ? {...c, category: e.target.value} : c))}
+                        style={{ background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 5, padding: '5px 4px', color: C.textDim, fontSize: 10, outline: 'none', fontFamily: font }}>
+                        {['TIMING','CONFLUENCE','RISK','SYSTEM'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </select>
+                      <button onClick={() => setCustomChecklist((p: any[]) => p.filter((_: any, i: number) => i !== idx))}
+                        style={{ color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>×</button>
                     </div>
                   ))}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    <input value={newCheckItem} onChange={e => setNewCheckItem(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && newCheckItem.trim()) { setCustomChecklist((p: any[]) => [...p, { id: Date.now().toString(), category: 'SYSTEM', label: newCheckItem.trim() }]); setNewCheckItem('') }}}
+                      placeholder="Add new item, press Enter..."
+                      style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(102,32,212,0.2)', borderRadius: 5, padding: '6px 10px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
+                  </div>
+                  <button onClick={() => setCustomChecklist(CHECKLIST)} style={{ marginTop: 8, fontSize: 10, color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: font, padding: 0 }}>↺ Reset to defaults</button>
                 </div>
-              ))}
+              ) : (
+                /* View mode */
+                ['TIMING','CONFLUENCE','RISK','SYSTEM'].map(cat => (
+                  <div key={cat} style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, textTransform: 'uppercase' as const, letterSpacing: '1px', marginBottom: 5 }}>{cat}</div>
+                    {customChecklist.filter((c: any) => c.category === cat).map((item: any) => (
+                      <div key={item.id} onClick={() => setChecked(p => ({...p, [item.id]: !p[item.id]}))}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, marginBottom: 3, cursor: 'pointer',
+                          background: checked[item.id] ? 'rgba(0,170,85,0.08)' : 'transparent',
+                          border: `1px solid ${checked[item.id] ? 'rgba(0,170,85,0.25)' : 'rgba(100,140,220,0.12)'}`,
+                          transition: 'all 0.12s' }}>
+                        <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked[item.id] ? C.synapse : 'rgba(100,140,220,0.3)'}`, background: checked[item.id] ? C.synapse : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
+                          {checked[item.id] && <span style={{ fontSize: 9, color: '#fff', fontWeight: 800 }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize: 12, color: checked[item.id] ? C.text : C.textDim, lineHeight: 1.3 }}>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -3248,7 +3321,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
         {!companionOpen && (
           <button onClick={() => setCompanionOpen(true)} style={{
             position: 'absolute', bottom: 20, right: 20,
-            width: 56, height: 56, borderRadius: '50%', cursor: 'pointer',
+            width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
             background: `radial-gradient(circle, rgba(124,58,237,0.3) 0%, rgba(60,20,120,0.9) 60%)`,
             boxShadow: `0 0 20px rgba(124,58,237,0.4), 0 0 40px rgba(124,58,237,0.15)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -3380,7 +3453,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
             <div style={{
               padding: '8px 12px',
               borderTop: `1px solid rgba(102,32,212,0.1)`,
-              background: 'rgba(255,255,255,0.95)',
+              background: darkMode ? 'rgba(13,17,23,0.98)' : 'rgba(255,255,255,0.95)',
               flexShrink: 0, position: 'relative', zIndex: 2,
             }}>
               {/* Waveform when speaking */}
@@ -3435,7 +3508,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                   <span style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px', textTransform: 'uppercase' }}>Voice</span>
                   {speaking && <span style={{ fontSize: 8, color: C.violet, animation: 'pulse 0.8s infinite' }}>● speaking</span>}
-                  <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', cursor: 'pointer', padding: 0 }}>+ more voices</button>
+                  <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>+ more voices</button>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   {[
@@ -3471,3 +3544,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
+
+
+
+
