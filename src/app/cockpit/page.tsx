@@ -962,7 +962,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
             width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative' as const,
             background: darkMode ? C.violet : 'rgba(100,140,220,0.2)', transition: 'background 0.2s'
           }}>
-            <div style={{ position: 'absolute' as const, top: 3, left: darkMode ? 25 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+            <div style={{ position: 'absolute' as const, top: 3, left: darkMode ? 25 : 3, width: 20, height: 20, borderRadius: '50%', background: C.surface, transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
           </button>
         </div>
 
@@ -1923,23 +1923,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
   const estTime = getEST().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
-  if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f0f4fa', color: '#8090b0', fontFamily: font }}>Loading...</div>
+  if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: C.bg, color: '#8090b0', fontFamily: font }}>Loading...</div>
 
-  const DC = darkMode ? {
-    bg: '#0d1117', deep: '#090d13', surface: '#161b22', surface2: '#21262d', surface3: '#2d333b',
-    border: 'rgba(255,255,255,0.08)', border2: 'rgba(255,255,255,0.12)',
-    text: '#e6edf3', textDim: '#8b949e', textMuted: '#6e7681',
-    teal: '#58a6ff', tealDim: 'rgba(88,166,255,0.1)', tealBorder: 'rgba(88,166,255,0.3)',
-    violet: '#a371f7', violetDim: 'rgba(163,113,247,0.1)', violetBorder: 'rgba(163,113,247,0.3)',
-    purpleDim: 'rgba(163,113,247,0.1)', purpleBorder: 'rgba(163,113,247,0.3)', purpleGlow: 'rgba(163,113,247,0.05)',
-    purple: '#a371f7', synapse: '#3fb950', fire: '#f0883e', red: '#f85149',
-    yellow: '#e3b341', redDim: 'rgba(248,81,73,0.1)', redBorder: 'rgba(248,81,73,0.3)',
-    tealGlow: 'rgba(88,166,255,0.15)', pink: '#f778ba', redBorderLegacy: 'rgba(248,81,73,0.3)',
-  } : null
-  const CC = DC || C
+  // Dark mode is now default — DC not needed, CC = C always
+  const CC = C
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: darkMode ? '#0d1117' : '#f0f4fa', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
+    <div style={{ width: '100vw', height: '100vh', background: '#080a0f', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
         * { box-sizing: border-box; }
@@ -2077,7 +2067,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       </div>
 
       {/* ── TABS — WHITE ── */}
-      <div style={{ height: 44, background: darkMode ? 'rgba(22,27,34,0.95)' : 'rgba(255,255,255,0.92)', borderBottom: `1px solid rgba(102,32,212,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
+      <div style={{ height: 44, background: 'rgba(8,10,15,0.95)', borderBottom: `1px solid rgba(102,32,212,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
         {(['plan', 'cockpit', 'deepdive', 'journal'] as const).map(t => {
           const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', journal: 'JOURNAL' }
           return (
@@ -2120,13 +2110,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* NEW TAB 1 — COCKPIT DASHBOARD (clean white) */}
         {/* ═══════════════════════════════════════════════════════ */}
         {tab === 'cockpit' && (
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#f0f4fa' }}>
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: C.bg }}>
 
             {/* Left — Dashboard */}
-            <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#edf0f7' }}>
+            <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: C.deep }}>
 
               {/* Signal Hero */}
-              <div style={{ background: '#fff', borderRadius: 10, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 2px 20px rgba(102,32,212,0.1)', borderTop: '3px solid #6620d4' }}>
+              <div style={{ background: C.surface, borderRadius: 10, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 2px 20px rgba(102,32,212,0.1)', borderTop: '3px solid #6620d4' }}>
                 <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(102,32,212,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 1 }}>
                   <div>
@@ -2171,7 +2161,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   { label: 'Checklist', value: `${grade} — ${score}/13`, sub: score >= 9 ? 'Ready to trade' : score >= 7 ? 'Proceed with caution' : 'Stay out', color: gradeColor },
                   { label: 'Today P&L', value: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`, sub: `${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length} trades today`, color: todayPnL >= 0 ? C.synapse : C.red },
                 ].map(({ label, value, sub, color }) => (
-                  <div key={label} style={{ background: darkMode ? '#161b22' : '#fff', border: darkMode ? '1px solid rgba(255,255,255,0.06)' : 'none', borderRadius: 7, padding: '8px 10px', boxShadow: '0 2px 8px rgba(100,140,220,0.12)' }}>
+                  <div key={label} style={{ background: C.surface, border: darkMode ? '1px solid rgba(255,255,255,0.06)' : 'none', borderRadius: 7, padding: '8px 10px', boxShadow: '0 2px 8px rgba(100,140,220,0.12)' }}>
                     <div style={{ fontSize: 9, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{label}</div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color }}>{value}</div>
                     <div style={{ fontSize: 9, color: C.textMuted, marginTop: 1 }}>{sub}</div>
@@ -2182,7 +2172,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Options flow + market conditions */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {/* Options Flow mini */}
-                <div style={{ background: '#fff', borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(0,153,204,0.09)', borderLeft: '3px solid #0099cc' }}>
+                <div style={{ background: C.surface, borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(0,153,204,0.09)', borderLeft: '3px solid #0099cc' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.synapse, animation: 'pulse 2s infinite' }} />
                     <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.synapse, letterSpacing: '1px', textTransform: 'uppercase' }}>Options Flow</span>
@@ -2203,7 +2193,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
 
                 {/* Market conditions mini */}
-                <div style={{ background: '#fff', borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(102,32,212,0.09)', borderLeft: '3px solid #6620d4' }}>
+                <div style={{ background: C.surface, borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(102,32,212,0.09)', borderLeft: '3px solid #6620d4' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
                     <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.violet, letterSpacing: '1px', textTransform: 'uppercase' }}>Market Conditions</span>
@@ -2226,7 +2216,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* AI insights */}
               {aiResult?.todaysEdge && (
-                <div style={{ background: '#fff', borderRadius: 7, padding: 12, boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
+                <div style={{ background: C.surface, borderRadius: 7, padding: 12, boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
                   <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>⚡ Today's Edge</div>
                   <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div>
                   {aiResult.riskFlag && <div style={{ marginTop: 8, fontSize: 10, color: C.red, padding: '5px 8px', background: C.redDim, borderRadius: 4, border: `1px solid ${C.redBorder}` }}>⚠ {aiResult.riskFlag}</div>}
@@ -2235,7 +2225,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Composite Market Score */}
               {marketScore && (
-                <div style={{ background: darkMode ? '#161b22' : '#fff', borderRadius: 8, padding: '12px 14px', boxShadow: '0 2px 10px rgba(100,140,220,0.08)', borderLeft: `3px solid ${marketScore.color}` }}>
+                <div style={{ background: C.surface, borderRadius: 8, padding: '12px 14px', boxShadow: '0 2px 10px rgba(100,140,220,0.08)', borderLeft: `3px solid ${marketScore.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '1px' }}>MARKET SCORE</div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 900, color: marketScore.color }}>{marketScore.score}<span style={{ fontSize: 11, opacity: 0.6 }}>/100</span></div>
@@ -2251,13 +2241,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {(marketNews || economicCalendar) && (
                 <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10 }}>
                   {marketNews && (
-                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
+                    <div style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>📰 TODAY'S NEWS</div>
                       <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{marketNews}</div>
                     </div>
                   )}
                   {economicCalendar && (
-                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
+                    <div style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.fire, letterSpacing: '1px', marginBottom: 6 }}>📅 ECONOMIC CALENDAR</div>
                       <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{economicCalendar}</div>
                     </div>
@@ -2269,7 +2259,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {(multiTFData || macroRegime) && (
                 <div style={{ display: 'grid', gridTemplateColumns: multiTFData && macroRegime ? '1fr 1fr' : '1fr', gap: 10 }}>
                   {multiTFData && (
-                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
+                    <div style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px', marginBottom: 8 }}>📊 MULTI-TIMEFRAME</div>
                       {[{label:'Weekly', value: multiTFData.weekly.trend, sub: `MA20: ${multiTFData.weekly.ma20}`, color: multiTFData.weekly.trend==='BULLISH'?C.synapse:C.red},{label:'Daily', value: multiTFData.daily.trend, sub: `MA5: ${multiTFData.daily.ma5}`, color: multiTFData.daily.trend==='BULLISH'?C.synapse:C.red}].map(({label,value,sub,color}) => (
                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.07)' }}>
@@ -2281,7 +2271,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
                   {macroRegime && (
-                    <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,170,85,0.07)', borderLeft: `3px solid ${macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire}` }}>
+                    <div style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,170,85,0.07)', borderLeft: `3px solid ${macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire}` }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: '1px', marginBottom: 6 }}>🌍 MACRO REGIME</div>
                       <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 900, color: macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire, marginBottom: 4 }}>{macroRegime.regime}</div>
                       <div style={{ fontSize: 9, color: C.textMuted, marginBottom: 3 }}>Fed: <span style={{ color: C.text, fontWeight: 700 }}>{macroRegime.fedStance} ({macroRegime.rateLevel})</span></div>
@@ -2293,7 +2283,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* 0DTE Skew */}
               {zeroDTESkew && (
-                <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
+                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>⚡ SPX 0DTE SKEW</div>
                   <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: zeroDTESkew.callPct>55?C.synapse:zeroDTESkew.callPct<45?C.red:C.fire, marginBottom: 8 }}>{zeroDTESkew.skewLabel}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -2310,7 +2300,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Trade Patterns */}
               {tradePatterns && tradePatterns.avgWinnerSize > 0 && (
-                <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
+                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px', marginBottom: 8 }}>🧠 YOUR PATTERNS</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
                     {[{label:'Best hour',value:tradePatterns.bestHour,color:C.synapse},{label:'Worst hour',value:tradePatterns.worstHour,color:C.red},{label:'Avg winner',value:`$${tradePatterns.avgWinnerSize}`,color:C.synapse},{label:'Avg loser',value:`$${tradePatterns.avgLoserSize}`,color:C.red}].map(({label,value,color}) => (
@@ -2327,7 +2317,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Session Memory */}
               {sessionMemory && (
-                <div style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(102,32,212,0.06)', borderLeft: '3px solid rgba(102,32,212,0.3)' }}>
+                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(102,32,212,0.06)', borderLeft: '3px solid rgba(102,32,212,0.3)' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
                   <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
                   <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
@@ -2337,7 +2327,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Right — AI Companion (HERO) */}
             {companionOpen && (
-              <div style={{ width: 380, background: '#fff', borderLeft: '2px solid #6620d4', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(102,32,212,0.1)' }}>
+              <div style={{ width: 380, background: C.surface, borderLeft: '2px solid #6620d4', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(102,32,212,0.1)' }}>
                 {/* Companion header */}
                 <div style={{ padding: '10px 14px', background: 'linear-gradient(90deg, rgba(102,32,212,0.1), rgba(0,153,204,0.05))', borderBottom: '2px solid rgba(102,32,212,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(102,32,212,0.3)`, background: 'rgba(102,32,212,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, position: 'relative', boxShadow: '0 0 10px rgba(102,32,212,0.1)' }}>
@@ -2457,10 +2447,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* TAB 1 — MORNING PLAN */}
         {/* ═══════════════════════════════════════════════════════ */}
         {tab === 'plan' && (
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#edf0f7' }}>
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: C.deep }}>
 
             {/* LEFT — Setup form */}
-            <div style={{ width: 240, background: darkMode ? '#161b22' : '#fff', borderRight: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(100,140,220,0.15)'}`, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, boxShadow: '2px 0 8px rgba(100,140,220,0.06)' }}>
+            <div style={{ width: 240, background: C.surface, borderRight: `1px solid ${C.border}`, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, boxShadow: '2px 0 8px rgba(100,140,220,0.06)' }}>
 
               <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14, letterSpacing: '0.5px' }}>Today's Setup</div>
 
@@ -2523,7 +2513,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   onChange={e => setMorningPlan(p => ({ ...p, notes: e.target.value }))}
                   placeholder={'e.g. Gap up on CPI. Fade the open if we reject VWAP in first 30 min. Look for continuation if we reclaim PDH with volume...'}
                   rows={5}
-                  style={{ width: '100%', background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(240,244,250,0.7)', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(100,140,220,0.2)'}`, borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 12, outline: 'none', fontFamily: font, resize: 'vertical' as const, lineHeight: 1.6, boxSizing: 'border-box' as const }}
+                  style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 12, outline: 'none', fontFamily: font, resize: 'vertical' as const, lineHeight: 1.6, boxSizing: 'border-box' as const }}
                 />
               </div>
 
@@ -2563,13 +2553,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </div>
 
             {/* CENTER — AI Brief + Probability */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0, background: darkMode ? '#090d13' : '#edf0f7' }}>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0, background: C.deep }}>
 
               {/* Probability section */}
               {(() => {
                 const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
                 return (
-                  <div style={{ background: darkMode ? '#161b22' : '#fff', margin: '14px 14px 0', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 12px rgba(100,140,220,0.08)', borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(100,140,220,0.2)'}` }}>
+                  <div style={{ background: C.surface, margin: '14px 14px 0', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 12px rgba(100,140,220,0.08)', borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(100,140,220,0.2)'}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Probability Breakdown</div>
                       {probs.hasData && (
@@ -2606,7 +2596,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               })()}
 
               {/* AI Morning Brief */}
-              <div style={{ background: darkMode ? '#161b22' : '#fff', margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(102,32,212,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
+              <div style={{ background: C.surface, margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(102,32,212,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
                 {/* Header */}
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(102,32,212,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2738,7 +2728,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </div>
 
             {/* RIGHT — Checklist */}
-            <div style={{ width: 280, background: darkMode ? '#161b22' : '#fff', borderLeft: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(100,140,220,0.15)'}`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
+            <div style={{ width: 280, background: C.surface, borderLeft: `1px solid ${C.border}`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Pre-Trade Check</div>
                 <div style={{ background: gradeColor + '15', border: `1px solid ${gradeColor}35`, borderRadius: 6, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -2762,9 +2752,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {customChecklist.map((item: any, idx: number) => (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                       <input value={item.label} onChange={e => setCustomChecklist((p: any[]) => p.map((c, i) => i === idx ? {...c, label: e.target.value} : c))}
-                        style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 5, padding: '5px 8px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
+                        style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 5, padding: '5px 8px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
                       <select value={item.category} onChange={e => setCustomChecklist((p: any[]) => p.map((c, i) => i === idx ? {...c, category: e.target.value} : c))}
-                        style={{ background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 5, padding: '5px 4px', color: C.textDim, fontSize: 10, outline: 'none', fontFamily: font }}>
+                        style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 5, padding: '5px 4px', color: C.textDim, fontSize: 10, outline: 'none', fontFamily: font }}>
                         {['TIMING','CONFLUENCE','RISK','SYSTEM'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </select>
                       <button onClick={() => setCustomChecklist((p: any[]) => p.filter((_: any, i: number) => i !== idx))}
@@ -3453,7 +3443,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
             <div style={{
               padding: '8px 12px',
               borderTop: `1px solid rgba(102,32,212,0.1)`,
-              background: darkMode ? 'rgba(13,17,23,0.98)' : 'rgba(255,255,255,0.95)',
+              background: 'rgba(8,10,15,0.98)',
               flexShrink: 0, position: 'relative', zIndex: 2,
             }}>
               {/* Waveform when speaking */}

@@ -160,7 +160,7 @@ export default function LandingPage() {
         <div className="nav-right">
           <a href="#how" className="nav-link">How it works</a>
           <a href="#pricing" className="nav-link">Pricing</a>
-          <a href="/sign-up" className="btn-nav">Join Waitlist</a><a href="/sign-in" class="nav-link" style="padding:8px 20px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;">Sign In</a>
+          <a href="/sign-up" className="btn-nav">Join Waitlist</a><a href="/sign-in" className="btn-nav" style={{padding:"8px 20px",background:"transparent",border:"1px solid rgba(255,255,255,0.2)",color:"#e8eaf0"}}>Sign In</a>
         </div>
       </nav>
 
@@ -325,3 +325,4 @@ export default function LandingPage() {
     </>
   )
 }
+
