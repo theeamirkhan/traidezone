@@ -245,7 +245,7 @@ async function runAI({
   morningPlan, activePlaybook, tradeStats, optionsFlow, marketTide, marketIntel, tiingoContext,
   marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory
 }: any) {
-  if (!anthKey || !currentPrice) return null
+  if (!currentPrice) return null
   const recent = (candles || []).slice(-5).map((c: any) =>
     `O:${c.o?.toFixed(0)} H:${c.h?.toFixed(0)} L:${c.l?.toFixed(0)} C:${c.c?.toFixed(0)}`
   ).join(' | ')
@@ -1061,7 +1061,7 @@ export default function CockpitPage() {
   const router = useRouter()
 
   // Keys
-  const [keys, setKeys] = useState<any>({})
+  const [keys, setKeys] = useState<any>({ [POLY_KEY]: 'server', [ANTH_KEY]: 'server', [UW_KEY]: 'server', [EL_KEY]: 'server', [TIINGO_KEY]: 'server' })
   const [showSettings, setShowSettings] = useState(false)
   const [showDisclosure, setShowDisclosure] = useState(false)
 
@@ -1579,7 +1579,7 @@ export default function CockpitPage() {
 
   // AI auto-run every 3 min — fires even pre-market to load options flow
   useEffect(() => {
-    if (!keys[ANTH_KEY]) return
+    // keys loaded server-side, always run
     const run = async () => {
       setAiLoading(true)
       const [intel, flow, tide, tiingo, news, calendar, mtf, macro, skew] = await Promise.all([
@@ -1834,7 +1834,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
   // Send chat with explicit text (for voice input)
   const sendChatWithText = async (text: string) => {
-    if (!keys[ANTH_KEY]) return
+    // keys loaded server-side, always run
     setChatLoading(true)
     const context = buildCompanionContext()
     try {
@@ -2645,7 +2645,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 ) : (
                   <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.08)' }}>
                     <div style={{ background: 'rgba(240,244,250,0.8)', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: C.textMuted }}>{keys[ANTH_KEY] ? 'Loading AI analysis...' : 'Add Anthropic key in ⚙ Settings'}</div>
+                      <div style={{ fontSize: 11, color: C.textMuted }}>{'Loading AI analysis...'}</div>
                     </div>
                   </div>
                 )}
@@ -2727,7 +2727,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory})
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
-                  }} disabled={aiLoading || !keys[ANTH_KEY]} style={{
+                  }} disabled={aiLoading} style={{
                     width: '100%', background: aiLoading ? 'rgba(240,244,250,0.8)' : 'rgba(102,32,212,0.08)',
                     border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(102,32,212,0.25)'}`,
                     borderRadius: 8, padding: '10px 0', color: aiLoading ? C.textMuted : C.violet,
@@ -2976,7 +2976,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
                     setAiLoading(false)
-                  }} disabled={aiLoading || !keys[ANTH_KEY]} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.violetDim, border: `1px solid ${aiLoading ? C.border : C.violetBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
+                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.violetDim, border: `1px solid ${aiLoading ? C.border : C.violetBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
                 </div>
               </div>
             </div>
@@ -3268,7 +3268,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                       setTab('cockpit')
                     } catch {}
                     setAiLoading(false)
-                  }} disabled={aiLoading || !keys[ANTH_KEY]} style={{
+                  }} disabled={aiLoading} style={{
                     background: C.purpleDim, border: `1px solid ${C.purpleBorder}`, borderRadius: 8,
                     padding: '10px 16px', color: C.purple, cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, marginBottom: 12
                   }}>
