@@ -791,7 +791,7 @@ async function fetchOptionsFlow(uwKey: string) {
 async function fetchMarketTide(uwKey: string) {
   try {
     const res = await fetch('/api/flow?path=/api/market/market-tide', {
-      headers: { // server-side proxy handles auth }
+      headers: {}
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -3624,4 +3624,5 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
+
 
