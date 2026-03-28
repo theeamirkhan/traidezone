@@ -7,15 +7,15 @@ const EL_KEY = 'tz-elevenlabs-key'
 const UW_KEY = 'tz-uw-key'
 const VOICE_ID = 'tz-voice-id'
 
-const font = "'Share Tech Mono', monospace"
+const font = "'JetBrains Mono', monospace"
 const fontDisplay = "'Orbitron', sans-serif"
 const C = {
-  violet: '#6620d4', teal: '#0099cc', red: '#cc1040',
+  violet: '#00d4a0', teal: '#0099cc', red: '#cc1040',
   synapse: '#00aa55', fire: '#e05000', text: '#0d1830',
   textDim: '#4a5880', textMuted: '#8090b0',
-  bg: '#f0f4fa', surface: '#ffffff',
-  violetDim: 'rgba(102,32,212,0.07)',
-  violetBorder: 'rgba(102,32,212,0.2)',
+  bg: '#080a0f', surface: '#0d1018',
+  violetDim: 'rgba(0,212,160,0.07)',
+  violetBorder: 'rgba(0,212,160,0.2)',
 }
 
 export default function CompanionPopout() {
@@ -63,7 +63,7 @@ export default function CompanionPopout() {
     s.textContent = `
       @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap');
       * { margin:0; padding:0; box-sizing:border-box; }
-      body { background:#f0f4fa; font-family:'Share Tech Mono',monospace; overflow:hidden; height:100vh; }
+      body { background:#080a0f; font-family:'Share Tech Mono',monospace; overflow:hidden; height:100vh; }
       @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       @keyframes brainRing { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
       @keyframes waveAnim { 0%,100%{height:2px;opacity:0.2} 50%{height:var(--wh,10px);opacity:0.65} }
@@ -202,16 +202,16 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
   const signalColor = context?.signal === 'LONG' ? C.synapse : context?.signal === 'SHORT' ? C.red : C.fire
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: C.surface }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#080a0f' }}>
 
       {/* Header */}
       <div style={{ padding: '8px 12px', background: 'linear-gradient(90deg, rgba(102,32,212,0.1), rgba(0,153,204,0.04))', borderBottom: '2px solid rgba(102,32,212,0.12)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <div style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid rgba(102,32,212,0.3)', background: 'rgba(102,32,212,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, position: 'relative' }}>
+        <div style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid rgba(102,32,212,0.3)', background: 'rgba(0,212,160,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, position: 'relative' }}>
           🧠
           <div style={{ position: 'absolute', inset: -3, borderRadius: '50%', border: '1px solid rgba(102,32,212,0.15)', animation: 'brainRing 4s linear infinite' }} />
         </div>
         <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, letterSpacing: '2px', color: C.violet }}>AI COMPANION</div>
-        <div style={{ fontSize: 7, padding: '2px 6px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(102,32,212,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, animation: listening ? 'blink 1s infinite' : 'none' }}>
+        <div style={{ fontSize: 7, padding: '2px 6px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, animation: listening ? 'blink 1s infinite' : 'none' }}>
           {listening ? '● LISTENING' : speaking ? '◆ SPEAKING' : chatLoading ? '◌ THINKING' : '○ READY'}
         </div>
         {context?.signal && (
@@ -224,7 +224,7 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
 
       {/* Context strip */}
       {context && (
-        <div style={{ display: 'flex', background: 'rgba(248,249,255,0.8)', borderBottom: '1px solid rgba(100,140,220,0.08)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', background: '#0d1018', borderBottom: '1px solid rgba(0,212,160,0.15)', flexShrink: 0 }}>
           {[
             { label: 'SPX', value: context.spx, color: C.text },
             { label: 'VWAP', value: context.vwapPos, color: context.vwapPos === '▲' ? C.synapse : C.red },
@@ -232,7 +232,7 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
             { label: 'SCORE', value: `${context.score}/13`, color: parseInt(context.score) >= 9 ? C.synapse : parseInt(context.score) >= 7 ? C.fire : C.red },
             { label: 'P&L', value: context.pnl, color: context.pnl?.startsWith('-') ? C.red : C.synapse },
           ].map(({ label, value, color }, i) => (
-            <div key={label} style={{ flex: 1, textAlign: 'center', padding: '3px 0', borderRight: i < 4 ? '1px solid rgba(100,140,220,0.06)' : 'none' }}>
+            <div key={label} style={{ flex: 1, textAlign: 'center', padding: '3px 0', borderRight: i < 4 ? '1px solid rgba(0,212,160,0.06)' : 'none' }}>
               <div style={{ fontSize: 6, color: C.textMuted, textTransform: 'uppercase' }}>{label}</div>
               <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color }}>{value || '—'}</div>
             </div>
@@ -241,7 +241,7 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
       )}
 
       {/* Messages */}
-      <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(248,249,255,0.4)' }}>
+      <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: '#080a0f' }}>
         {chatMessages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '20px 12px' }}>
             <div style={{ fontSize: 24, marginBottom: 8 }}>🎙️</div>
@@ -256,7 +256,7 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
         {chatMessages.map((m, i) => (
           <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
             {m.role === 'assistant' && <div style={{ fontSize: 7, color: C.violet, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 3, letterSpacing: 1 }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.violet, display: 'inline-block' }} />AI COMPANION</div>}
-            <div style={{ padding: '7px 11px', fontSize: 10, lineHeight: 1.6, color: C.text, background: m.role === 'user' ? 'rgba(0,153,204,0.06)' : 'rgba(102,32,212,0.05)', border: `1px solid ${m.role === 'user' ? 'rgba(0,153,204,0.15)' : 'rgba(102,32,212,0.12)'}`, borderLeft: m.role === 'assistant' ? '2px solid #6620d4' : 'none', borderRight: m.role === 'user' ? '2px solid #0099cc' : 'none', borderRadius: m.role === 'user' ? '6px 2px 2px 6px' : '2px 6px 6px 2px' }}>
+            <div style={{ padding: '7px 11px', fontSize: 10, lineHeight: 1.6, color: C.text, background: m.role === 'user' ? 'rgba(0,153,204,0.06)' : 'rgba(0,212,160,0.05)', border: `1px solid ${m.role === 'user' ? 'rgba(0,153,204,0.15)' : 'rgba(0,212,160,0.12)'}`, borderLeft: m.role === 'assistant' ? '2px solid #00d4a0' : 'none', borderRight: m.role === 'user' ? '2px solid #0099cc' : 'none', borderRadius: m.role === 'user' ? '6px 2px 2px 6px' : '2px 6px 6px 2px' }}>
               {m.content}
             </div>
           </div>
@@ -264,7 +264,7 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
         {chatLoading && (
           <div style={{ alignSelf: 'flex-start' }}>
             <div style={{ fontSize: 7, color: C.violet, marginBottom: 2, letterSpacing: 1 }}>AI COMPANION</div>
-            <div style={{ padding: '8px 12px', background: 'rgba(102,32,212,0.05)', border: '1px solid rgba(102,32,212,0.12)', borderLeft: '2px solid #6620d4', borderRadius: '2px 6px 6px 2px', display: 'flex', gap: 4 }}>
+            <div style={{ padding: '8px 12px', background: 'rgba(0,212,160,0.05)', border: '1px solid rgba(102,32,212,0.12)', borderLeft: '2px solid #00d4a0', borderRadius: '2px 6px 6px 2px', display: 'flex', gap: 4 }}>
               {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
             </div>
           </div>
@@ -284,18 +284,18 @@ ${context.riskFlag ? `RISK: ${context.riskFlag}` : ''}`
       )}
 
       {/* Input */}
-      <div style={{ padding: '8px 12px', background: '#fff', borderTop: '1px solid rgba(100,140,220,0.1)', flexShrink: 0 }}>
+      <div style={{ padding: '8px 12px', background: '#0d1018', borderTop: '1px solid rgba(0,212,160,0.15)', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
           <button onClick={listening ? stopListening : startListening} style={{ width: 36, height: 36, borderRadius: '50%', border: `1.5px solid ${listening ? 'rgba(204,16,64,0.4)' : 'rgba(204,16,64,0.25)'}`, background: listening ? 'rgba(204,16,64,0.1)' : 'rgba(204,16,64,0.05)', color: C.red, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: listening ? 'none' : 'micGlow 2s infinite', flexShrink: 0 }}>
             {listening ? '⏹' : '🎙️'}
           </button>
-          <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening...' : 'Ask your AI companion...'} style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(100,140,220,0.15)', borderRadius: 3, padding: '7px 10px', color: C.text, fontFamily: font, fontSize: 10, outline: 'none' }} />
-          <button onClick={() => sendChat()} disabled={!chatInput.trim() || chatLoading} style={{ width: 32, height: 32, background: chatInput.trim() ? 'rgba(102,32,212,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() ? 'rgba(102,32,212,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() ? C.violet : C.textMuted, cursor: chatInput.trim() ? 'pointer' : 'not-allowed', fontSize: 13, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
+          <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening...' : 'Ask your AI companion...'} style={{ flex: 1, background: '#131720', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 3, padding: '7px 10px', color: C.text, fontFamily: font, fontSize: 10, outline: 'none' }} />
+          <button onClick={() => sendChat()} disabled={!chatInput.trim() || chatLoading} style={{ width: 32, height: 32, background: chatInput.trim() ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() ? 'rgba(0,212,160,0.25)' : 'rgba(0,212,160,0.1)'}`, borderRadius: 3, color: chatInput.trim() ? C.violet : C.textMuted, cursor: chatInput.trim() ? 'pointer' : 'not-allowed', fontSize: 13, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
         </div>
         {/* Voice picker */}
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {[{name:'Rachel',id:'21m00Tcm4TlvDq8ikWAM'},{name:'Drew',id:'29vD33N1CtxCmqQRPOHJ'},{name:'Sarah',id:'EXAVITQu4vr4xnSDxMaL'},{name:'Thomas',id:'GBv7mTt0atIp3Br8iCZE'},{name:'Clyde',id:'2EiwWnXFnvU5JabPnv8n'}].map(v => (
-            <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '2px 7px', borderRadius: 2, background: voiceId === v.id ? C.violetDim : 'transparent', border: `1px solid ${voiceId === v.id ? C.violetBorder : 'rgba(100,140,220,0.1)'}`, color: voiceId === v.id ? C.violet : C.textMuted, fontSize: 8, cursor: 'pointer', fontFamily: font }}>{v.name}</button>
+            <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '2px 7px', borderRadius: 2, background: voiceId === v.id ? C.violetDim : 'transparent', border: `1px solid ${voiceId === v.id ? C.violetBorder : 'rgba(0,212,160,0.1)'}`, color: voiceId === v.id ? C.violet : C.textMuted, fontSize: 8, cursor: 'pointer', fontFamily: font }}>{v.name}</button>
           ))}
         </div>
       </div>

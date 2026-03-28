@@ -791,7 +791,7 @@ async function fetchOptionsFlow(uwKey: string) {
 async function fetchMarketTide(uwKey: string) {
   try {
     const res = await fetch('/api/flow?path=/api/market/market-tide', {
-      headers: {}
+      headers: { // server-side proxy handles auth }
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -2455,7 +2455,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
 
                 {/* Messages */}
-                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(248,249,255,0.4)' }}>
+                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(13,17,23,0.8)' }}>
                   {chatMessages.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>🎙️</div>
@@ -2612,7 +2612,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Today's Playbook</div>
               {playbooks.map(pb => (
                 <div key={pb.id} onClick={() => setActivePlaybookId(activePlaybookId === pb.id ? null : pb.id)} style={{
-                  background: activePlaybookId === pb.id ? 'rgba(0,153,204,0.08)' : 'rgba(248,249,255,0.8)',
+                  background: activePlaybookId === pb.id ? 'rgba(0,212,160,0.08)' : '#131720',
                   border: `1.5px solid ${activePlaybookId === pb.id ? 'rgba(0,153,204,0.3)' : 'rgba(100,140,220,0.15)'}`,
                   borderRadius: 8, padding: '9px 11px', marginBottom: 6, cursor: 'pointer', transition: 'all 0.15s',
                   boxShadow: activePlaybookId === pb.id ? '0 2px 8px rgba(0,153,204,0.1)' : 'none'
@@ -3477,7 +3477,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
             </div>
 
             {/* Messages */}
-            <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, position: 'relative', zIndex: 2, background: 'rgba(248,249,255,0.5)' }}>
+            <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, position: 'relative', zIndex: 2, background: 'rgba(13,17,23,0.8)' }}>
               {chatMessages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                   <div style={{ fontSize: 32, marginBottom: 10 }}>🧠</div>
@@ -3623,5 +3623,4 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
-
 
