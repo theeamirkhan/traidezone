@@ -14,16 +14,16 @@ const VOICE_ID = 'tz-voice-id'
 // ── COLOR SYSTEM — NEURAL BLACK ────────────────────────────────────────────
 // ── COLOR SYSTEM — PEARL WHITE ────────────────────────────────────────────
 const C = {
-  bg: '#f0f4fa',
-  deep: '#e8edf7',
-  surface: 'rgba(255,255,255,0.92)',
-  surface2: 'rgba(248,249,255,0.8)',
-  surface3: 'rgba(240,244,250,0.7)',
-  border: 'rgba(100,140,220,0.15)',
-  border2: 'rgba(102,32,212,0.15)',
-  text: '#0d1830',
-  textDim: '#4a5880',
-  textMuted: '#8090b0',
+  bg: '#080a0f',
+  deep: '#050609',
+  surface: '#0d1018',
+  surface2: '#131720',
+  surface3: '#1a1f2e',
+  border: 'rgba(255,255,255,0.06)',
+  border2: 'rgba(0,212,160,0.2)',
+  text: '#e8eaf0',
+  textDim: '#6b7280',
+  textMuted: '#3d4451',
   // Color trinity
   teal: '#0099cc',
   tealDim: 'rgba(0,153,204,0.08)',
@@ -62,7 +62,7 @@ if (typeof window !== 'undefined' && !document.getElementById('tz-white-style'))
   s.id = 'tz-white-style'
   s.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
-    body { background: #f0f4fa !important; }
+    body { background: #080a0f !important; }
     @keyframes neuralSpin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
     @keyframes neuralPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     @keyframes headerScan { 0%{left:-100%;right:100%} 100%{left:100%;right:-100%} }
@@ -964,7 +964,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
+      <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' as const }}>
         <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 4 }}>Settings</div>
         <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, marginBottom: 20 }}>Customize your <span>tr<span style={{color:'#00d4a0'}}>AI</span>de Zone</span> experience</div>
 
@@ -2012,7 +2012,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   const CC = C
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#080a0f', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
+    <div style={{ width: '100vw', height: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
         * { box-sizing: border-box; }
@@ -2145,6 +2145,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: signalColor, letterSpacing: 2, textShadow: `0 0 12px ${signalColor}60` }}>{aiResult.signal}</span>
             </div>
           )}
+          {/* Voice usage counter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 6,
+            background: voiceOverage ? 'rgba(255,77,109,0.1)' : voiceWarningShown === '90' ? 'rgba(245,158,11,0.1)' : 'rgba(0,212,160,0.08)',
+            border: `1px solid ${voiceOverage ? 'rgba(255,77,109,0.3)' : voiceWarningShown === '90' ? 'rgba(245,158,11,0.3)' : 'rgba(0,212,160,0.2)'}` }}>
+            <span style={{ fontSize: 10 }}>🎙️</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: voiceOverage ? '#ff4d6d' : voiceWarningShown === '90' ? '#f59e0b' : '#00d4a0' }}>
+              {Math.round(voiceMinUsed)}m / {voiceMinLimit >= 99999 ? '∞' : voiceMinLimit + 'm'}
+            </span>
+          </div>
           <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
         </div>
       </div>
@@ -3617,5 +3626,4 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
-
 
