@@ -287,6 +287,14 @@ Gap fill rate: ${tiingoContext.gapFillRate || 'N/A'}% | Continuation rate: ${tii
 Implied move historical accuracy: ${tiingoContext.imAccuracy}% of days stay within the implied range`
     : 'No Tiingo key — add in Settings for historical gap/implied move data'
 
+  const toneInstructions: Record<number, string> = {
+    1: "You are a DRILL SERGEANT. Be direct, blunt, and brutally honest. Call out mistakes immediately. No sugarcoating. Short sharp sentences. Hold this trader to military-level discipline.",
+    2: "You are direct and firm. No fluff. Call out bad habits clearly. Be honest even when it stings. Keep the trader accountable with a tough-love approach.",
+    3: "You are balanced — direct but supportive. Call out mistakes clearly but constructively. Mix accountability with encouragement based on what the trader needs.",
+    4: "You are encouraging and supportive. Acknowledge progress. Frame corrections as learning opportunities. Keep energy positive while maintaining accountability.",
+    5: "You are a LIFE COACH. Lead with empathy and encouragement. Reframe mistakes as growth moments. Keep the trader confident and emotionally regulated. Celebrate small wins.",
+  }
+
   const prompt = `You are an elite SPX intraday trading AI companion. Your job is to keep this trader disciplined, data-driven, and in their system.
 
 PRICE & LEVELS:
@@ -924,11 +932,14 @@ const TZ = () => (
 )
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
-function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode }: any) {
-  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
+function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage }: any) {
+  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
+    localStorage.setItem('tz-ai-tone', aiTone.toString())
+    localStorage.setItem('tz-user-name', userName)
+    localStorage.setItem('tz-welcome-message', welcomeMessage)
     onClose()
   }
 
@@ -1016,9 +1027,43 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
             style={{ width: '100%', background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', boxSizing: 'border-box' as const }}
           />
         </div>
+        {/* Name */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 6 }}>Your Name</div>
+          <input type="text" value={userName} onChange={e => setUserName(e.target.value)}
+            placeholder="e.g. Amir"
+            style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>The AI will address you by name.</div>
+        </div>
+
+        {/* Welcome message */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 6 }}>Daily Welcome Message</div>
+          <textarea value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)}
+            placeholder={`e.g. "Good morning {name}. VIX is elevated — stay patient and wait for your setups."`}
+            rows={3}
+            style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Played once per day when you open the cockpit. Use <span style={{color: C.teal}}>{'{name}'}</span> to insert your name.</div>
+        </div>
+
+        {/* AI Tone Slider */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 10 }}>AI Coaching Tone</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: C.textDim }}>🪖 Drill Sergeant</span>
+            <span style={{ fontSize: 10, color: C.teal, fontWeight: 700 }}>{['','Drill Sergeant','Direct & Firm','Balanced','Encouraging','Life Coach'][aiTone]}</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>Life Coach 🧘</span>
+          </div>
+          <input type="range" min={1} max={5} value={aiTone} onChange={e => setAiTone(parseInt(e.target.value))}
+            style={{ width: '100%', accentColor: '#00d4a0', cursor: 'pointer' }} />
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 6, lineHeight: 1.5 }}>
+            {[,'Blunt, direct, zero tolerance for mistakes.','Tough love, honest feedback.','Balanced accountability and support.','Positive reinforcement focused.','Empathetic, confidence-building.'][aiTone]}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button onClick={save} style={{ flex: 1, background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>Save</button>
-          <button onClick={onClose} style={{ flex: 1, background: C.surface2, color: C.textDim, border: `1px solid ${C.border2}`, borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: font }}>Cancel</button>
+          <button onClick={save} style={{ flex: 1, background: C.teal, color: '#080a0f', border: 'none', borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>Save</button>
+          <button onClick={onClose} style={{ flex: 1, background: C.surface2, color: C.textDim, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: font }}>Cancel</button>
         </div>
       </div>
     </div>
@@ -1072,7 +1117,7 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
-  const [darkMode, setDarkMode] = useState(() => false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('tz-dark-mode') === 'true')
 
   // Market data
   const [candles, setCandles] = useState<any[]>([])
@@ -1106,6 +1151,13 @@ export default function CockpitPage() {
   const [customChecklist, setCustomChecklist] = useState<any[]>(CHECKLIST)
   const [editingChecklist, setEditingChecklist] = useState(false)
   const [newCheckItem, setNewCheckItem] = useState('')
+  const [voiceMinUsed, setVoiceMinUsed] = useState(0)
+  const [aiTone, setAiTone] = useState(3) // 1=Drill Sergeant, 5=Life Coach
+  const [userName, setUserName] = useState('')
+  const [welcomeMessage, setWelcomeMessage] = useState('')
+  const [voiceMinLimit, setVoiceMinLimit] = useState(180) // default Pro
+  const [voiceWarningShown, setVoiceWarningShown] = useState<'50' | '90' | null>(null)
+  const [voiceOverage, setVoiceOverage] = useState(false)
 
   // AI
   const [aiResult, setAiResult] = useState<any>(null)
@@ -1677,6 +1729,31 @@ export default function CockpitPage() {
   }
 
   // Voice speak — pauses mic while speaking, resumes after
+  const checkVoiceLimit = (minutesUsed: number) => {
+    const pct = (minutesUsed / voiceMinLimit) * 100
+    if (pct >= 90 && voiceWarningShown !== '90') {
+      setVoiceWarningShown('90')
+    } else if (pct >= 50 && voiceWarningShown !== '50' && voiceWarningShown !== '90') {
+      setVoiceWarningShown('50')
+    }
+    if (minutesUsed > voiceMinLimit) setVoiceOverage(true)
+  }
+
+  const logVoiceUsage = async (seconds: number) => {
+    const mins = seconds / 60
+    const newTotal = voiceMinUsed + mins
+    // Update localStorage
+    localStorage.setItem('tz-voice-mins-used', newTotal.toString())
+    setVoiceMinUsed(newTotal)
+    checkVoiceLimit(newTotal)
+    // Log to server
+    fetch('/api/voice-usage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seconds }),
+    }).catch(() => {})
+  }
+
   const speak = async (text: string) => {
     const elKey = keys[EL_KEY] || 'server'
 
@@ -1769,7 +1846,7 @@ export default function CockpitPage() {
     const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
     const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
 
-    return `You are the trAIde Zone AI companion — a focused, direct trading accountability partner for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
+    return `You are the trAIde Zone AI companion for an SPX intraday options trader. ${toneInstructions[aiTone] || toneInstructions[3]} You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
 
 NEVER say you are text-only. Your responses ARE spoken aloud via ElevenLabs.
 
@@ -1903,6 +1980,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   // Write live context to localStorage so companion popout can read it
   useEffect(() => {
     const activePlaybook = playbooks.find((p: any) => p.id === activePlaybookId) || null
+    const traderName = userName ? `Trader's name: ${userName}. Address them by name occasionally.` : ''
     const ctx = {
       spx: fmt(currentPrice),
       vwapPos: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—',
@@ -1941,7 +2019,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         input, textarea { font-family: '${font}' !important; }
       `}</style>
 
-      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} darkMode={darkMode} setDarkMode={setDarkMode} />}
+      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} />}
 
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
@@ -3539,4 +3617,3 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
-
