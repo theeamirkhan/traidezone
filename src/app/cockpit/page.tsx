@@ -523,7 +523,8 @@ async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<
 
 // ── #5 SPX 0DTE OPTIONS SKEW ───────────────────────────────────────────────
 async function fetchZeroDTESkew(uwKey: string): Promise<any> {
-  if (!uwKey) return null
+  // Always use server-side proxy
+  uwKey = 'server'
   try {
     // Fetch today's SPX 0DTE options flow specifically
     const today = new Date().toISOString().split('T')[0]
@@ -772,11 +773,8 @@ async function fetchMarketIntel(polyKey: string) {
 }
 
 async function fetchOptionsFlow(uwKey: string) {
-  if (!uwKey) return []
   try {
-    const res = await fetch('https://api.unusualwhales.com/api/option-trades/flow-alerts?limit=50', {
-      headers: { Authorization: 'Bearer ' + uwKey }
-    })
+    const res = await fetch('/api/flow?path=/api/option-trades/flow-alerts?limit=50')
     if (!res.ok) return []
     const data = await res.json()
     return (data.data || [])
@@ -791,10 +789,9 @@ async function fetchOptionsFlow(uwKey: string) {
 }
 
 async function fetchMarketTide(uwKey: string) {
-  if (!uwKey) return null
   try {
-    const res = await fetch('https://api.unusualwhales.com/api/market/market-tide', {
-      headers: { Authorization: 'Bearer ' + uwKey }
+    const res = await fetch('/api/flow?path=/api/market/market-tide', {
+      headers: { // server-side proxy handles auth }
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -2789,7 +2786,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       {label:'200 EMA', value: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? '▲ ABOVE' : '▼ BELOW') : '—', color: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? C.synapse : C.red) : C.textMuted},
                       {label:'VIX', value: vixPrice ? (vixPrice > 25 ? 'HIGH ⚠' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted},
                       {label:'Breadth', value: marketIntel?.breadth?.bias || '—', color: C.textDim},
-                      {label:'Flow', value: optionsFlow.length ? `${optionsFlow.length} alerts` : 'No UW key', color: optionsFlow.length ? C.synapse : C.textMuted},
+                      {label:'Flow', value: optionsFlow.length ? `${optionsFlow.length} alerts` : 'Loading...', color: optionsFlow.length ? C.synapse : C.textMuted},
                       {label:'Tide', value: marketTide?.bias || '—', color: C.textDim},
                     ].map(({label, value, color}) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.06)' }}>
@@ -3120,7 +3117,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         </div>
                       ))}
                     </>
-                  ) : <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center' }}>{keys[UW_KEY] ? 'Loading tide...' : 'No UW key'}</div>}
+                  ) : <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center' }}>{'Loading tide...'}</div>}
                 </div>
               </div>
 
