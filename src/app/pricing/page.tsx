@@ -184,7 +184,7 @@ export default function PricingPage() {
                 padding: '12px', borderRadius: 8, cursor: 'pointer', border: 'none',
                 background: tier.popular ? green : 'transparent',
                 color: tier.popular ? '#080a0f' : C.text,
-                border: tier.popular ? 'none' : `1px solid ${C.border2}`,
+                outline: tier.popular ? 'none' : `1px solid ${C.border2}`,
                 opacity: loading === tier.name ? 0.7 : 1,
                 transition: 'all 0.2s',
               }}>

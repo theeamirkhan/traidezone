@@ -933,7 +933,7 @@ const TZ = () => (
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
 function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage }: any) {
-  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM' })
+  const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
@@ -1117,7 +1117,7 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('tz-dark-mode') === 'true')
+  const [darkMode, setDarkMode] = useState(() => false)
 
   // Market data
   const [candles, setCandles] = useState<any[]>([])
@@ -1846,7 +1846,7 @@ export default function CockpitPage() {
     const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
     const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
 
-    return `You are the trAIde Zone AI companion for an SPX intraday options trader. ${toneInstructions[aiTone] || toneInstructions[3]} You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
+    return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
 
 NEVER say you are text-only. Your responses ARE spoken aloud via ElevenLabs.
 
@@ -3617,3 +3617,5 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
+
+

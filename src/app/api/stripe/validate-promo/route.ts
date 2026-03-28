@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
       const promo = coupons.data[0]
       return NextResponse.json({
         valid: true,
-        discount: promo.coupon.percent_off ? `${promo.coupon.percent_off}% off` : `$${(promo.coupon.amount_off! / 100)} off`,
-        duration: promo.coupon.duration,
+        discount: (promo as any).coupon?.percent_off ? `${(promo as any).coupon?.percent_off}% off` : `$${((promo as any).coupon?.amount_off! / 100)} off`,
+        duration: (promo as any).coupon?.duration,
       })
     }
     return NextResponse.json({ valid: false })
@@ -19,3 +19,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ valid: false })
   }
 }
+
+
