@@ -29,10 +29,10 @@ const C = {
   tealDim: 'rgba(0,153,204,0.08)',
   tealBorder: 'rgba(0,153,204,0.2)',
   tealGlow: 'rgba(0,153,204,0.15)',
-  violet: '#6620d4',
-  violetDim: 'rgba(102,32,212,0.07)',
-  violetBorder: 'rgba(102,32,212,0.2)',
-  violetGlow: 'rgba(102,32,212,0.12)',
+  violet: '#00d4a0',
+  violetDim: 'rgba(0,212,160,0.07)',
+  violetBorder: 'rgba(0,212,160,0.2)',
+  violetGlow: 'rgba(0,212,160,0.12)',
   pink: '#c020e0',
   pinkDim: 'rgba(192,32,224,0.06)',
   pinkBorder: 'rgba(192,32,224,0.18)',
@@ -47,10 +47,10 @@ const C = {
   yellowDim: 'rgba(192,112,0,0.07)',
   blue: '#1a5fa8',
   // Aliases
-  purple: '#6620d4',
-  purpleDim: 'rgba(102,32,212,0.07)',
-  purpleBorder: 'rgba(102,32,212,0.2)',
-  purpleGlow: 'rgba(102,32,212,0.06)',
+  purple: '#00d4a0',
+  purpleDim: 'rgba(0,212,160,0.07)',
+  purpleBorder: 'rgba(0,212,160,0.2)',
+  purpleGlow: 'rgba(0,212,160,0.06)',
   redBorderLegacy: 'rgba(204,16,64,0.18)',
 }
 const font = "'Share Tech Mono', monospace"
@@ -67,7 +67,7 @@ if (typeof window !== 'undefined' && !document.getElementById('tz-white-style'))
     @keyframes neuralPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     @keyframes headerScan { 0%{left:-100%;right:100%} 100%{left:100%;right:-100%} }
     @keyframes signalBreath { 0%,100%{opacity:0.4} 50%{opacity:1} }
-    @keyframes aiGlow { 0%,100%{box-shadow:0 2px 8px rgba(102,32,212,0.08)} 50%{box-shadow:0 4px 20px rgba(102,32,212,0.15)} }
+    @keyframes aiGlow { 0%,100%{box-shadow:0 2px 8px rgba(0,212,160,0.08)} 50%{box-shadow:0 4px 20px rgba(0,212,160,0.15)} }
     @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
     @keyframes scanBeam { 0%{top:-1px;opacity:0} 5%{opacity:0.6} 95%{opacity:0.3} 100%{top:100%;opacity:0} }
     @keyframes brainRing { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
@@ -82,8 +82,8 @@ if (typeof window !== 'undefined' && !document.getElementById('tz-white-style'))
     @keyframes coreGlow { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:0.8;transform:scale(1.15)} }
     ::-webkit-scrollbar{width:3px}
     ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:rgba(102,32,212,0.15);border-radius:2px}
-    .header-scan::after{content:'';position:absolute;bottom:0;left:-100%;right:100%;height:1.5px;background:linear-gradient(90deg,transparent,#6620d4,#0099cc,#c020e0,transparent);animation:headerScan 5s linear infinite;pointer-events:none}
+    ::-webkit-scrollbar-thumb{background:rgba(0,212,160,0.15);border-radius:2px}
+    .header-scan::after{content:'';position:absolute;bottom:0;left:-100%;right:100%;height:1.5px;background:linear-gradient(90deg,transparent,#00d4a0,#00b8a0,#00d4a0,transparent);animation:headerScan 5s linear infinite;pointer-events:none}
   `
   document.head.appendChild(s)
 }
@@ -1003,15 +1003,15 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
                 <div key={v.id} style={{ position: 'relative' as const }}>
                   <button type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{
                     width: '100%', padding: '7px 10px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const,
-                    background: selected ? C.violetDim : C.bg,
-                    border: `1px solid ${selected ? C.violetBorder : C.border2}`,
+                    background: selected ? C.tealDim : C.bg,
+                    border: `1px solid ${selected ? C.tealBorder : C.border2}`,
                     transition: 'all 0.15s',
                   }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.violet : C.text }}>{v.name}</div>
                     <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>{v.desc}</div>
                   </button>
                   <button type="button" onClick={e => { e.stopPropagation(); testVoice(v.id, v.name) }}
-                    style={{ position: 'absolute' as const, top: 5, right: 5, fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${C.violetBorder}`, background: previewingVoice === v.id ? C.violetDim : 'transparent', color: C.violet, cursor: 'pointer' }}>
+                    style={{ position: 'absolute' as const, top: 5, right: 5, fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${C.tealBorder}`, background: previewingVoice === v.id ? C.tealDim : 'transparent', color: C.teal, cursor: 'pointer' }}>
                     {previewingVoice === v.id ? '⏸' : '▶'}
                   </button>
                 </div>
@@ -1489,7 +1489,7 @@ export default function CockpitPage() {
   }, [keys])
 
   useEffect(() => {
-    if (!keys[POLY_KEY]) return
+    // keys handled server-side
     fetchHistory('SPY', setCandles, 'spx')
     fetchHistory('SPY', setSpyCandles, 'spy')
     fetchHistory('I:VIX1D', setVixCandles, 'vix')
@@ -1504,7 +1504,7 @@ export default function CockpitPage() {
 
   // Reload SPX when timeframe changes — fetchHistory already has fresh chartTf via useCallback
   useEffect(() => {
-    if (!keys[POLY_KEY]) return
+    // keys handled server-side
     setCandles([])
     fetchHistory('SPY', setCandles, 'spx')
   }, [chartTf])
@@ -2024,7 +2024,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'rgba(255,255,255,0.98)', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 16, padding: 32, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'rgba(255,255,255,0.98)', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 16, padding: 32, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.yellow }} />
               <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 800, color: C.text }}>Important Disclosure</div>
@@ -2057,7 +2057,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               localStorage.setItem('tz-disclosure-accepted', new Date().toISOString())
               setShowDisclosure(false)
             }} style={{
-              width: '100%', background: C.purple, color: '#fff', border: 'none',
+              width: '100%', background: C.teal, color: '#fff', border: 'none',
               borderRadius: 10, padding: '14px 0', fontSize: 14, fontWeight: 800,
               cursor: 'pointer', fontFamily: fontDisplay, letterSpacing: '-0.3px'
             }}>
@@ -2071,7 +2071,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       )}
 
       {/* ── TOP BAR — NEURAL BLACK ── */}
-      <div className="header-scan" style={{ height: 48, background: 'rgba(255,255,255,0.97)', borderBottom: `1px solid rgba(0,229,255,0.12)`, display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0, zIndex: 10, position: 'relative', overflow: 'hidden' }}>
+      <div className="header-scan" style={{ height: 48, background: 'rgba(13,17,23,0.98)', borderBottom: `1px solid rgba(0,212,160,0.15)`, display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0, zIndex: 10, position: 'relative', overflow: 'hidden' }}>
         {/* Logo */}
         <div style={{ padding: '0 20px', borderRight: `1px solid rgba(0,229,255,0.08)`, display: 'flex', alignItems: 'center', gap: 10, height: '100%' }}>
           <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, letterSpacing: 3, display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -2114,7 +2114,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             )}
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 8, color: C.violet, fontWeight: 700, letterSpacing: 1 }}>200E</span>
+            <span style={{ fontSize: 8, color: C.teal, fontWeight: 700, letterSpacing: 1 }}>200E</span>
             <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>{fmt(levels.ema200)}</span>
             {currentPrice && levels.ema200 && (
               <span style={{ fontSize: 9, color: currentPrice > levels.ema200 ? C.synapse : C.red, fontWeight: 700 }}>
@@ -2159,7 +2159,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       </div>
 
       {/* ── TABS — WHITE ── */}
-      <div style={{ height: 44, background: 'rgba(8,10,15,0.95)', borderBottom: `1px solid rgba(102,32,212,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
+      <div style={{ height: 44, background: 'rgba(13,17,23,0.98)', borderBottom: `1px solid rgba(0,212,160,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
         {(['plan', 'cockpit', 'deepdive', 'journal'] as const).map(t => {
           const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', journal: 'JOURNAL' }
           return (
@@ -2173,7 +2173,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               letterSpacing: '1px', transition: 'all 0.2s', textTransform: 'uppercase' as const,
             }}>
               {labels[t]}
-              {t === 'deepdive' && <span style={{ fontSize: 7, padding: '1px 5px', background: 'rgba(102,32,212,0.08)', border: '1px solid rgba(102,32,212,0.15)', color: C.violet, borderRadius: 8, marginLeft: 5 }}>chart</span>}
+              {t === 'deepdive' && <span style={{ fontSize: 7, padding: '1px 5px', background: 'rgba(0,212,160,0.08)', border: '1px solid rgba(0,212,160,0.15)', color: C.teal, borderRadius: 8, marginLeft: 5 }}>chart</span>}
             </button>
           )
         })}
@@ -2188,9 +2188,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {speaking && (
           <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
             {[0,1,2,3,4].map(i => (
-              <div key={i} style={{ width: 2, borderRadius: 1, background: C.violet, animation: `waveAnim ${0.4 + i * 0.1}s ease-in-out infinite`, animationDelay: `${i * 0.08}s`, '--wh': `${8 + i * 2}px` } as any} />
+              <div key={i} style={{ width: 2, borderRadius: 1, background: C.teal, animation: `waveAnim ${0.4 + i * 0.1}s ease-in-out infinite`, animationDelay: `${i * 0.08}s`, '--wh': `${8 + i * 2}px` } as any} />
             ))}
-            <span style={{ fontSize: 8, color: C.violet, letterSpacing: 1 }}>SPEAKING</span>
+            <span style={{ fontSize: 8, color: C.teal, letterSpacing: 1 }}>SPEAKING</span>
           </div>
         )}
       </div>
@@ -2208,8 +2208,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: C.deep }}>
 
               {/* Signal Hero */}
-              <div style={{ background: C.surface, borderRadius: 10, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 2px 20px rgba(102,32,212,0.1)', borderTop: '3px solid #6620d4' }}>
-                <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(102,32,212,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
+              <div style={{ background: C.surface, borderRadius: 10, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,212,160,0.1)', borderTop: '3px solid #6620d4' }}>
+                <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(0,212,160,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 1 }}>
                   <div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 44, fontWeight: 900, color: signalColor, letterSpacing: '3px', textShadow: `0 0 20px ${signalColor}30` }}>{aiResult?.signal || 'LOADING'}</div>
@@ -2281,14 +2281,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>⚡</span>}
                     </div>
                   ))}
-                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full flow in Deep Dive</div>
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full flow in Deep Dive</div>
                 </div>
 
                 {/* Market conditions mini */}
-                <div style={{ background: C.surface, borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(102,32,212,0.09)', borderLeft: '3px solid #6620d4' }}>
+                <div style={{ background: C.surface, borderRadius: 7, padding: 10, boxShadow: '0 2px 10px rgba(0,212,160,0.09)', borderLeft: '3px solid #6620d4' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
-                    <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.violet, letterSpacing: '1px', textTransform: 'uppercase' }}>Market Conditions</span>
+                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: C.teal, animation: 'pulse 2s infinite' }} />
+                    <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.teal, letterSpacing: '1px', textTransform: 'uppercase' }}>Market Conditions</span>
                   </div>
                   {[
                     { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : '—', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
@@ -2302,14 +2302,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color }}>{value}</span>
                     </div>
                   ))}
-                  <div style={{ marginTop: 6, fontSize: 7, color: C.violet, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full chart in Deep Dive</div>
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full chart in Deep Dive</div>
                 </div>
               </div>
 
               {/* AI insights */}
               {aiResult?.todaysEdge && (
                 <div style={{ background: C.surface, borderRadius: 7, padding: 12, boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
-                  <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>⚡ Today's Edge</div>
+                  <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>⚡ Today's Edge</div>
                   <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div>
                   {aiResult.riskFlag && <div style={{ marginTop: 8, fontSize: 10, color: C.red, padding: '5px 8px', background: C.redDim, borderRadius: 4, border: `1px solid ${C.redBorder}` }}>⚠ {aiResult.riskFlag}</div>}
                 </div>
@@ -2351,8 +2351,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {(multiTFData || macroRegime) && (
                 <div style={{ display: 'grid', gridTemplateColumns: multiTFData && macroRegime ? '1fr 1fr' : '1fr', gap: 10 }}>
                   {multiTFData && (
-                    <div style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px', marginBottom: 8 }}>📊 MULTI-TIMEFRAME</div>
+                    <div style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,212,160,0.07)', borderLeft: '3px solid #6620d4' }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>📊 MULTI-TIMEFRAME</div>
                       {[{label:'Weekly', value: multiTFData.weekly.trend, sub: `MA20: ${multiTFData.weekly.ma20}`, color: multiTFData.weekly.trend==='BULLISH'?C.synapse:C.red},{label:'Daily', value: multiTFData.daily.trend, sub: `MA5: ${multiTFData.daily.ma5}`, color: multiTFData.daily.trend==='BULLISH'?C.synapse:C.red}].map(({label,value,sub,color}) => (
                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.07)' }}>
                           <span style={{ fontSize: 10, color: C.textDim }}>{label}</span>
@@ -2392,8 +2392,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Trade Patterns */}
               {tradePatterns && tradePatterns.avgWinnerSize > 0 && (
-                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(102,32,212,0.07)', borderLeft: '3px solid #6620d4' }}>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px', marginBottom: 8 }}>🧠 YOUR PATTERNS</div>
+                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(0,212,160,0.07)', borderLeft: '3px solid #6620d4' }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>🧠 YOUR PATTERNS</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
                     {[{label:'Best hour',value:tradePatterns.bestHour,color:C.synapse},{label:'Worst hour',value:tradePatterns.worstHour,color:C.red},{label:'Avg winner',value:`$${tradePatterns.avgWinnerSize}`,color:C.synapse},{label:'Avg loser',value:`$${tradePatterns.avgLoserSize}`,color:C.red}].map(({label,value,color}) => (
                       <div key={label} style={{ background: 'rgba(240,244,250,0.7)', borderRadius: 5, padding: '5px 8px' }}>
@@ -2409,7 +2409,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Session Memory */}
               {sessionMemory && (
-                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(102,32,212,0.06)', borderLeft: '3px solid rgba(102,32,212,0.3)' }}>
+                <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(0,212,160,0.06)', borderLeft: '3px solid rgba(0,212,160,0.3)' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
                   <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
                   <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
@@ -2419,15 +2419,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Right — AI Companion (HERO) */}
             {companionOpen && (
-              <div style={{ width: 380, background: C.surface, borderLeft: '2px solid #6620d4', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(102,32,212,0.1)' }}>
+              <div style={{ width: 380, background: C.surface, borderLeft: '2px solid #6620d4', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(0,212,160,0.1)' }}>
                 {/* Companion header */}
-                <div style={{ padding: '10px 14px', background: 'linear-gradient(90deg, rgba(102,32,212,0.1), rgba(0,153,204,0.05))', borderBottom: '2px solid rgba(102,32,212,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(102,32,212,0.3)`, background: 'rgba(102,32,212,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, position: 'relative', boxShadow: '0 0 10px rgba(102,32,212,0.1)' }}>
+                <div style={{ padding: '10px 14px', background: 'linear-gradient(90deg, rgba(0,212,160,0.1), rgba(0,153,204,0.05))', borderBottom: '2px solid rgba(0,212,160,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.3)`, background: 'rgba(0,212,160,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, position: 'relative', boxShadow: '0 0 10px rgba(0,212,160,0.1)' }}>
                     🧠
-                    <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(102,32,212,0.15)`, animation: 'brainRing 4s linear infinite' }} />
+                    <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.15)`, animation: 'brainRing 4s linear infinite' }} />
                   </div>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.violet }}>AI COMPANION</div>
-                  <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(102,32,212,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.teal }}>AI COMPANION</div>
+                  <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
                     {listening ? '● LISTENING' : speaking ? '◆ SPEAKING' : chatLoading ? '◌ THINKING' : '○ READY'}
                   </div>
                   {aiResult && (
@@ -2436,7 +2436,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 8, color: C.textMuted }}>{aiResult.confidence}%</span>
                     </div>
                   )}
-                  <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 3, color: C.violet, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
+                  <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
                   <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>
                 </div>
 
@@ -2465,7 +2465,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>Your AI companion is watching charts, options flow, and your plan. Ask anything or tap the mic.</div>
                       <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
                         {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
-                          <button key={q} onClick={() => setChatInput(q)} style={{ background: 'rgba(102,32,212,0.06)', border: `1px solid rgba(102,32,212,0.15)`, borderRadius: 20, padding: '4px 12px', color: C.violet, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
+                          <button key={q} onClick={() => setChatInput(q)} style={{ background: 'rgba(0,212,160,0.06)', border: `1px solid rgba(0,212,160,0.15)`, borderRadius: 20, padding: '4px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
                             {q}
                           </button>
                         ))}
@@ -2474,17 +2474,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   )}
                   {chatMessages.map((m, i) => (
                     <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
-                      {m.role === 'assistant' && <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 3, letterSpacing: 1 }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.violet, display: 'inline-block' }} />AI COMPANION</div>}
-                      <div style={{ padding: '9px 12px', fontSize: 12, lineHeight: 1.6, color: C.text, background: m.role === 'user' ? 'rgba(0,153,204,0.06)' : 'rgba(102,32,212,0.05)', border: `1px solid ${m.role === 'user' ? 'rgba(0,153,204,0.15)' : 'rgba(102,32,212,0.12)'}`, borderLeft: m.role === 'assistant' ? `2px solid ${C.violet}` : 'none', borderRight: m.role === 'user' ? `2px solid ${C.teal}` : 'none', borderRadius: m.role === 'user' ? '6px 2px 2px 6px' : '2px 6px 6px 2px' }}>
+                      {m.role === 'assistant' && <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 3, letterSpacing: 1 }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.teal, display: 'inline-block' }} />AI COMPANION</div>}
+                      <div style={{ padding: '9px 12px', fontSize: 12, lineHeight: 1.6, color: C.text, background: m.role === 'user' ? 'rgba(0,153,204,0.06)' : 'rgba(0,212,160,0.05)', border: `1px solid ${m.role === 'user' ? 'rgba(0,153,204,0.15)' : 'rgba(0,212,160,0.12)'}`, borderLeft: m.role === 'assistant' ? `2px solid ${C.violet}` : 'none', borderRight: m.role === 'user' ? `2px solid ${C.teal}` : 'none', borderRadius: m.role === 'user' ? '6px 2px 2px 6px' : '2px 6px 6px 2px' }}>
                         {m.content}
                       </div>
                     </div>
                   ))}
                   {chatLoading && (
                     <div style={{ alignSelf: 'flex-start' }}>
-                      <div style={{ fontSize: 7, color: C.violet, marginBottom: 2, letterSpacing: 1 }}>AI COMPANION</div>
-                      <div style={{ padding: '8px 12px', background: 'rgba(102,32,212,0.05)', border: `1px solid rgba(102,32,212,0.12)`, borderLeft: `2px solid ${C.violet}`, borderRadius: '2px 6px 6px 2px', display: 'flex', gap: 4 }}>
-                        {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
+                      <div style={{ fontSize: 7, color: C.teal, marginBottom: 2, letterSpacing: 1 }}>AI COMPANION</div>
+                      <div style={{ padding: '8px 12px', background: 'rgba(0,212,160,0.05)', border: `1px solid rgba(0,212,160,0.12)`, borderLeft: `2px solid ${C.violet}`, borderRadius: '2px 6px 6px 2px', display: 'flex', gap: 4 }}>
+                        {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.teal, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
                       </div>
                     </div>
                   )}
@@ -2497,11 +2497,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 {/* Speaking waveform */}
                 {speaking && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '5px 0', background: 'rgba(248,248,255,0.8)', borderTop: `1px solid rgba(102,32,212,0.08)` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '5px 0', background: 'rgba(248,248,255,0.8)', borderTop: `1px solid rgba(0,212,160,0.08)` }}>
                     {[...Array(18)].map((_, i) => (
-                      <div key={i} style={{ width: 2, borderRadius: 1, background: C.violet, animation: `waveAnim ${0.4+(i%5)*0.1}s ease-in-out infinite`, animationDelay: `${(i%4)*0.08}s`, '--wh': `${6+(i%6)*2}px` } as any} />
+                      <div key={i} style={{ width: 2, borderRadius: 1, background: C.teal, animation: `waveAnim ${0.4+(i%5)*0.1}s ease-in-out infinite`, animationDelay: `${(i%4)*0.08}s`, '--wh': `${6+(i%6)*2}px` } as any} />
                     ))}
-                    <span style={{ fontSize: 8, color: C.violet, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
+                    <span style={{ fontSize: 8, color: C.teal, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
                   </div>
                 )}
 
@@ -2513,12 +2513,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </button>
                     <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ⏹ to stop)' : 'Ask your AI companion...'}
                       style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
-                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(102,32,212,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(102,32,212,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
+                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
                   </div>
                   {/* Voice switcher */}
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                     {[{name:'Rachel',id:'21m00Tcm4TlvDq8ikWAM'},{name:'Drew',id:'29vD33N1CtxCmqQRPOHJ'},{name:'Clyde',id:'2EiwWnXFnvU5JabPnv8n'},{name:'Paul',id:'5Q0t7uMcjvnagumLfvZi'},{name:'Domi',id:'AZnzlk1XvdvUeBnXmlld'},{name:'Sarah',id:'EXAVITQu4vr4xnSDxMaL'},{name:'Thomas',id:'GBv7mTt0atIp3Br8iCZE'}].map(v => (
-                      <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '2px 7px', borderRadius: 2, background: voiceId === v.id ? 'rgba(102,32,212,0.08)' : 'transparent', border: `1px solid ${voiceId === v.id ? 'rgba(102,32,212,0.25)' : 'rgba(100,140,220,0.1)'}`, color: voiceId === v.id ? C.violet : C.textMuted, fontSize: 11, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s' }}>{v.name}</button>
+                      <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '2px 7px', borderRadius: 2, background: voiceId === v.id ? 'rgba(0,212,160,0.08)' : 'transparent', border: `1px solid ${voiceId === v.id ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, color: voiceId === v.id ? C.violet : C.textMuted, fontSize: 11, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s' }}>{v.name}</button>
                     ))}
                   </div>
                 </div>
@@ -2527,7 +2527,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Collapsed companion button */}
             {tab !== 'cockpit' && !companionOpen && (
-              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.violet, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(102,32,212,0.25)', zIndex: 500 }}>
+              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.teal, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(0,212,160,0.25)', zIndex: 500 }}>
                 🧠
               </button>
             )}
@@ -2688,12 +2688,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               })()}
 
               {/* AI Morning Brief */}
-              <div style={{ background: C.surface, margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(102,32,212,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
+              <div style={{ background: C.surface, margin: 14, borderRadius: 10, boxShadow: '0 2px 12px rgba(0,212,160,0.08)', borderTop: '3px solid #6620d4', overflow: 'hidden' }}>
                 {/* Header */}
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(102,32,212,0.04)' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,212,160,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.violet, animation: aiLoading ? 'pulse 0.6s infinite' : 'pulse 3s infinite' }} />
-                    <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.violet }}>AI Morning Brief</div>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.teal, animation: aiLoading ? 'pulse 0.6s infinite' : 'pulse 3s infinite' }} />
+                    <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.teal }}>AI Morning Brief</div>
                     {lastAITime && <span style={{ fontSize: 9, color: C.textMuted }}>{lastAITime}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -2708,7 +2708,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           aiResult.riskFlag ? `Risk alert: ${aiResult.riskFlag}` : '',
                         ].filter(Boolean).join(' ')
                         if (narrative) speak(narrative)
-                      }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'rgba(102,32,212,0.08)', border: '1px solid rgba(102,32,212,0.25)', borderRadius: 6, color: C.violet, cursor: 'pointer', fontSize: 10, fontFamily: font, fontWeight: 700 }}>
+                      }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'rgba(0,212,160,0.08)', border: '1px solid rgba(0,212,160,0.25)', borderRadius: 6, color: C.teal, cursor: 'pointer', fontSize: 10, fontFamily: font, fontWeight: 700 }}>
                         🔊 Read It
                       </button>
                     )}
@@ -2718,14 +2718,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 {/* Signal badge */}
                 {aiResult ? (
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.08)' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
                     <div style={{ background: signalColor + '12', border: `1.5px solid ${signalColor}35`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 26, fontWeight: 900, color: signalColor, letterSpacing: '2px' }}>{aiResult.signal}</div>
                       <ProbMeter value={aiResult.confidence || 0} color={signalColor} />
                     </div>
                   </div>
                 ) : (
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(102,32,212,0.08)' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
                     <div style={{ background: 'rgba(240,244,250,0.8)', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: C.textMuted }}>{'Loading AI analysis...'}</div>
                     </div>
@@ -2737,7 +2737,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div>
                     {aiResult.marketConditions && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>📊 Market Conditions</div>
+                        <div style={{ fontSize: 9, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>📊 Market Conditions</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.marketConditions}</div>
                       </div>
                     )}
@@ -2782,7 +2782,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 {/* Live data inputs */}
                 <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                  <div style={{ fontSize: 9, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Live Data Inputs</div>
+                  <div style={{ fontSize: 9, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Live Data Inputs</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                     {[
                       {label:'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲ ABOVE' : '▼ BELOW') : '—', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted},
@@ -2810,8 +2810,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{
-                    width: '100%', background: aiLoading ? 'rgba(240,244,250,0.8)' : 'rgba(102,32,212,0.08)',
-                    border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(102,32,212,0.25)'}`,
+                    width: '100%', background: aiLoading ? 'rgba(240,244,250,0.8)' : 'rgba(0,212,160,0.08)',
+                    border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(0,212,160,0.25)'}`,
                     borderRadius: 8, padding: '10px 0', color: aiLoading ? C.textMuted : C.violet,
                     cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 11, fontWeight: 700, letterSpacing: '0.5px'
                   }}>{aiLoading ? 'Analyzing...' : '↻ Refresh AI Analysis'}</button>
@@ -2833,7 +2833,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </div>
               {/* Edit toggle */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                <button onClick={() => setEditingChecklist(!editingChecklist)} style={{ fontSize: 10, color: C.violet, background: 'transparent', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontFamily: font }}>
+                <button onClick={() => setEditingChecklist(!editingChecklist)} style={{ fontSize: 10, color: C.teal, background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontFamily: font }}>
                   {editingChecklist ? '✓ Done' : '✎ Edit'}
                 </button>
               </div>
@@ -2857,7 +2857,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <input value={newCheckItem} onChange={e => setNewCheckItem(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && newCheckItem.trim()) { setCustomChecklist((p: any[]) => [...p, { id: Date.now().toString(), category: 'SYSTEM', label: newCheckItem.trim() }]); setNewCheckItem('') }}}
                       placeholder="Add new item, press Enter..."
-                      style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(102,32,212,0.2)', borderRadius: 5, padding: '6px 10px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
+                      style={{ flex: 1, background: 'rgba(240,244,250,0.8)', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 5, padding: '6px 10px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
                   </div>
                   <button onClick={() => setCustomChecklist(CHECKLIST)} style={{ marginTop: 8, fontSize: 10, color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: font, padding: 0 }}>↺ Reset to defaults</button>
                 </div>
@@ -2865,7 +2865,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 /* View mode */
                 ['TIMING','CONFLUENCE','RISK','SYSTEM'].map(cat => (
                   <div key={cat} style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, textTransform: 'uppercase' as const, letterSpacing: '1px', marginBottom: 5 }}>{cat}</div>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: C.teal, textTransform: 'uppercase' as const, letterSpacing: '1px', marginBottom: 5 }}>{cat}</div>
                     {customChecklist.filter((c: any) => c.category === cat).map((item: any) => (
                       <div key={item.id} onClick={() => setChecked(p => ({...p, [item.id]: !p[item.id]}))}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, marginBottom: 3, cursor: 'pointer',
@@ -2900,7 +2900,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Auto Levels</div>
                 {[
                   { label: 'SPY VWAP', price: levels.spyVwap, color: C.fire },
-                  { label: '200 EMA', price: levels.ema200, color: C.violet },
+                  { label: '200 EMA', price: levels.ema200, color: C.teal },
                   { label: 'PDH', price: levels.pdh, color: C.blue },
                   { label: 'PDL', price: levels.pdl, color: C.red },
                   { label: 'Day Open', price: levels.dayOpen, color: C.fire },
@@ -2966,7 +2966,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
                     {currentPrice && <span style={{ fontFamily: fontDisplay, fontSize: 11, color: C.text, fontWeight: 700 }}>{fmt(currentPrice)}</span>}
                     {levels.spyVwap && <span style={{ fontSize: 9, color: C.fire }}>VWAP {fmt(levels.spyVwap)}</span>}
-                    {levels.ema200 && <span style={{ fontSize: 9, color: C.violet }}>200E {fmt(levels.ema200)}</span>}
+                    {levels.ema200 && <span style={{ fontSize: 9, color: C.teal }}>200E {fmt(levels.ema200)}</span>}
                   </div>
                 </div>
                 <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -2976,7 +2976,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         {keys[POLY_KEY] ? (
                           <><div style={{ width: 24, height: 24, border: `2px solid ${C.border}`, borderTopColor: C.teal, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /><div style={{ fontSize: 12, color: C.textDim }}>Loading SPX data...</div></>
                         ) : (
-                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: 12, color: C.textDim, marginBottom: 8 }}>Add Polygon API key in Settings</div><button onClick={() => setShowSettings(true)} style={{ background: C.violet, color: '#fff', border: 'none', borderRadius: 4, padding: '6px 12px', fontFamily: font, fontSize: 10, cursor: 'pointer' }}>Open Settings</button></div>
+                          <div style={{ textAlign: 'center' }}><div style={{ fontSize: 12, color: C.textDim, marginBottom: 8 }}>Loading market data...</div><button onClick={() => setShowSettings(true)} style={{ background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 4, padding: '6px 12px', fontFamily: font, fontSize: 10, cursor: 'pointer' }}>Open Settings</button></div>
                         )}
                       </div>
                     )}
@@ -2987,10 +2987,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Right — AI Detail */}
               <div style={{ width: 260, background: C.surface, borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.violetDim, flexShrink: 0 }}>
+                <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.tealDim, flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
-                    <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.violet, letterSpacing: '1px' }}>AI ENGINE</span>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.teal, animation: 'pulse 2s infinite' }} />
+                    <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: '1px' }}>AI ENGINE</span>
                     {aiLoading && <div style={{ marginLeft: 'auto', width: 8, height: 8, border: `1.5px solid ${C.border}`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
                     {lastAITime && !aiLoading && <span style={{ marginLeft: 'auto', fontSize: 8, color: C.textMuted }}>{lastAITime}</span>}
                   </div>
@@ -3019,7 +3019,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       ))}
                     </div>
                   )}
-                  {aiResult?.marketConditions && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.violet, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>📊 Market Conditions</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.marketConditions}</div></div>}
+                  {aiResult?.marketConditions && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>📊 Market Conditions</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.marketConditions}</div></div>}
                   {aiResult?.todaysEdge && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>⚡ Today's Edge</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div></div>}
                   {aiResult?.accountability && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>🎯 Accountability</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.accountability}</div></div>}
                   {aiResult?.riskFlag && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>⚠ Risk Flag</div><div style={{ fontSize: 10, color: C.red, lineHeight: 1.6 }}>{aiResult.riskFlag}</div></div>}
@@ -3058,7 +3058,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
                     setAiLoading(false)
-                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.violetDim, border: `1px solid ${aiLoading ? C.border : C.violetBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
+                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
                 </div>
               </div>
             </div>
@@ -3127,8 +3127,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Market Conditions */}
               <div style={{ width: 220, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 <div style={{ padding: '5px 10px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, background: C.surface }}>
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: 'pulse 2s infinite' }} />
-                  <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: '1px' }}>MARKET CONDITIONS</span>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.teal, animation: 'pulse 2s infinite' }} />
+                  <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px' }}>MARKET CONDITIONS</span>
                 </div>
                 <div style={{ flex: 1, padding: '4px 10px', overflowY: 'auto' }}>
                   {[
@@ -3220,7 +3220,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 }
                 setTrades(p => [trade, ...p])
                 setNewTrade({ symbol: 'SPX', direction: 'call', entry: '', exit: '', pnl: '', inSystem: true, notes: '', playbook: '' })
-              }} style={{ width: '100%', background: C.purple, border: 'none', borderRadius: 8, padding: '10px 0', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>
+              }} style={{ width: '100%', background: C.teal, border: 'none', borderRadius: 8, padding: '10px 0', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>
                 Save Trade
               </button>
 
@@ -3317,10 +3317,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
 
                 {/* AI Pattern Analysis */}
-                <div style={{ background: C.surface, border: `1px solid ${C.purpleBorder}`, borderRadius: 12, padding: 18, marginBottom: 16, animation: 'aiGlow 4s ease-in-out infinite' }}>
+                <div style={{ background: C.surface, border: `1px solid ${C.tealBorder}`, borderRadius: 12, padding: 18, marginBottom: 16, animation: 'aiGlow 4s ease-in-out infinite' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.purple, animation: 'pulse 2s infinite' }} />
-                    <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: C.purple }}>AI Pattern Recognition</div>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.teal, animation: 'pulse 2s infinite' }} />
+                    <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: C.teal }}>AI Pattern Recognition</div>
                   </div>
                   <button onClick={async () => {
                     if (!keys[ANTH_KEY] || !tradeStats) return
@@ -3351,8 +3351,8 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                     } catch {}
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{
-                    background: C.purpleDim, border: `1px solid ${C.purpleBorder}`, borderRadius: 8,
-                    padding: '10px 16px', color: C.purple, cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, marginBottom: 12
+                    background: C.tealDim, border: `1px solid ${C.tealBorder}`, borderRadius: 8,
+                    padding: '10px 16px', color: C.teal, cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, marginBottom: 12
                   }}>
                     {aiLoading ? '↺ Analyzing...' : '🔍 Analyze My Patterns'}
                   </button>
@@ -3419,17 +3419,17 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
             position: 'absolute', bottom: 0, right: 0,
             width: 420, height: 580,
             background: 'rgba(255,255,255,0.97)',
-            border: `1px solid rgba(102,32,212,0.2)`,
+            border: `1px solid rgba(0,212,160,0.2)`,
             borderRadius: '16px 0 0 0',
             display: 'flex', flexDirection: 'column',
-            boxShadow: `-4px -4px 30px rgba(102,32,212,0.1), 0 -2px 10px rgba(100,140,220,0.08)`,
+            boxShadow: `-4px -4px 30px rgba(0,212,160,0.1), 0 -2px 10px rgba(100,140,220,0.08)`,
             overflow: 'hidden',
           }}>
             {/* Header */}
             <div style={{
               padding: '10px 14px',
-              background: `linear-gradient(90deg, rgba(102,32,212,0.07), rgba(0,153,204,0.04))`,
-              borderBottom: `1px solid rgba(102,32,212,0.12)`,
+              background: `linear-gradient(90deg, rgba(0,212,160,0.07), rgba(0,153,204,0.04))`,
+              borderBottom: `1px solid rgba(0,212,160,0.12)`,
               display: 'flex', alignItems: 'center', gap: 10,
               flexShrink: 0, position: 'relative', zIndex: 2,
             }}>
@@ -3440,7 +3440,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                 </div>
                 <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(124,58,237,0.2)`, animation: 'brainRing 4s linear infinite' }} />
               </div>
-              <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.violet, textShadow: `0 0 12px rgba(124,58,237,0.5)` }}>
+              <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.teal, textShadow: `0 0 12px rgba(124,58,237,0.5)` }}>
                 AI COMPANION
               </div>
               {/* Status */}
@@ -3453,7 +3453,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                   <span style={{ fontSize: 8, color: C.textDim }}>{aiResult.confidence}%</span>
                 </div>
               )}
-              <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(102,32,212,0.2)`, borderRadius: 3, color: C.violet, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
+              <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
               <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: 16, padding: 0, marginLeft: 2 }}>×</button>
             </div>
 
@@ -3489,7 +3489,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                   </div>
                   <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
                     {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
-                      <button key={q} onClick={() => setChatInput(q)} style={{ background: C.violetDim, border: `1px solid ${C.violetBorder}`, borderRadius: 99, padding: '3px 10px', color: C.textDim, cursor: 'pointer', fontSize: 9, fontFamily: font }}>
+                      <button key={q} onClick={() => setChatInput(q)} style={{ background: C.tealDim, border: `1px solid ${C.tealBorder}`, borderRadius: 99, padding: '3px 10px', color: C.textDim, cursor: 'pointer', fontSize: 9, fontFamily: font }}>
                         {q}
                       </button>
                     ))}
@@ -3499,8 +3499,8 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
               {chatMessages.map((m, i) => (
                 <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
                   {m.role === 'assistant' && (
-                    <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, marginBottom: 3, display: 'flex', gap: 4, alignItems: 'center', letterSpacing: 1 }}>
-                      <div style={{ width: 3, height: 3, borderRadius: '50%', background: C.violet, boxShadow: `0 0 4px ${C.violet}` }} />
+                    <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, marginBottom: 3, display: 'flex', gap: 4, alignItems: 'center', letterSpacing: 1 }}>
+                      <div style={{ width: 3, height: 3, borderRadius: '50%', background: C.teal, boxShadow: `0 0 4px ${C.violet}` }} />
                       AI COMPANION
                     </div>
                   )}
@@ -3518,9 +3518,9 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
               ))}
               {chatLoading && (
                 <div style={{ alignSelf: 'flex-start' }}>
-                  <div style={{ fontSize: 7, color: C.violet, fontWeight: 700, marginBottom: 3, letterSpacing: 1 }}>AI COMPANION</div>
+                  <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, marginBottom: 3, letterSpacing: 1 }}>AI COMPANION</div>
                   <div style={{ padding: '8px 12px', borderRadius: '2px 8px 8px 8px', background: 'rgba(124,58,237,0.08)', border: `1px solid rgba(124,58,237,0.18)`, borderLeft: `2px solid ${C.violet}`, display: 'flex', gap: 4, alignItems: 'center' }}>
-                    {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.violet, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
+                    {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: C.teal, animation: `pulse 1s ${i*0.15}s infinite` }} />)}
                   </div>
                 </div>
               )}
@@ -3534,7 +3534,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
             {/* MIC + Input bar */}
             <div style={{
               padding: '8px 12px',
-              borderTop: `1px solid rgba(102,32,212,0.1)`,
+              borderTop: `1px solid rgba(0,212,160,0.1)`,
               background: 'rgba(8,10,15,0.98)',
               flexShrink: 0, position: 'relative', zIndex: 2,
             }}>
@@ -3542,9 +3542,9 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
               {speaking && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, marginBottom: 8, height: 20 }}>
                   {[...Array(20)].map((_, i) => (
-                    <div key={i} style={{ width: 2, borderRadius: 1, background: C.violet, animation: `waveAnim ${0.4 + (i % 5) * 0.1}s ease-in-out infinite`, animationDelay: `${(i % 4) * 0.08}s`, '--wh': `${6 + (i % 6) * 2}px` } as any} />
+                    <div key={i} style={{ width: 2, borderRadius: 1, background: C.teal, animation: `waveAnim ${0.4 + (i % 5) * 0.1}s ease-in-out infinite`, animationDelay: `${(i % 4) * 0.08}s`, '--wh': `${6 + (i % 6) * 2}px` } as any} />
                   ))}
-                  <span style={{ fontSize: 8, color: C.violet, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
+                  <span style={{ fontSize: 8, color: C.teal, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
                 </div>
               )}
 
@@ -3553,7 +3553,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                 <button onClick={listening ? stopListening : startListening} style={{
                   width: 42, height: 42, borderRadius: '50%', cursor: 'pointer',
                   background: listening ? 'rgba(255,60,96,0.15)' : 'rgba(124,58,237,0.12)',
-                  border: `1.5px solid ${listening ? C.red : C.violetBorder}`,
+                  border: `1.5px solid ${listening ? C.red : C.tealBorder}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
                   flexShrink: 0, boxShadow: listening ? `0 0 0 5px rgba(255,60,96,0.12), 0 0 20px rgba(255,60,96,0.25)` : `0 0 16px rgba(124,58,237,0.15)`,
                   transition: 'all 0.2s ease',
@@ -3577,7 +3577,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                 />
 
                 <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{
-                  width: 36, height: 36, borderRadius: 2, border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? C.violetBorder : 'rgba(0,229,255,0.08)'}`,
+                  width: 36, height: 36, borderRadius: 2, border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? C.tealBorder : 'rgba(0,229,255,0.08)'}`,
                   background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(124,58,237,0.18)' : 'transparent',
                   color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textDim,
                   cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed',
@@ -3589,7 +3589,7 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid rgba(124,58,237,0.12)` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                   <span style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px', textTransform: 'uppercase' }}>Voice</span>
-                  {speaking && <span style={{ fontSize: 8, color: C.violet, animation: 'pulse 0.8s infinite' }}>● speaking</span>}
+                  {speaking && <span style={{ fontSize: 8, color: C.teal, animation: 'pulse 0.8s infinite' }}>● speaking</span>}
                   <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>+ more voices</button>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
@@ -3605,8 +3605,8 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
                   ].map(v => (
                     <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{
                       padding: '2px 7px', borderRadius: 2,
-                      background: voiceId === v.id ? C.violetDim : 'transparent',
-                      border: `1px solid ${voiceId === v.id ? C.violetBorder : 'rgba(0,229,255,0.08)'}`,
+                      background: voiceId === v.id ? C.tealDim : 'transparent',
+                      border: `1px solid ${voiceId === v.id ? C.tealBorder : 'rgba(0,229,255,0.08)'}`,
                       color: voiceId === v.id ? C.teal : C.textDim,
                       fontSize: 9, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s',
                     }}>{v.name}</button>
