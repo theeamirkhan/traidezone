@@ -168,7 +168,7 @@ export default function LandingPage() {
       <section className="hero">
         <div className="hero-badge"><div className="badge-dot"></div>Now in early access</div>
         <h1 className="hero-title">Your AI companion<br/>for <span className="accent">disciplined</span><br/><span className="dim">trading.</span></h1>
-        <p className="hero-sub">trAIde Zone sits with you during every trade — watching the chart, knowing your rules, and keeping you accountable in real time.</p>
+        <p className="hero-sub">tr<span style={{color:"#00d4a0"}}>AI</span>de Zone sits with you during every trade — watching the chart, knowing your rules, and keeping you accountable in real time.</p>
         <div className="waitlist-form">
           <input className="waitlist-input" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
           <button className="btn-primary" onClick={handleWaitlist}>Get Early Access</button>
@@ -204,7 +204,7 @@ export default function LandingPage() {
           </div>
           <div>
             <div className="section-label reveal">The solution</div>
-            <h2 className="section-title reveal" style={{marginBottom:'32px'}}>trAIde Zone is the<br/>accountability partner<br/><span style={{color:'var(--green)'}}>in your ear.</span></h2>
+            <h2 className="section-title reveal" style={{marginBottom:'32px'}}>tr<span style={{color:"#00d4a0"}}>AI</span>de Zone is the<br/>accountability partner<br/><span style={{color:'var(--green)'}}>in your ear.</span></h2>
             <ul className="solution-list">
               {['Calls out averaging down before you add the position','Scores each setup against your personal confluence rules','Asks "where\'s your stop?" when you open a trade','Knows your morning plan and holds you to it all day','Learns your patterns from your actual trade history'].map(t => (
                 <li key={t} className="solution-item reveal"><span className="solution-check">✓</span><span className="solution-text">{t}</span></li>
@@ -223,7 +223,7 @@ export default function LandingPage() {
           {[
             {icon:'🤖',title:'AI Engine',desc:'Reads live SPX price, VWAP, 200 EMA, VIX, sector breadth, options flow — and synthesizes it into a clear LONG, SHORT, or WAIT signal every 3 minutes.'},
             {icon:'🎙️',title:'Voice Companion',desc:'Talk to your AI coach hands-free during live trades. It responds in a natural human voice, knows your plan, your stats, and your rules. Always on, never distracted.',tag:'Flagship'},
-            {icon:'📋',title:'Morning Plan',desc:'Set your game plan before market open. trAIde Zone references it all day — and calls you out if you try to deviate from it mid-session.'},
+            {icon:'📋',title:'Morning Plan',desc:'Set your game plan before market open. tr<span style={{color:"#00d4a0"}}>AI</span>de Zone references it all day — and calls you out if you try to deviate from it mid-session.'},
             {icon:'📊',title:'Your Edge, Quantified',desc:'Upload your broker statement and see exactly where you win and lose. The AI uses your real stats — not generic advice — to personalize every signal.'},
             {icon:'⚡',title:'Options Flow',desc:'Live unusual options activity on SPX, SPY, and QQQ. See what smart money is doing in real time before you enter a trade.'},
             {icon:'✅',title:'Pre-Trade Checklist',desc:'6-point confluence checklist before every entry. The AI won\'t call a setup valid unless your rules are met. No confluence, no trade.'},
@@ -246,7 +246,7 @@ export default function LandingPage() {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'48px',alignItems:'start'}}>
           <div className="steps reveal">
             {[
-              {n:'01',t:'Set your system',d:'Tell trAIde Zone your trading rules — what you trade, when you enter, where you stop out. It remembers everything.',b:'One-time setup · 5 minutes'},
+              {n:'01',t:'Set your system',d:'Tell tr<span style={{color:"#00d4a0"}}>AI</span>de Zone your trading rules — what you trade, when you enter, where you stop out. It remembers everything.',b:'One-time setup · 5 minutes'},
               {n:'02',t:'Set your morning plan',d:'Before market open, tell it what you\'re looking for today. It holds you to that plan for the entire session.',b:'Every morning · 2 minutes'},
               {n:'03',t:'Trade with your companion',d:'Turn on continuous voice mode. Ask anything. Get answers grounded in live data and your personal history — in your ear, instantly.',b:'Hands-free · All session'},
               {n:'04',t:'Get better, measurably',d:'Upload your statements monthly. Watch your win rate improve as the AI refines its understanding of your specific edge.',b:'Monthly import · Auto-updated'},
@@ -265,14 +265,14 @@ export default function LandingPage() {
             <div className="chat-demo">
               <div className="chat-header">
                 <div className="chat-dot"></div>
-                <div className="chat-title">trAIde Zone</div>
+                <div className="chat-title">tr<span style={{color:"#00d4a0"}}>AI</span>de Zone</div>
                 <div className="chat-sub">10:47 AM EST · LIVE</div>
               </div>
               <div className="chat-messages">
                 <div className="msg msg-user"><div className="msg-bubble">I'm thinking about adding a second contract here</div><div className="msg-label">You</div></div>
-                <div className="msg msg-ai"><div className="msg-bubble">Hold on — <strong style={{color:'var(--green)'}}>averaging down is the pattern that's cost you the most</strong>. Your losers already average 19 hours vs 29 minutes for winners. <span style={{color:'#f59e0b'}}>What's the trade doing wrong right now?</span> If VWAP hasn't reclaimed, the thesis is already dead.</div><div className="msg-label">trAIde Zone</div></div>
+                <div className="msg msg-ai"><div className="msg-bubble">Hold on — <strong style={{color:'var(--green)'}}>averaging down is the pattern that's cost you the most</strong>. Your losers already average 19 hours vs 29 minutes for winners. <span style={{color:'#f59e0b'}}>What's the trade doing wrong right now?</span> If VWAP hasn't reclaimed, the thesis is already dead.</div><div className="msg-label">tr<span style={{color:"#00d4a0"}}>AI</span>de Zone</div></div>
                 <div className="msg msg-user"><div className="msg-bubble">Fair point. Should I just close it?</div><div className="msg-label">You</div></div>
-                <div className="msg msg-ai"><div className="msg-bubble">SPX is at <strong style={{color:'var(--green)'}}>6,553</strong> — 14pts below your VWAP and your stop was set at 6,540. You're still above it. Your morning plan said <strong style={{color:'var(--green)'}}>no puts today</strong>. Close it, stick to the plan, and wait for the long setup at VWAP reclaim.</div><div className="msg-label">trAIde Zone</div></div>
+                <div className="msg msg-ai"><div className="msg-bubble">SPX is at <strong style={{color:'var(--green)'}}>6,553</strong> — 14pts below your VWAP and your stop was set at 6,540. You're still above it. Your morning plan said <strong style={{color:'var(--green)'}}>no puts today</strong>. Close it, stick to the plan, and wait for the long setup at VWAP reclaim.</div><div className="msg-label">tr<span style={{color:"#00d4a0"}}>AI</span>de Zone</div></div>
               </div>
             </div>
           </div>
@@ -309,7 +309,7 @@ export default function LandingPage() {
       <section className="cta-section">
         <div className="section-label reveal" style={{textAlign:'center'}}>Get started</div>
         <h2 className="cta-title reveal">Stop trading alone.<br/><span style={{color:'var(--green)'}}>Trade in the zone.</span></h2>
-        <p className="cta-sub reveal">Join traders getting early access to trAIde Zone.</p>
+        <p className="cta-sub reveal">Join traders getting early access to tr<span style={{color:"#00d4a0"}}>AI</span>de Zone.</p>
         <div className="waitlist-form reveal" style={{margin:'0 auto'}}>
           <input className="waitlist-input" type="email" placeholder="your@email.com" value={email2} onChange={e => setEmail2(e.target.value)} />
           <button className="btn-primary" onClick={handleWaitlist2}>Get Early Access</button>
@@ -320,9 +320,16 @@ export default function LandingPage() {
       {/* Footer */}
       <footer>
         <div className="footer-logo">tr<span>AI</span>de Zone</div>
-        <div className="footer-text">© 2026 trAIde Zone · Built for traders who take discipline seriously</div>
+        <div className="footer-text">© 2026 tr<span style={{color:"#00d4a0"}}>AI</span>de Zone · Built for traders who take discipline seriously</div>
       </footer>
     </>
   )
 }
+
+
+
+
+
+
+
 

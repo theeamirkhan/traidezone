@@ -918,6 +918,11 @@ function analyzeTradeHistory(trades: any[]) {
   }
 }
 
+// ── BRAND LOGO COMPONENT ───────────────────────────────────────────────────
+const TZ = () => (
+  <span>tr<span style={{color:'#00d4a0',fontWeight:900}}>AI</span>de Zone</span>
+)
+
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
 function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
@@ -950,7 +955,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 4 }}>Settings</div>
-        <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, marginBottom: 20 }}>Customize your trAIde Zone experience</div>
+        <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, marginBottom: 20 }}>Customize your <span>tr<span style={{color:'#00d4a0'}}>AI</span>de Zone</span> experience</div>
 
         {/* Dark Mode Toggle */}
         <div style={{ marginBottom: 20, padding: '12px 14px', background: C.surface2, borderRadius: 10, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1946,7 +1951,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.yellow }} />
               <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 800, color: C.text }}>Important Disclosure</div>
             </div>
-            <div style={{ fontFamily: font, fontSize: 11, color: C.yellow, marginBottom: 24, letterSpacing: '0.5px' }}>READ BEFORE USING trAIde Zone</div>
+            <div style={{ fontFamily: font, fontSize: 11, color: C.yellow, marginBottom: 24, letterSpacing: '0.5px' }}>READ BEFORE USING <TZ /></div>
 
             <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, lineHeight: 1.8, marginBottom: 20 }}>
               {[
@@ -1992,9 +1997,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* Logo */}
         <div style={{ padding: '0 20px', borderRight: `1px solid rgba(0,229,255,0.08)`, display: 'flex', alignItems: 'center', gap: 10, height: '100%' }}>
           <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, letterSpacing: 3, display: 'flex', alignItems: 'center', gap: 0 }}>
-            <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}, 0 0 40px rgba(0,229,255,0.15)` }}>tr</span>
-            <span style={{ color: C.pink, textShadow: `0 0 20px rgba(192,32,224,0.15)` }}>AI</span>
-            <span style={{ color: C.teal, textShadow: `0 0 20px ${C.tealGlow}` }}>de Zone</span>
+            <span style={{ color: C.text, fontWeight: 900 }}>tr</span>
+            <span style={{ color: '#00d4a0', fontWeight: 900 }}>AI</span>
+            <span style={{ color: C.text, fontWeight: 900 }}>de Zone</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <div style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? C.synapse : C.red, boxShadow: connected ? `0 0 8px ${C.synapse}` : 'none', animation: connected ? 'pulse 2s infinite' : 'none' }} />
