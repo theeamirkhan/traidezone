@@ -791,7 +791,7 @@ async function fetchOptionsFlow(uwKey: string) {
 async function fetchMarketTide(uwKey: string) {
   try {
     const res = await fetch('/api/flow?path=/api/market/market-tide', {
-      headers: {}
+      headers: { // server-side proxy handles auth }
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -1670,10 +1670,11 @@ export default function CockpitPage() {
       }
       setAiLoading(false)
     }
-    run()
+    // Small delay to let candles load before first run
+    const initialTimer = setTimeout(run, 3000)
     aiIntervalRef.current = setInterval(run, 180000)
-    return () => clearInterval(aiIntervalRef.current)
-  }, [keys[ANTH_KEY], currentPrice, candles.length, activePlaybookId])
+    return () => { clearTimeout(initialTimer); clearInterval(aiIntervalRef.current) }
+  }, [keys[ANTH_KEY], activePlaybookId])
 
   // Auto-scroll chat
   useEffect(() => {
@@ -3623,5 +3624,4 @@ Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on th
     </div>
   )
 }
-
 
