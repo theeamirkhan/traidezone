@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
@@ -1104,7 +1104,8 @@ const TF_CONFIG: Record<string, {multiplier: number, timespan: string, daysBack:
 }
 
 export default function CockpitPage() {
-  const { user, isLoaded } = useUser()
+ const { user, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const router = useRouter()
 
   // Keys
@@ -2152,6 +2153,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {Math.round(voiceMinUsed)}m / {voiceMinLimit >= 99999 ? '∞' : voiceMinLimit + 'm'}
             </span>
           </div>
+          <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: '4px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: '#6b7280', cursor: 'pointer', marginRight: 6 }}>Sign Out</button>
           <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
         </div>
       </div>
