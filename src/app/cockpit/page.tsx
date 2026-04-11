@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 
-// Ã¢ÂÂÃ¢ÂÂ CONSTANTS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ CONSTANTS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const POLY_KEY = 'tz-polygon-key'
 const ANTH_KEY = 'tz-anthropic-key'
 const UW_KEY = 'tz-uw-key'
@@ -11,8 +11,8 @@ const EL_KEY = 'tz-elevenlabs-key'
 const TIINGO_KEY = 'tz-tiingo-key'
 const VOICE_ID = 'tz-voice-id'
 
-// Ã¢ÂÂÃ¢ÂÂ COLOR SYSTEM Ã¢ÂÂ NEURAL BLACK Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-// Ã¢ÂÂÃ¢ÂÂ COLOR SYSTEM Ã¢ÂÂ PEARL WHITE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ COLOR SYSTEM â NEURAL BLACK ââââââââââââââââââââââââââââââââââââââââââââ
+// ââ COLOR SYSTEM â PEARL WHITE ââââââââââââââââââââââââââââââââââââââââââââ
 const C = {
   bg: '#080a0f',
   deep: '#050609',
@@ -87,12 +87,12 @@ if (typeof window !== 'undefined' && !document.getElementById('tz-white-style'))
   `
   document.head.appendChild(s)
 }
-// Ã¢ÂÂÃ¢ÂÂ HELPERS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ HELPERS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function getEST() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
 }
 function fmt(p: number | null | undefined) {
-  if (!p) return 'Ã¢ÂÂ'
+  if (!p) return 'â'
   return parseFloat(String(p)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function calcVWAP(candles: any[]) {
@@ -117,7 +117,7 @@ function calcEMA(candles: any[], period: number) {
   return result
 }
 
-// Ã¢ÂÂÃ¢ÂÂ PROBABILITY ENGINE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ PROBABILITY ENGINE âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Calculates reversal / continuation / chop probabilities from morning inputs
 // Based on historical SPX/SPY behavior patterns
 function calcProbabilities({
@@ -130,7 +130,7 @@ function calcProbabilities({
   const im = parseFloat(impliedMove) || 0
   const vix = vixPrice || 18
 
-  // Base probabilities Ã¢ÂÂ empirical SPX tendencies
+  // Base probabilities â empirical SPX tendencies
   let reversal = 38, continuation = 40, chop = 22
 
   // Gap direction adjustments
@@ -148,7 +148,7 @@ function calcProbabilities({
   if (gap > 0 && im > 0) {
     const gapVsIM = gap / im
     if (gapVsIM > 0.6) {
-      // Large gap relative to implied move Ã¢ÂÂ high reversal odds
+      // Large gap relative to implied move â high reversal odds
       reversal += 12
       continuation -= 8
       chop -= 4
@@ -157,7 +157,7 @@ function calcProbabilities({
       continuation -= 3
       chop -= 2
     } else if (gap > 0 && gap < 10) {
-      // Small gap Ã¢ÂÂ more likely to continue or chop
+      // Small gap â more likely to continue or chop
       reversal -= 5
       chop += 8
       continuation -= 3
@@ -166,7 +166,7 @@ function calcProbabilities({
 
   // Bias vs gap direction conflict/alignment
   if (bias === 'long' && gapDirection === 'gap up') {
-    continuation += 8   // Aligned Ã¢ÂÂ continuation more likely
+    continuation += 8   // Aligned â continuation more likely
     reversal -= 5
     chop -= 3
   } else if (bias === 'short' && gapDirection === 'gap down') {
@@ -174,7 +174,7 @@ function calcProbabilities({
     reversal -= 5
     chop -= 3
   } else if (bias === 'long' && gapDirection === 'gap down') {
-    reversal += 10    // Bias conflicts with gap Ã¢ÂÂ fade setup
+    reversal += 10    // Bias conflicts with gap â fade setup
     continuation -= 8
     chop -= 2
   } else if (bias === 'short' && gapDirection === 'gap up') {
@@ -196,7 +196,7 @@ function calcProbabilities({
     continuation += 6; chop += 3; reversal -= 9
   }
 
-  // Tiingo historical override Ã¢ÂÂ if we have real data, blend it in
+  // Tiingo historical override â if we have real data, blend it in
   if (tiingoContext?.gapFillRate && tiingoContext?.continueRate) {
     const histFill = parseFloat(tiingoContext.gapFillRate)
     const histCont = parseFloat(tiingoContext.continueRate)
@@ -239,7 +239,7 @@ const CHECKLIST = [
   { id: 'system2', category: 'SYSTEM', label: 'Matches active playbook' },
 ]
 
-// Ã¢ÂÂÃ¢ÂÂ AI ENGINE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ AI ENGINE ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function runAI({
   candles, levels, currentPrice, impliedMove, anthKey,
   morningPlan, activePlaybook, tradeStats, optionsFlow, marketTide, marketIntel, tiingoContext,
@@ -257,12 +257,12 @@ Entry trigger: ${activePlaybook.entry}
 Stop rule: ${activePlaybook.stop}
 Target: ${activePlaybook.target}
 Notes: ${activePlaybook.notes || 'None'}`
-    : 'No playbook selected Ã¢ÂÂ general analysis mode'
+    : 'No playbook selected â general analysis mode'
 
   const morningSection = morningPlan
     ? `MORNING PLAN:
 Bias: ${morningPlan.bias || 'Not set'}
-Implied move: ÃÂ±${morningPlan.impliedMove || '?'} pts
+Implied move: Â±${morningPlan.impliedMove || '?'} pts
 Key levels: ${morningPlan.keyLevels || 'Not set'}
 Gap: ${morningPlan.gapDirection || 'Flat'} ${morningPlan.gapSize ? morningPlan.gapSize + 'pts' : ''}${morningPlan.notes ? `\nTrader's thesis: ${morningPlan.notes}` : ''}`
     : 'No morning plan entered'
@@ -276,21 +276,21 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
 
   const flowSection = optionsFlow?.length
     ? optionsFlow.slice(0, 5).map((f: any) =>
-        `${f.ticker} ${f.type} ${f.strike} Ã¢ÂÂ ${f.sentiment}${f.unusual ? ' Ã¢ÂÂ¡' : ''}`
+        `${f.ticker} ${f.type} ${f.strike} â ${f.sentiment}${f.unusual ? ' â¡' : ''}`
       ).join('\n')
     : 'No options flow data'
 
   const tiingoSection = tiingoContext
-    ? `HISTORICAL GAP CONTEXT (Tiingo Ã¢ÂÂ past 1yr, ${tiingoContext.totalDays} trading days):
+    ? `HISTORICAL GAP CONTEXT (Tiingo â past 1yr, ${tiingoContext.totalDays} trading days):
 ${tiingoContext.summary}
 Gap fill rate: ${tiingoContext.gapFillRate || 'N/A'}% | Continuation rate: ${tiingoContext.continueRate || 'N/A'}% | Avg day return after similar gap: ${tiingoContext.avgDayReturn || 'N/A'}%
 Implied move historical accuracy: ${tiingoContext.imAccuracy}% of days stay within the implied range`
-    : 'No Tiingo key Ã¢ÂÂ add in Settings for historical gap/implied move data'
+    : 'No Tiingo key â add in Settings for historical gap/implied move data'
 
   const toneInstructions: Record<number, string> = {
     1: "You are a DRILL SERGEANT. Be direct, blunt, and brutally honest. Call out mistakes immediately. No sugarcoating. Short sharp sentences. Hold this trader to military-level discipline.",
     2: "You are direct and firm. No fluff. Call out bad habits clearly. Be honest even when it stings. Keep the trader accountable with a tough-love approach.",
-    3: "You are balanced Ã¢ÂÂ direct but supportive. Call out mistakes clearly but constructively. Mix accountability with encouragement based on what the trader needs.",
+    3: "You are balanced â direct but supportive. Call out mistakes clearly but constructively. Mix accountability with encouragement based on what the trader needs.",
     4: "You are encouraging and supportive. Acknowledge progress. Frame corrections as learning opportunities. Keep energy positive while maintaining accountability.",
     5: "You are a LIFE COACH. Lead with empathy and encouragement. Reframe mistakes as growth moments. Keep the trader confident and emotionally regulated. Celebrate small wins.",
   }
@@ -301,12 +301,12 @@ PRICE & LEVELS:
 SPX: ${fmt(currentPrice)} | Open: ${fmt(levels?.dayOpen)} | PDH: ${fmt(levels?.pdh)} | PDL: ${fmt(levels?.pdl)}
 vs SPY VWAP (${fmt(levels?.spyVwap)}): ${currentPrice && levels?.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '?'}
 vs 200 EMA (${fmt(levels?.ema200)}): ${currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'}
-Implied move: ${fmt(levels?.impliedLow)} Ã¢ÂÂ ${fmt(levels?.impliedHigh)}
+Implied move: ${fmt(levels?.impliedLow)} â ${fmt(levels?.impliedHigh)}
 Recent 5 candles: ${recent}
 
 VIX: ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'})
 Market breadth: ${marketIntel?.breadth?.bias || 'Unknown'}
-Market tide P/C: ${marketTide?.putCallRatio || '?'} Ã¢ÂÂ ${marketTide?.bias || '?'}
+Market tide P/C: ${marketTide?.putCallRatio || '?'} â ${marketTide?.bias || '?'}
 
 OPTIONS FLOW:
 ${flowSection}
@@ -320,13 +320,13 @@ ${playbookSection}
 TRADER STATS:
 ${statsSection}
 
-${macroRegime ? `MACRO REGIME: ${macroRegime.fedStance} (${macroRegime.rateLevel}) Ã¢ÂÂ ${macroRegime.regime}: ${macroRegime.regimeSummary}. Risk: ${macroRegime.keyRisk}` : ''}
+${macroRegime ? `MACRO REGIME: ${macroRegime.fedStance} (${macroRegime.rateLevel}) â ${macroRegime.regime}: ${macroRegime.regimeSummary}. Risk: ${macroRegime.keyRisk}` : ''}
 ${marketNews ? `TODAY\'S NEWS:\n${marketNews}` : ''}
 ${economicCalendar ? `CALENDAR:\n${economicCalendar}` : ''}
 ${multiTFData ? `MULTI-TF: Weekly ${multiTFData.weekly.trend} (${multiTFData.weekly.ma20}MA) | Daily ${multiTFData.daily.trend} | ${multiTFData.confluence}` : ''}
 ${zeroDTESkew ? `0DTE SKEW: ${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | Puts ${zeroDTESkew.putPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
-${marketScore ? `MARKET SCORE: ${marketScore.score}/100 Ã¢ÂÂ ${marketScore.label}` : ''}
-${tradePatterns ? `TRADER PATTERNS: Best hour ${tradePatterns.bestHour} | Avg win $${tradePatterns.avgWinnerSize} vs loss $${tradePatterns.avgLoserSize}${tradePatterns.cutWinnersEarly ? ' Ã¢ÂÂ  CUTTING WINNERS EARLY' : ''} | Revenge trades: ${tradePatterns.revengePatterns}` : ''}
+${marketScore ? `MARKET SCORE: ${marketScore.score}/100 â ${marketScore.label}` : ''}
+${tradePatterns ? `TRADER PATTERNS: Best hour ${tradePatterns.bestHour} | Avg win $${tradePatterns.avgWinnerSize} vs loss $${tradePatterns.avgLoserSize}${tradePatterns.cutWinnersEarly ? ' â  CUTTING WINNERS EARLY' : ''} | Revenge trades: ${tradePatterns.revengePatterns}` : ''}
 ${sessionMemory ? `MEMORY FROM PAST SESSIONS:\n${sessionMemory}` : ''}
 
 Be direct, specific, reference the playbook. Use news/calendar/macro context. No generic advice.
@@ -336,7 +336,7 @@ Respond ONLY with this JSON:
   "signal": "LONG" | "SHORT" | "WAIT" | "NO TRADE",
   "confidence": 0-100,
   "marketConditions": "2-3 sentences",
-  "todaysEdge": "1-2 sentences Ã¢ÂÂ specific to playbook if active",
+  "todaysEdge": "1-2 sentences â specific to playbook if active",
   "accountability": "1 sentence calling out any rule violation risk",
   "riskFlag": "1 sentence on biggest risk right now",
   "entryZone": { "high": 0.00, "low": 0.00 },
@@ -368,7 +368,7 @@ Respond ONLY with this JSON:
 }
 
 
-// Ã¢ÂÂÃ¢ÂÂ #1 REAL-TIME NEWS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #1 REAL-TIME NEWS ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function fetchMarketNews(anthKey: string): Promise<string> {
   if (!anthKey) return 'No news available'
   try {
@@ -380,9 +380,9 @@ async function fetchMarketNews(anthKey: string): Promise<string> {
         max_tokens: 400,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Search for the top 3-4 US stock market news headlines right now for today ${new Date().toLocaleDateString('en-US')}. Focus on: Fed/economic data, macro events, SPX/SPY moves, anything that affects intraday trading today. Return ONLY a brief bullet summary like:
-Ã¢ÂÂ¢ [headline 1 in 1 sentence]
-Ã¢ÂÂ¢ [headline 2 in 1 sentence]
-Ã¢ÂÂ¢ [headline 3 in 1 sentence]
+â¢ [headline 1 in 1 sentence]
+â¢ [headline 2 in 1 sentence]
+â¢ [headline 3 in 1 sentence]
 No preamble, just the bullets.` }]
       })
     })
@@ -392,7 +392,7 @@ No preamble, just the bullets.` }]
   } catch { return 'News unavailable' }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #2 ECONOMIC CALENDAR Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #2 ECONOMIC CALENDAR âââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function fetchEconomicCalendar(anthKey: string): Promise<string> {
   if (!anthKey) return 'No calendar data'
   try {
@@ -405,8 +405,8 @@ async function fetchEconomicCalendar(anthKey: string): Promise<string> {
         max_tokens: 300,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Search for the US economic calendar events for today ${today}. Include: FOMC meetings/Fed speakers, CPI/PPI/NFP/GDP releases, Treasury auctions, major earnings (if pre/post market). Return ONLY in this format:
-Ã¢ÂÂ¢ HH:MM ET Ã¢ÂÂ Event Name (Impact: High/Med/Low)
-Ã¢ÂÂ¢ HH:MM ET Ã¢ÂÂ Event Name (Impact: High/Med/Low)
+â¢ HH:MM ET â Event Name (Impact: High/Med/Low)
+â¢ HH:MM ET â Event Name (Impact: High/Med/Low)
 If no major events, say "No major catalysts today". No preamble.` }]
       })
     })
@@ -416,14 +416,14 @@ If no major events, say "No major catalysts today". No preamble.` }]
   } catch { return 'Calendar unavailable' }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #3 COMPOSITE MARKET SCORE (0-100) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #3 COMPOSITE MARKET SCORE (0-100) ââââââââââââââââââââââââââââââââââââââ
 function calcMarketScore({
   vixPrice, marketIntel, marketTide, optionsFlow, currentPrice, levels
 }: any): { score: number, label: string, color: string, breakdown: any } {
   let score = 50 // neutral baseline
   const breakdown: any = {}
 
-  // VIX component (20pts) Ã¢ÂÂ lower VIX = better conditions
+  // VIX component (20pts) â lower VIX = better conditions
   if (vixPrice) {
     const vixScore = vixPrice < 14 ? 20 : vixPrice < 18 ? 15 : vixPrice < 22 ? 10 : vixPrice < 28 ? 5 : 0
     score += (vixScore - 10) // center around 0
@@ -438,7 +438,7 @@ function calcMarketScore({
     breakdown.breadth = { score: breadthScore, label: marketIntel.breadth.bias }
   }
 
-  // Market tide (15pts) Ã¢ÂÂ call heavy = bullish
+  // Market tide (15pts) â call heavy = bullish
   if (marketTide) {
     const tideScore = marketTide.bias === 'CALL HEAVY' ? 15 : marketTide.bias === 'PUT HEAVY' ? 3 : 9
     score += (tideScore - 7)
@@ -451,7 +451,7 @@ function calcMarketScore({
     const bearish = optionsFlow.filter((f: any) => f.sentiment === 'BEARISH').length
     const flowScore = bullish > bearish * 1.5 ? 15 : bearish > bullish * 1.5 ? 3 : 9
     score += (flowScore - 7)
-    breakdown.flow = { score: flowScore, label: `${bullish}Ã¢ÂÂ ${bearish}Ã¢ÂÂ` }
+    breakdown.flow = { score: flowScore, label: `${bullish}â ${bearish}â` }
   }
 
   // VWAP position (10pts)
@@ -469,7 +469,7 @@ function calcMarketScore({
   return { score: Math.round(score), label, color, breakdown }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #4 MULTI-TIMEFRAME CONFLUENCE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #4 MULTI-TIMEFRAME CONFLUENCE ââââââââââââââââââââââââââââââââââââââââââ
 async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<any> {
   if (!polyKey) return null
   try {
@@ -490,13 +490,13 @@ async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<
     const daily = dailyData.results || []
     if (!weekly.length || !daily.length) return null
 
-    // Weekly trend Ã¢ÂÂ is price above 20-week MA?
+    // Weekly trend â is price above 20-week MA?
     const w20 = weekly.slice(-20).reduce((s: number, c: any) => s + c.c, 0) / Math.min(20, weekly.length)
     const latestWeekClose = weekly[weekly.length - 1]?.c
     const weeklyTrend = latestWeekClose > w20 ? 'BULLISH' : 'BEARISH'
     const weeklyTrendStrength = Math.abs(((latestWeekClose - w20) / w20) * 100).toFixed(1)
 
-    // Daily trend Ã¢ÂÂ 20-day MA direction
+    // Daily trend â 20-day MA direction
     const d20 = daily.slice(-20).reduce((s: number, c: any) => s + c.c, 0) / Math.min(20, daily.length)
     const d5 = daily.slice(-5).reduce((s: number, c: any) => s + c.c, 0) / Math.min(5, daily.length)
     const dailyTrend = d5 > d20 ? 'BULLISH' : 'BEARISH'
@@ -508,8 +508,8 @@ async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<
     // Confluence check
     const allAligned = weeklyTrend === dailyTrend
     const confluenceLabel = allAligned
-      ? (weeklyTrend === 'BULLISH' ? 'ALL TIMEFRAMES BULLISH Ã¢ÂÂ' : 'ALL TIMEFRAMES BEARISH Ã¢ÂÂ')
-      : `MIXED Ã¢ÂÂ Weekly ${weeklyTrend}, Daily ${dailyTrend}`
+      ? (weeklyTrend === 'BULLISH' ? 'ALL TIMEFRAMES BULLISH â' : 'ALL TIMEFRAMES BEARISH â')
+      : `MIXED â Weekly ${weeklyTrend}, Daily ${dailyTrend}`
 
     return {
       weekly: { trend: weeklyTrend, ma20: Math.round(w20), strength: weeklyTrendStrength + '%' },
@@ -521,7 +521,7 @@ async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<
   } catch { return null }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #5 SPX 0DTE OPTIONS SKEW Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #5 SPX 0DTE OPTIONS SKEW âââââââââââââââââââââââââââââââââââââââââââââââ
 async function fetchZeroDTESkew(uwKey: string): Promise<any> {
   // Always use server-side proxy
   uwKey = 'server'
@@ -551,7 +551,7 @@ async function fetchZeroDTESkew(uwKey: string): Promise<any> {
     const totalPremium = callPremium + putPremium
     const callPct = totalPremium > 0 ? Math.round((callPremium / totalPremium) * 100) : 50
     const pcRatio = putVol > 0 ? (putVol / callVol).toFixed(2) : 'N/A'
-    const skewLabel = callPct > 60 ? 'CALL SKEWED Ã¢ÂÂ bullish 0DTE flow' : callPct < 40 ? 'PUT SKEWED Ã¢ÂÂ bearish 0DTE flow' : 'BALANCED 0DTE flow'
+    const skewLabel = callPct > 60 ? 'CALL SKEWED â bullish 0DTE flow' : callPct < 40 ? 'PUT SKEWED â bearish 0DTE flow' : 'BALANCED 0DTE flow'
 
     return {
       callPct, putPct: 100 - callPct,
@@ -563,7 +563,7 @@ async function fetchZeroDTESkew(uwKey: string): Promise<any> {
   } catch { return null }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #6 TRADE PATTERN ANALYSIS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #6 TRADE PATTERN ANALYSIS ââââââââââââââââââââââââââââââââââââââââââââââ
 function analyzeTradePatterns(trades: any[]): any {
   if (!trades || trades.length < 5) return null
 
@@ -601,7 +601,7 @@ function analyzeTradePatterns(trades: any[]): any {
     }
   })
 
-  // Revenge trading detection Ã¢ÂÂ loss followed by trade within 10 mins
+  // Revenge trading detection â loss followed by trade within 10 mins
   for (let i = 1; i < trades.length; i++) {
     if (trades[i-1].pnl < 0 && trades[i].time && trades[i-1].time) {
       const timeDiff = Math.abs(new Date('1970-01-01T' + trades[i].time).getTime() - new Date('1970-01-01T' + trades[i-1].time).getTime())
@@ -637,10 +637,10 @@ function analyzeTradePatterns(trades: any[]): any {
   return patterns
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #7 MACRO REGIME Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #7 MACRO REGIME ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function fetchMacroRegime(anthKey: string): Promise<any> {
   if (!anthKey) return null
-  // Only refresh once per day Ã¢ÂÂ cache in localStorage
+  // Only refresh once per day â cache in localStorage
   const cacheKey = 'tz-macro-regime'
   const cached = localStorage.getItem(cacheKey)
   if (cached) {
@@ -677,7 +677,7 @@ Respond with ONLY valid JSON.` }]
   } catch { return null }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ #8 SESSION MEMORY Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ #8 SESSION MEMORY ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const SESSION_MEMORY_KEY = 'tz-session-memory'
 
 function loadSessionMemory(): string {
@@ -725,7 +725,7 @@ async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tra
   } catch {}
 }
 
-// Ã¢ÂÂÃ¢ÂÂ MARKET INTEL Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ MARKET INTEL âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function fetchMarketIntel(polyKey: string) {
   if (!polyKey) return {}
   try {
@@ -810,7 +810,7 @@ async function fetchMarketTide(uwKey: string) {
   } catch { return null }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ TIINGO HISTORICAL CONTEXT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ TIINGO HISTORICAL CONTEXT ââââââââââââââââââââââââââââââââââââââââââââââ
 async function fetchTiingoContext(tiingoKey: string, gapDirection: string, gapSize: string, impliedMove: string) {
   if (!tiingoKey) return null
   try {
@@ -915,20 +915,20 @@ function analyzeTradeHistory(trades: any[]) {
     winRate,
     avgWin: avgWin.toFixed(2),
     avgLoss: avgLoss.toFixed(2),
-    profitFactor: avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : 'Ã¢ÂÂ',
+    profitFactor: avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : 'â',
     totalPnl: totalPnl.toFixed(2),
-    inSystemWinRate: winRate, // simplified Ã¢ÂÂ user can tag later
+    inSystemWinRate: winRate, // simplified â user can tag later
     outSystemWinRate: Math.max(0, winRate - 15),
     recentForm: trades.slice(-5).filter(t => t.pnl > 0).length + '/5 recent winners',
   }
 }
 
-// Ã¢ÂÂÃ¢ÂÂ BRAND LOGO COMPONENT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ BRAND LOGO COMPONENT âââââââââââââââââââââââââââââââââââââââââââââââââââ
 const TZ = () => (
   <span>tr<span style={{color:'#00d4a0',fontWeight:900}}>AI</span>de Zone</span>
 )
 
-// Ã¢ÂÂÃ¢ÂÂ SETTINGS MODAL Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ SETTINGS MODAL âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
@@ -969,7 +969,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20, padding: '12px 14px', background: '#131720', borderRadius: 10, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Appearance</div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? 'Ã°ÂÂÂ Dark mode' : 'Ã¢ÂÂÃ¯Â¸Â Light mode'}</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? 'ð Dark mode' : 'âï¸ Light mode'}</div>
           </div>
           <button onClick={() => setDarkMode(!darkMode)} style={{
             width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative' as const,
@@ -1009,7 +1009,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
                   </button>
                   <button type="button" onClick={e => { e.stopPropagation(); testVoice(v.id, v.name) }}
                     style={{ position: 'absolute' as const, top: 5, right: 5, fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${C.tealBorder}`, background: previewingVoice === v.id ? C.tealDim : 'transparent', color: C.teal, cursor: 'pointer' }}>
-                    {previewingVoice === v.id ? 'Ã¢ÂÂ¸' : 'Ã¢ÂÂ¶'}
+                    {previewingVoice === v.id ? 'â¸' : 'â¶'}
                   </button>
                 </div>
               )
@@ -1037,7 +1037,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 6 }}>Daily Welcome Message</div>
           <textarea value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)}
-            placeholder={`e.g. "Good morning {name}. VIX is elevated Ã¢ÂÂ stay patient and wait for your setups."`}
+            placeholder={`e.g. "Good morning {name}. VIX is elevated â stay patient and wait for your setups."`}
             rows={3}
             style={{ width: '100%', background: '#131720', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
           <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Played once per day when you open the cockpit. Use <span style={{color: C.teal}}>{'{name}'}</span> to insert your name.</div>
@@ -1047,9 +1047,9 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 10 }}>AI Coaching Tone</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 10, color: C.textDim }}>Ã°ÂÂªÂ Drill Sergeant</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>ðª Drill Sergeant</span>
             <span style={{ fontSize: 10, color: C.teal, fontWeight: 700 }}>{['','Drill Sergeant','Direct & Firm','Balanced','Encouraging','Life Coach'][aiTone]}</span>
-            <span style={{ fontSize: 10, color: C.textDim }}>Life Coach Ã°ÂÂ§Â</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>Life Coach ð§</span>
           </div>
           <input type="range" min={1} max={5} value={aiTone} onChange={e => setAiTone(parseInt(e.target.value))}
             style={{ width: '100%', accentColor: '#00d4a0', cursor: 'pointer' }} />
@@ -1062,13 +1062,13 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 10 }}>Voice Speed</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 10, color: C.textDim }}>ð¢ Slower</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>🐢 Slower</span>
             <span style={{ fontSize: 10, color: C.teal, fontWeight: 700 }}>{voiceSpeed <= 0.8 ? 'Slow' : voiceSpeed <= 1.0 ? 'Normal' : voiceSpeed <= 1.2 ? 'Fast' : 'Faster'}</span>
-            <span style={{ fontSize: 10, color: C.textDim }}>Faster ð</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>Faster 🐇</span>
           </div>
           <input type="range" min={0.7} max={1.4} step={0.1} value={voiceSpeed} onChange={e => { setVoiceSpeed(parseFloat(e.target.value)); localStorage.setItem('tz-voice-speed', e.target.value) }}
             style={{ width: '100%', accentColor: '#00d4a0', cursor: 'pointer' }} />
-          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Current: {voiceSpeed}x â Normal is 1.0x</div>
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Current: {voiceSpeed}x — Normal is 1.0x</div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button onClick={save} style={{ flex: 1, background: C.teal, color: '#080a0f', border: 'none', borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>Save</button>
@@ -1079,7 +1079,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
   )
 }
 
-// Ã¢ÂÂÃ¢ÂÂ VOICE SELECTOR Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ VOICE SELECTOR âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', desc: 'Calm & analytical' },
   { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', desc: 'Direct & assertive' },
@@ -1088,7 +1088,7 @@ const VOICES = [
   { id: 'custom', name: 'Custom ID', desc: 'Enter your own voice ID' },
 ]
 
-// Ã¢ÂÂÃ¢ÂÂ PROB METER Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ PROB METER âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function ProbMeter({ value, color }: { value: number; color: string }) {
   const r = 32, circ = 2 * Math.PI * r
   const dash = circ * (value / 100)
@@ -1104,7 +1104,7 @@ function ProbMeter({ value, color }: { value: number; color: string }) {
   )
 }
 
-// Ã¢ÂÂÃ¢ÂÂ MAIN COCKPIT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ââ MAIN COCKPIT âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Timeframe config: daysBack drives from-date, limit must cover all bars
 // 1m=1day(500bars) 5m=5days(500) 15m=10days(400) 1H=20days(200) 1D=1yr(500)
 const TF_CONFIG: Record<string, {multiplier: number, timespan: string, daysBack: number, limit: number}> = {
@@ -1393,7 +1393,7 @@ export default function CockpitPage() {
 
   const handleOverlayMouseUp = useCallback(() => {}, [])
 
-  // Fetch market data Ã¢ÂÂ timeframe-aware with correct lookback windows
+  // Fetch market data â timeframe-aware with correct lookback windows
   const fetchHistory = useCallback(async (ticker: string, setter: any, key: string) => {
     const polyKey = keys[POLY_KEY]
     if (!polyKey) return
@@ -1415,13 +1415,6 @@ export default function CockpitPage() {
       fromDate.setDate(fromDate.getDate() - tfCfg.daysBack)
       while (fromDate.getDay() === 0 || fromDate.getDay() === 6) fromDate.setDate(fromDate.getDate() - 1)
       const fromStr = fromDate.toISOString().split('T')[0]
-
-      // Weekend fix: use last trading day as end date
-      const isWeekend = est.getDay() === 0 || est.getDay() === 6
-      const lastTradeDay = new Date(est)
-      if (est.getDay() === 0) lastTradeDay.setDate(lastTradeDay.getDate() - 2) // Sunday -> Friday
-      else if (est.getDay() === 6) lastTradeDay.setDate(lastTradeDay.getDate() - 1) // Saturday -> Friday
-      const toStr = isWeekend ? lastTradeDay.toISOString().split('T')[0] : today
 
       // Paginate through Polygon's cursor-based pages until we have all bars
       const fetchAllPages = async (initialPath: string): Promise<any[]> => {
@@ -1445,7 +1438,7 @@ export default function CockpitPage() {
       ).then(r => r.json())
 
       let resultsToUse = await fetchAllPages(
-        `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=${tfCfg.limit}`
+        `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${fromStr}/${today}?adjusted=true&sort=asc&limit=${tfCfg.limit}`
       )
 
       // Pre-market fallback
@@ -1522,7 +1515,7 @@ export default function CockpitPage() {
     return () => clearInterval(interval)
   }, [keys, fetchHistory])
 
-  // Reload SPX when timeframe changes Ã¢ÂÂ fetchHistory already has fresh chartTf via useCallback
+  // Reload SPX when timeframe changes â fetchHistory already has fresh chartTf via useCallback
   useEffect(() => {
     // keys handled server-side
     setCandles([])
@@ -1606,14 +1599,14 @@ export default function CockpitPage() {
           open: c.o, high: c.h, low: c.l, close: c.c
         }))
 
-        // Deduplicate Ã¢ÂÂ keep last bar per time key
+        // Deduplicate â keep last bar per time key
         const seen = new Map<string, any>()
         chartData.forEach(b => seen.set(String(b.time), b))
         chartData = Array.from(seen.values()).sort((a, b) => String(a.time) > String(b.time) ? 1 : -1)
 
         candleSeries.setData(chartData)
 
-        // VWAP Ã¢ÂÂ intraday only, not meaningful on daily
+        // VWAP â intraday only, not meaningful on daily
         if (isIntraday && levels.spyVwapRaw && spyCandles.length >= 5) {
           const spyVwapLine = chart.addSeries(LineSeries, { color: '#e05000', lineWidth: 1, lineStyle: 1, title: 'VWAP' })
           const vwaps = calcVWAP(spyCandles)
@@ -1625,7 +1618,7 @@ export default function CockpitPage() {
           )
         }
 
-        // 200 EMA Ã¢ÂÂ daily only (needs enough bars), intraday it's too noisy
+        // 200 EMA â daily only (needs enough bars), intraday it's too noisy
         if (isDaily && candles.length >= 50) {
           const emaLine = chart.addSeries(LineSeries, { color: '#6620d4cc', lineWidth: 1, lineStyle: 2, title: '200 EMA' })
           const emas = calcEMA(candles, Math.min(200, candles.length))
@@ -1634,7 +1627,7 @@ export default function CockpitPage() {
           )
         }
 
-        // Fit to just the loaded data Ã¢ÂÂ critical for daily not looking spread out
+        // Fit to just the loaded data â critical for daily not looking spread out
         chart.timeScale().fitContent()
 
       } catch (e) { console.warn('TZ chart series error:', e) }
@@ -1654,7 +1647,7 @@ export default function CockpitPage() {
     }
   }, [tab, candles.length])
 
-  // AI auto-run every 3 min Ã¢ÂÂ fires even pre-market to load options flow
+  // AI auto-run every 3 min â fires even pre-market to load options flow
   useEffect(() => {
     // keys loaded server-side, always run
     const run = async () => {
@@ -1704,7 +1697,7 @@ export default function CockpitPage() {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [chatMessages, chatLoading])
 
-  // Speech recognition Ã¢ÂÂ stays open until user stops
+  // Speech recognition â stays open until user stops
   const listeningRef = useRef(false)  // stable ref so speak() can check without stale closure
 
   const startListening = () => {
@@ -1749,7 +1742,7 @@ export default function CockpitPage() {
     setLiveTranscript('')
   }
 
-  // Voice speak Ã¢ÂÂ pauses mic while speaking, resumes after
+  // Voice speak â pauses mic while speaking, resumes after
   const checkVoiceLimit = (minutesUsed: number) => {
     const pct = (minutesUsed / voiceMinLimit) * 100
     if (pct >= 90 && voiceWarningShown !== '90') {
@@ -1864,73 +1857,73 @@ export default function CockpitPage() {
   const buildCompanionContext = () => {
     const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
     const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
-    const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `Ã¢ÂÂ ${c.label}`).join('\n')
-    const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `Ã¢ÂÂ ${c.label}`).join('\n')
+    const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `â ${c.label}`).join('\n')
+    const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `â ${c.label}`).join('\n')
 
     return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
 
 NEVER say you are text-only. Your responses ARE spoken aloud via ElevenLabs.
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ LIVE MARKET DATA Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : 'Ã¢ÂÂ'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : 'Ã¢ÂÂ'}%)
-SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE Ã¢ÂÂ² Ã¢ÂÂ bullish intraday' : 'BELOW Ã¢ÂÂ¼ Ã¢ÂÂ bearish intraday') : 'No VWAP data'}
-SPX vs 200 EMA (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE Ã¢ÂÂ long-term bullish' : 'BELOW Ã¢ÂÂ long-term bearish') : 'No EMA data'}
+âââ LIVE MARKET DATA âââ
+SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : 'â'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : 'â'}%)
+SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE â² â bullish intraday' : 'BELOW â¼ â bearish intraday') : 'No VWAP data'}
+SPX vs 200 EMA (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE â long-term bullish' : 'BELOW â long-term bearish') : 'No EMA data'}
 PDH: ${fmt(levels.pdh)} | PDL: ${fmt(levels.pdl)} | Prev Close: ${fmt(levels.prevClose)}
-Implied Move Range: ${fmt(levels.impliedLow)} Ã¢ÂÂ ${fmt(levels.impliedHigh)}
-SPY: ${fmt(spyPrice)} | VIX: ${vixPrice?.toFixed(2) || 'Ã¢ÂÂ'} (${vixPrice ? (vixPrice > 30 ? 'EXTREME Ã¢ÂÂ high caution' : vixPrice > 25 ? 'HIGH Ã¢ÂÂ elevated risk' : vixPrice > 18 ? 'ELEVATED Ã¢ÂÂ use caution' : vixPrice > 14 ? 'NORMAL' : 'LOW Ã¢ÂÂ complacent market') : 'Ã¢ÂÂ'})
+Implied Move Range: ${fmt(levels.impliedLow)} â ${fmt(levels.impliedHigh)}
+SPY: ${fmt(spyPrice)} | VIX: ${vixPrice?.toFixed(2) || 'â'} (${vixPrice ? (vixPrice > 30 ? 'EXTREME â high caution' : vixPrice > 25 ? 'HIGH â elevated risk' : vixPrice > 18 ? 'ELEVATED â use caution' : vixPrice > 14 ? 'NORMAL' : 'LOW â complacent market') : 'â'})
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ MARKET INTELLIGENCE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-Breadth: ${marketIntel?.breadth?.bias || 'No data'} (${marketIntel?.breadth?.advancing || 0}Ã¢ÂÂ ${marketIntel?.breadth?.declining || 0}Ã¢ÂÂ of 8 sectors)
-QQQ: ${marketIntel?.sectors?.QQQ ? (Number(marketIntel.sectors.QQQ.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.QQQ.todayChange + '%' : 'Ã¢ÂÂ'} | IWM: ${marketIntel?.sectors?.IWM ? (Number(marketIntel.sectors.IWM.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.IWM.todayChange + '%' : 'Ã¢ÂÂ'} | XLK: ${marketIntel?.sectors?.XLK ? (Number(marketIntel.sectors.XLK.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.XLK.todayChange + '%' : 'Ã¢ÂÂ'} | XLF: ${marketIntel?.sectors?.XLF ? (Number(marketIntel.sectors.XLF.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.XLF.todayChange + '%' : 'Ã¢ÂÂ'}
-TLT (Bonds): ${marketIntel?.sectors?.TLT ? (Number(marketIntel.sectors.TLT.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.TLT.todayChange + '%' : 'Ã¢ÂÂ'}
+âââ MARKET INTELLIGENCE âââ
+Breadth: ${marketIntel?.breadth?.bias || 'No data'} (${marketIntel?.breadth?.advancing || 0}â ${marketIntel?.breadth?.declining || 0}â of 8 sectors)
+QQQ: ${marketIntel?.sectors?.QQQ ? (Number(marketIntel.sectors.QQQ.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.QQQ.todayChange + '%' : 'â'} | IWM: ${marketIntel?.sectors?.IWM ? (Number(marketIntel.sectors.IWM.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.IWM.todayChange + '%' : 'â'} | XLK: ${marketIntel?.sectors?.XLK ? (Number(marketIntel.sectors.XLK.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.XLK.todayChange + '%' : 'â'} | XLF: ${marketIntel?.sectors?.XLF ? (Number(marketIntel.sectors.XLF.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.XLF.todayChange + '%' : 'â'}
+TLT (Bonds): ${marketIntel?.sectors?.TLT ? (Number(marketIntel.sectors.TLT.todayChange) >= 0 ? '+' : '') + marketIntel.sectors.TLT.todayChange + '%' : 'â'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ OPTIONS FLOW (Unusual Whales) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-Market Tide: ${marketTide?.bias || 'No data'} | P/C Ratio: ${marketTide?.putCallRatio || 'Ã¢ÂÂ'}
-${optionsFlow.length ? `${optionsFlow.length} SPX/SPY flow alerts:\n${optionsFlow.slice(0, 5).map((f: any) => `  ${f.ticker} ${(f.type || '').toUpperCase()} ${f.strike} Ã¢ÂÂ ${f.sentiment}${f.unusual ? ' Ã¢ÂÂ¡UNUSUAL' : ''}`).join('\n')}` : 'No SPX/SPY options flow alerts'}
+âââ OPTIONS FLOW (Unusual Whales) âââ
+Market Tide: ${marketTide?.bias || 'No data'} | P/C Ratio: ${marketTide?.putCallRatio || 'â'}
+${optionsFlow.length ? `${optionsFlow.length} SPX/SPY flow alerts:\n${optionsFlow.slice(0, 5).map((f: any) => `  ${f.ticker} ${(f.type || '').toUpperCase()} ${f.strike} â ${f.sentiment}${f.unusual ? ' â¡UNUSUAL' : ''}`).join('\n')}` : 'No SPX/SPY options flow alerts'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ HISTORICAL CONTEXT (Tiingo) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-${tiingoContext ? tiingoContext.summary : 'No Tiingo key Ã¢ÂÂ add for historical gap/implied move data'}
+âââ HISTORICAL CONTEXT (Tiingo) âââ
+${tiingoContext ? tiingoContext.summary : 'No Tiingo key â add for historical gap/implied move data'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ MORNING PLAN Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-Bias: ${morningPlan.bias || 'NOT SET Ã¢ÂÂ trading without a plan'}
-Implied Move: ÃÂ±${morningPlan.impliedMove || 'not set'} pts
+âââ MORNING PLAN âââ
+Bias: ${morningPlan.bias || 'NOT SET â trading without a plan'}
+Implied Move: Â±${morningPlan.impliedMove || 'not set'} pts
 Key Levels: ${morningPlan.keyLevels || 'not set'}
 Gap: ${morningPlan.gapDirection || 'flat'} ${morningPlan.gapSize ? morningPlan.gapSize + 'pts' : ''}${morningPlan.notes ? `\nTrader's notes: ${morningPlan.notes}` : ''}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ AI SIGNAL Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+âââ AI SIGNAL âââ
 Signal: ${aiResult?.signal || 'No signal yet'} | Confidence: ${aiResult?.confidence || 0}%
 ${aiResult?.marketConditions ? `Conditions: ${aiResult.marketConditions}` : ''}
 ${aiResult?.todaysEdge ? `Edge: ${aiResult.todaysEdge}` : ''}
-${aiResult?.riskFlag ? `Ã¢ÂÂ  Risk: ${aiResult.riskFlag}` : ''}
-${aiResult?.entryZone ? `Entry zone: ${fmt(aiResult.entryZone.low)}Ã¢ÂÂ${fmt(aiResult.entryZone.high)} | Stop: ${fmt(aiResult.stopLevel)} | T1: ${fmt(aiResult.target1)} | T2: ${fmt(aiResult.target2)}` : ''}
+${aiResult?.riskFlag ? `â  Risk: ${aiResult.riskFlag}` : ''}
+${aiResult?.entryZone ? `Entry zone: ${fmt(aiResult.entryZone.low)}â${fmt(aiResult.entryZone.high)} | Stop: ${fmt(aiResult.stopLevel)} | T1: ${fmt(aiResult.target1)} | T2: ${fmt(aiResult.target2)}` : ''}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ PROBABILITY BREAKDOWN Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+âââ PROBABILITY BREAKDOWN âââ
 Reversal: ${probs.reversal}% | Continuation: ${probs.continuation}% | Chop: ${probs.chop}%
 Dominant scenario: ${probs.dominant} (${probs.confidence} confidence)
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ ACTIVE PLAYBOOK Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-${activePlaybook ? `${activePlaybook.name}\nEntry: ${activePlaybook.entry}\nStop: ${activePlaybook.stop}\nTarget: ${activePlaybook.target}\nSetup: ${activePlaybook.setup}` : 'No playbook selected Ã¢ÂÂ trader has no defined setup'}
+âââ ACTIVE PLAYBOOK âââ
+${activePlaybook ? `${activePlaybook.name}\nEntry: ${activePlaybook.entry}\nStop: ${activePlaybook.stop}\nTarget: ${activePlaybook.target}\nSetup: ${activePlaybook.setup}` : 'No playbook selected â trader has no defined setup'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ PRE-TRADE CHECKLIST: ${score}/13 (Grade: ${grade}) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+âââ PRE-TRADE CHECKLIST: ${score}/13 (Grade: ${grade}) âââ
 MET:\n${metChecks || 'None'}
 UNMET:\n${unmetChecks || 'All conditions met!'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ TODAY'S TRADING Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+âââ TODAY'S TRADING âââ
 P&L: ${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)} | Trades today: ${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length}
 ${tradeStats ? `All-time: ${tradeStats.winRate}% win rate | ${tradeStats.totalTrades} trades | Profit factor: ${tradeStats.profitFactor}x` : 'No trade history yet'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DRAWN LEVELS ON CHART Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+âââ DRAWN LEVELS ON CHART âââ
 ${drawnLines.length > 0 ? drawnLines.map((l: any) => `${l.type === 'horizontal' ? 'Horizontal line' : 'Trend line'} at Y=${(l.y * 100).toFixed(0)}% of chart`).join('\n') : 'No drawn levels'}
-${drawnZones.length > 0 ? drawnZones.map((z: any) => `S&D Zone: Y ${(z.y1 * 100).toFixed(0)}%Ã¢ÂÂ${(z.y2 * 100).toFixed(0)}%`).join('\n') : ''}
+${drawnZones.length > 0 ? drawnZones.map((z: any) => `S&D Zone: Y ${(z.y1 * 100).toFixed(0)}%â${(z.y2 * 100).toFixed(0)}%`).join('\n') : ''}
 
-${macroRegime ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ MACRO REGIME Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\nFed: ${macroRegime.fedStance} (${macroRegime.rateLevel}) | ${macroRegime.regime}\n${macroRegime.regimeSummary}` : ''}
-${marketNews ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ TODAY'S NEWS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\n${marketNews}` : ''}
-${economicCalendar ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ ECONOMIC CALENDAR Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\n${economicCalendar}` : ''}
-${multiTFData ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ MULTI-TIMEFRAME Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\nWeekly: ${multiTFData.weekly.trend} | Daily: ${multiTFData.daily.trend} | ${multiTFData.confluence}` : ''}
-${zeroDTESkew ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ 0DTE SKEW Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\n${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
-${marketScore ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ MARKET SCORE: ${marketScore.score}/100 Ã¢ÂÂ ${marketScore.label} Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ` : ''}
-${tradePatterns ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ YOUR PATTERNS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\nBest hour: ${tradePatterns.bestHour} | Revenge trades: ${tradePatterns.revengePatterns}${tradePatterns.cutWinnersEarly ? ' | Ã¢ÂÂ  Cutting winners early' : ''}` : ''}
-${sessionMemory ? `\nÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ MEMORY Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ\n${sessionMemory}` : ''}
+${macroRegime ? `\nâââ MACRO REGIME âââ\nFed: ${macroRegime.fedStance} (${macroRegime.rateLevel}) | ${macroRegime.regime}\n${macroRegime.regimeSummary}` : ''}
+${marketNews ? `\nâââ TODAY'S NEWS âââ\n${marketNews}` : ''}
+${economicCalendar ? `\nâââ ECONOMIC CALENDAR âââ\n${economicCalendar}` : ''}
+${multiTFData ? `\nâââ MULTI-TIMEFRAME âââ\nWeekly: ${multiTFData.weekly.trend} | Daily: ${multiTFData.daily.trend} | ${multiTFData.confluence}` : ''}
+${zeroDTESkew ? `\nâââ 0DTE SKEW âââ\n${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
+${marketScore ? `\nâââ MARKET SCORE: ${marketScore.score}/100 â ${marketScore.label} âââ` : ''}
+${tradePatterns ? `\nâââ YOUR PATTERNS âââ\nBest hour: ${tradePatterns.bestHour} | Revenge trades: ${tradePatterns.revengePatterns}${tradePatterns.cutWinnersEarly ? ' | â  Cutting winners early' : ''}` : ''}
+${sessionMemory ? `\nâââ MEMORY âââ\n${sessionMemory}` : ''}
 
 THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   }
@@ -1984,10 +1977,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     reader.onload = (ev) => {
       const text = ev.target?.result as string
       const parsed = parseBrokerCSV(text)
-      if (!parsed.length) { setImportStatus('No trades found Ã¢ÂÂ check CSV format'); return }
+      if (!parsed.length) { setImportStatus('No trades found â check CSV format'); return }
       const allTrades = [...trades, ...parsed.map(t => ({ ...t, id: Date.now() + Math.random(), inSystem: true }))]
       setTrades(allTrades)
-      setImportStatus(`Ã¢ÂÂ Imported ${parsed.length} trades Ã¢ÂÂ AI now has your history`)
+      setImportStatus(`â Imported ${parsed.length} trades â AI now has your history`)
     }
     reader.readAsText(file)
   }
@@ -2004,9 +1997,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     const traderName = userName ? `Trader's name: ${userName}. Address them by name occasionally.` : ''
     const ctx = {
       spx: fmt(currentPrice),
-      vwapPos: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼') : 'Ã¢ÂÂ',
-      vix: vixPrice ? vixPrice.toFixed(2) : 'Ã¢ÂÂ',
-      vixLevel: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : 'Ã¢ÂÂ',
+      vwapPos: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'â²' : 'â¼') : 'â',
+      vix: vixPrice ? vixPrice.toFixed(2) : 'â',
+      vixLevel: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : 'â',
       signal: aiResult?.signal || '',
       confidence: aiResult?.confidence || 0,
       bias: morningPlan.bias || '',
@@ -2014,8 +2007,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       keyLevels: morningPlan.keyLevels || '',
       score, grade,
       flow: optionsFlow.length ? optionsFlow.slice(0,3).map((f: any) => `${f.ticker} ${f.type} ${f.sentiment}`).join(' | ') : 'No data',
-      tide: marketTide?.bias || 'Ã¢ÂÂ',
-      breadth: marketIntel?.breadth?.bias || 'Ã¢ÂÂ',
+      tide: marketTide?.bias || 'â',
+      breadth: marketIntel?.breadth?.bias || 'â',
       pnl: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`,
       trades: trades.filter((t: any) => t.date === new Date().toISOString().split('T')[0]).length,
       edge: aiResult?.todaysEdge || '',
@@ -2029,7 +2022,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
   if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#080a0f', color: '#8090b0', fontFamily: font }}>Loading...</div>
 
-  // Dark mode is now default Ã¢ÂÂ DC not needed, CC = C always
+  // Dark mode is now default â DC not needed, CC = C always
   const CC = C
 
   return (
@@ -2042,7 +2035,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
       {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
 
-      {/* Ã¢ÂÂÃ¢ÂÂ DISCLOSURE MODAL Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ DISCLOSURE MODAL ââ */}
       {showDisclosure && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'rgba(13,17,23,0.98)', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 16, padding: 32, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
@@ -2054,7 +2047,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             <div style={{ fontFamily: font, fontSize: 12, color: C.textDim, lineHeight: 1.8, marginBottom: 20 }}>
               {[
-                { title: 'NOT FINANCIAL ADVICE', body: 'trAIde Zone is an educational and accountability tool only. Nothing generated by this platform Ã¢ÂÂ including AI signals, probability estimates, market analysis, trade suggestions, or voice companion responses Ã¢ÂÂ constitutes financial advice, investment advice, or a recommendation to buy or sell any security or financial instrument.' },
+                { title: 'NOT FINANCIAL ADVICE', body: 'trAIde Zone is an educational and accountability tool only. Nothing generated by this platform â including AI signals, probability estimates, market analysis, trade suggestions, or voice companion responses â constitutes financial advice, investment advice, or a recommendation to buy or sell any security or financial instrument.' },
                 { title: 'NO GUARANTEE OF ACCURACY', body: 'All market data, AI-generated analysis, historical probabilities, and signals are provided for informational purposes only and may be delayed, inaccurate, or incomplete. Past performance of any analysis or pattern is not indicative of future results.' },
                 { title: 'TRADING INVOLVES SUBSTANTIAL RISK', body: 'Options trading, including SPX intraday options, involves substantial risk of loss and is not appropriate for all investors. You may lose your entire investment. Never trade with money you cannot afford to lose entirely.' },
                 { title: 'YOU ARE SOLELY RESPONSIBLE', body: 'All trading decisions are yours alone. trAIde Zone, its developers, and affiliates are not responsible for any trading losses, damages, or financial harm resulting from your use of this platform or reliance on its outputs.' },
@@ -2082,7 +2075,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               borderRadius: 10, padding: '14px 0', fontSize: 14, fontWeight: 800,
               cursor: 'pointer', fontFamily: fontDisplay, letterSpacing: '-0.3px'
             }}>
-              I Understand & Accept Ã¢ÂÂ Enter trAIde Zone
+              I Understand & Accept â Enter trAIde Zone
             </button>
             <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: C.textMuted }}>
               You can review this disclosure at any time in Settings
@@ -2091,7 +2084,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         </div>
       )}
 
-      {/* Ã¢ÂÂÃ¢ÂÂ TOP BAR Ã¢ÂÂ NEURAL BLACK Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ TOP BAR â NEURAL BLACK ââ */}
       <div className="header-scan" style={{ height: 48, background: 'rgba(13,17,23,0.98)', borderBottom: `1px solid rgba(0,212,160,0.15)`, display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0, zIndex: 10, position: 'relative', overflow: 'hidden' }}>
         {/* Logo */}
         <div style={{ padding: '0 20px', borderRight: `1px solid rgba(0,229,255,0.08)`, display: 'flex', alignItems: 'center', gap: 10, height: '100%' }}>
@@ -2117,7 +2110,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.text }}>{fmt(price)}</span>
             {change !== undefined && (
               <span style={{ fontSize: 9, fontWeight: 600, color: change >= 0 ? C.synapse : C.red, textShadow: change >= 0 ? `0 0 6px ${C.synapse}` : `0 0 6px ${C.red}` }}>
-                {change >= 0 ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼'} {Math.abs(open ? change / open * 100 : 0).toFixed(2)}%
+                {change >= 0 ? 'â²' : 'â¼'} {Math.abs(open ? change / open * 100 : 0).toFixed(2)}%
               </span>
             )}
           </div>
@@ -2130,7 +2123,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>{fmt(levels.spyVwap)}</span>
             {currentPrice && levels.spyVwap && (
               <span style={{ fontSize: 9, color: currentPrice > levels.spyVwap ? C.synapse : C.red, textShadow: currentPrice > levels.spyVwap ? `0 0 6px ${C.synapse}` : `0 0 6px ${C.red}`, fontWeight: 700 }}>
-                {currentPrice > levels.spyVwap ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼'}
+                {currentPrice > levels.spyVwap ? 'â²' : 'â¼'}
               </span>
             )}
           </div>
@@ -2139,7 +2132,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>{fmt(levels.ema200)}</span>
             {currentPrice && levels.ema200 && (
               <span style={{ fontSize: 9, color: currentPrice > levels.ema200 ? C.synapse : C.red, fontWeight: 700 }}>
-                {currentPrice > levels.ema200 ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼'}
+                {currentPrice > levels.ema200 ? 'â²' : 'â¼'}
               </span>
             )}
           </div>
@@ -2170,17 +2163,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 6,
             background: voiceOverage ? 'rgba(255,77,109,0.1)' : voiceWarningShown === '90' ? 'rgba(245,158,11,0.1)' : 'rgba(0,212,160,0.08)',
             border: `1px solid ${voiceOverage ? 'rgba(255,77,109,0.3)' : voiceWarningShown === '90' ? 'rgba(245,158,11,0.3)' : 'rgba(0,212,160,0.2)'}` }}>
-            <span style={{ fontSize: 10 }}>Ã°ÂÂÂÃ¯Â¸Â</span>
+            <span style={{ fontSize: 10 }}>ðï¸</span>
             <span style={{ fontSize: 10, fontWeight: 700, color: voiceOverage ? '#ff4d6d' : voiceWarningShown === '90' ? '#f59e0b' : '#00d4a0' }}>
-              {Math.round(voiceMinUsed)}m / {voiceMinLimit >= 99999 ? 'Ã¢ÂÂ' : voiceMinLimit + 'm'}
+              {Math.round(voiceMinUsed)}m / {voiceMinLimit >= 99999 ? 'â' : voiceMinLimit + 'm'}
             </span>
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: '4px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: '#6b7280', cursor: 'pointer', marginRight: 6 }}>Sign Out</button>
-          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>Ã¢ÂÂ</button>
+          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>â</button>
         </div>
       </div>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ TABS Ã¢ÂÂ WHITE Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ TABS â WHITE ââ */}
       <div style={{ height: 44, background: 'rgba(13,17,23,0.98)', borderBottom: `1px solid rgba(0,212,160,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
         {(['plan', 'cockpit', 'deepdive', 'journal'] as const).map(t => {
           const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', journal: 'JOURNAL' }
@@ -2217,16 +2210,16 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
       </div>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ TAB CONTENT Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ TAB CONTENT ââ */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
 
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
-        {/* NEW TAB 1 Ã¢ÂÂ COCKPIT DASHBOARD (clean white) */}
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* NEW TAB 1 â COCKPIT DASHBOARD (clean white) */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         {tab === 'cockpit' && (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#080a0f' }}>
 
-            {/* Left Ã¢ÂÂ Dashboard */}
+            {/* Left â Dashboard */}
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
 
               {/* Signal Hero */}
@@ -2268,11 +2261,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Stat chips */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                 {[
-                  { label: 'SPX vs VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE Ã¢ÂÂ²' : 'BELOW Ã¢ÂÂ¼') : 'Ã¢ÂÂ', sub: `${fmt(currentPrice)} vs ${fmt(levels.spyVwap)}`, color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
-                  { label: 'VIX Level', value: vixPrice ? (vixPrice > 25 ? 'HIGH Ã¢ÂÂ ' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : 'Ã¢ÂÂ', sub: vixPrice ? `${vixPrice.toFixed(2)} Ã¢ÂÂ caution` : 'Loading...', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
-                  { label: 'Market Tide', value: marketTide?.bias || 'Ã¢ÂÂ', sub: marketTide ? `P/C ${marketTide.putCallRatio}` : 'Loading...', color: marketTide?.bias === 'CALL HEAVY' ? C.synapse : marketTide?.bias === 'PUT HEAVY' ? C.red : C.teal },
-                  { label: 'Sector Breadth', value: marketIntel?.breadth?.bias || 'Ã¢ÂÂ', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}Ã¢ÂÂ ${marketIntel.breadth.declining}Ã¢ÂÂ of 8` : 'Loading...', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
-                  { label: 'Checklist', value: `${grade} Ã¢ÂÂ ${score}/13`, sub: score >= 9 ? 'Ready to trade' : score >= 7 ? 'Proceed with caution' : 'Stay out', color: gradeColor },
+                  { label: 'SPX vs VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE â²' : 'BELOW â¼') : 'â', sub: `${fmt(currentPrice)} vs ${fmt(levels.spyVwap)}`, color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
+                  { label: 'VIX Level', value: vixPrice ? (vixPrice > 25 ? 'HIGH â ' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : 'â', sub: vixPrice ? `${vixPrice.toFixed(2)} â caution` : 'Loading...', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
+                  { label: 'Market Tide', value: marketTide?.bias || 'â', sub: marketTide ? `P/C ${marketTide.putCallRatio}` : 'Loading...', color: marketTide?.bias === 'CALL HEAVY' ? C.synapse : marketTide?.bias === 'PUT HEAVY' ? C.red : C.teal },
+                  { label: 'Sector Breadth', value: marketIntel?.breadth?.bias || 'â', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}â ${marketIntel.breadth.declining}â of 8` : 'Loading...', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
+                  { label: 'Checklist', value: `${grade} â ${score}/13`, sub: score >= 9 ? 'Ready to trade' : score >= 7 ? 'Proceed with caution' : 'Stay out', color: gradeColor },
                   { label: 'Today P&L', value: `${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)}`, sub: `${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length} trades today`, color: todayPnL >= 0 ? C.synapse : C.red },
                 ].map(({ label, value, sub, color }) => (
                   <div key={label} style={{ background: '#0d1018', border: darkMode ? '1px solid rgba(255,255,255,0.06)' : 'none', borderRadius: 7, padding: '8px 10px', boxShadow: '0 2px 8px rgba(100,140,220,0.12)' }}>
@@ -2300,10 +2293,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 7, fontWeight: 700, color: (f.type||'').toUpperCase().startsWith('C') ? C.synapse : C.red, width: 22 }}>{(f.type||'').toUpperCase().startsWith('C') ? 'CALL' : 'PUT'}</span>
                       <span style={{ fontFamily: fontDisplay, fontSize: 8, flex: 1, color: C.text }}>{f.strike}</span>
                       <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 2, background: f.sentiment==='BULLISH'?'rgba(0,170,85,0.1)':'rgba(204,16,64,0.08)', color: f.sentiment==='BULLISH'?C.synapse:f.sentiment==='BEARISH'?C.red:C.textMuted, border: `1px solid ${f.sentiment==='BULLISH'?'rgba(0,170,85,0.25)':'rgba(204,16,64,0.2)'}` }}>{f.sentiment||'NEUT'}</span>
-                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>Ã¢ÂÂ¡</span>}
+                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>â¡</span>}
                     </div>
                   ))}
-                  <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>Ã¢ÂÂ Full flow in Deep Dive</div>
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>â Full flow in Deep Dive</div>
                 </div>
 
                 {/* Market conditions mini */}
@@ -2313,27 +2306,27 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <span style={{ fontFamily: fontDisplay, fontSize: 7, fontWeight: 700, color: C.teal, letterSpacing: '1px', textTransform: 'uppercase' }}>Market Conditions</span>
                   </div>
                   {[
-                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : 'Ã¢ÂÂ', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
-                    { label: 'QQQ', value: marketIntel?.sectors?.QQQ ? `${Number(marketIntel.sectors.QQQ.todayChange)>=0?'+':''}${marketIntel.sectors.QQQ.todayChange}%` : 'Ã¢ÂÂ', color: Number(marketIntel?.sectors?.QQQ?.todayChange)>=0 ? C.synapse : C.red },
-                    { label: 'XLK', value: marketIntel?.sectors?.XLK ? `${Number(marketIntel.sectors.XLK.todayChange)>=0?'+':''}${marketIntel.sectors.XLK.todayChange}%` : 'Ã¢ÂÂ', color: Number(marketIntel?.sectors?.XLK?.todayChange)>=0 ? C.synapse : C.red },
-                    { label: 'XLF', value: marketIntel?.sectors?.XLF ? `${Number(marketIntel.sectors.XLF.todayChange)>=0?'+':''}${marketIntel.sectors.XLF.todayChange}%` : 'Ã¢ÂÂ', color: Number(marketIntel?.sectors?.XLF?.todayChange)>=0 ? C.synapse : C.red },
-                    { label: 'TLT', value: marketIntel?.sectors?.TLT ? `${Number(marketIntel.sectors.TLT.todayChange)>=0?'+':''}${marketIntel.sectors.TLT.todayChange}%` : 'Ã¢ÂÂ', color: Number(marketIntel?.sectors?.TLT?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : 'â', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
+                    { label: 'QQQ', value: marketIntel?.sectors?.QQQ ? `${Number(marketIntel.sectors.QQQ.todayChange)>=0?'+':''}${marketIntel.sectors.QQQ.todayChange}%` : 'â', color: Number(marketIntel?.sectors?.QQQ?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'XLK', value: marketIntel?.sectors?.XLK ? `${Number(marketIntel.sectors.XLK.todayChange)>=0?'+':''}${marketIntel.sectors.XLK.todayChange}%` : 'â', color: Number(marketIntel?.sectors?.XLK?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'XLF', value: marketIntel?.sectors?.XLF ? `${Number(marketIntel.sectors.XLF.todayChange)>=0?'+':''}${marketIntel.sectors.XLF.todayChange}%` : 'â', color: Number(marketIntel?.sectors?.XLF?.todayChange)>=0 ? C.synapse : C.red },
+                    { label: 'TLT', value: marketIntel?.sectors?.TLT ? `${Number(marketIntel.sectors.TLT.todayChange)>=0?'+':''}${marketIntel.sectors.TLT.todayChange}%` : 'â', color: Number(marketIntel?.sectors?.TLT?.todayChange)>=0 ? C.synapse : C.red },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: `1px solid rgba(100,140,220,0.06)` }}>
                       <span style={{ fontSize: 8, color: C.textMuted }}>{label}</span>
                       <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color }}>{value}</span>
                     </div>
                   ))}
-                  <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>Ã¢ÂÂ Full chart in Deep Dive</div>
+                  <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>â Full chart in Deep Dive</div>
                 </div>
               </div>
 
               {/* AI insights */}
               {aiResult?.todaysEdge && (
                 <div style={{ background: '#0d1018', borderRadius: 7, padding: 12, boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
-                  <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>Ã¢ÂÂ¡ Today's Edge</div>
+                  <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>â¡ Today's Edge</div>
                   <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div>
-                  {aiResult.riskFlag && <div style={{ marginTop: 8, fontSize: 10, color: C.red, padding: '5px 8px', background: C.redDim, borderRadius: 4, border: `1px solid ${C.redBorder}` }}>Ã¢ÂÂ  {aiResult.riskFlag}</div>}
+                  {aiResult.riskFlag && <div style={{ marginTop: 8, fontSize: 10, color: C.red, padding: '5px 8px', background: C.redDim, borderRadius: 4, border: `1px solid ${C.redBorder}` }}>â  {aiResult.riskFlag}</div>}
                 </div>
               )}
 
@@ -2356,13 +2349,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10 }}>
                   {marketNews && (
                     <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>Ã°ÂÂÂ° TODAY'S NEWS</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>ð° TODAY'S NEWS</div>
                       <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{marketNews}</div>
                     </div>
                   )}
                   {economicCalendar && (
                     <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(224,80,0,0.08)', borderLeft: '3px solid #e05000' }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.fire, letterSpacing: '1px', marginBottom: 6 }}>Ã°ÂÂÂ ECONOMIC CALENDAR</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.fire, letterSpacing: '1px', marginBottom: 6 }}>ð ECONOMIC CALENDAR</div>
                       <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{economicCalendar}</div>
                     </div>
                   )}
@@ -2374,19 +2367,19 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ display: 'grid', gridTemplateColumns: multiTFData && macroRegime ? '1fr 1fr' : '1fr', gap: 10 }}>
                   {multiTFData && (
                     <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,212,160,0.07)', borderLeft: '3px solid #6620d4' }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>Ã°ÂÂÂ MULTI-TIMEFRAME</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>ð MULTI-TIMEFRAME</div>
                       {[{label:'Weekly', value: multiTFData.weekly.trend, sub: `MA20: ${multiTFData.weekly.ma20}`, color: multiTFData.weekly.trend==='BULLISH'?C.synapse:C.red},{label:'Daily', value: multiTFData.daily.trend, sub: `MA5: ${multiTFData.daily.ma5}`, color: multiTFData.daily.trend==='BULLISH'?C.synapse:C.red}].map(({label,value,sub,color}) => (
                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.07)' }}>
                           <span style={{ fontSize: 10, color: C.textDim }}>{label}</span>
                           <div><span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color }}>{value}</span><span style={{ fontSize: 9, color: C.textMuted, marginLeft: 4 }}>{sub}</span></div>
                         </div>
                       ))}
-                      <div style={{ marginTop: 6, fontSize: 9, color: multiTFData.aligned ? C.synapse : C.fire, fontWeight: 700 }}>{multiTFData.aligned ? 'Ã¢ÂÂ' : 'Ã¢ÂÂ '} {multiTFData.confluence}</div>
+                      <div style={{ marginTop: 6, fontSize: 9, color: multiTFData.aligned ? C.synapse : C.fire, fontWeight: 700 }}>{multiTFData.aligned ? 'â' : 'â '} {multiTFData.confluence}</div>
                     </div>
                   )}
                   {macroRegime && (
                     <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,170,85,0.07)', borderLeft: `3px solid ${macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire}` }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: '1px', marginBottom: 6 }}>Ã°ÂÂÂ MACRO REGIME</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: '1px', marginBottom: 6 }}>ð MACRO REGIME</div>
                       <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 900, color: macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire, marginBottom: 4 }}>{macroRegime.regime}</div>
                       <div style={{ fontSize: 9, color: C.textMuted, marginBottom: 3 }}>Fed: <span style={{ color: C.text, fontWeight: 700 }}>{macroRegime.fedStance} ({macroRegime.rateLevel})</span></div>
                       <div style={{ fontSize: 10, color: C.text, lineHeight: 1.5 }}>{macroRegime.regimeSummary}</div>
@@ -2398,7 +2391,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* 0DTE Skew */}
               {zeroDTESkew && (
                 <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>Ã¢ÂÂ¡ SPX 0DTE SKEW</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>â¡ SPX 0DTE SKEW</div>
                   <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: zeroDTESkew.callPct>55?C.synapse:zeroDTESkew.callPct<45?C.red:C.fire, marginBottom: 8 }}>{zeroDTESkew.skewLabel}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[{label:'CALLS',value:`${zeroDTESkew.callPct}%`,sub:zeroDTESkew.callPremium,color:C.synapse},{label:'PUTS',value:`${zeroDTESkew.putPct}%`,sub:zeroDTESkew.putPremium,color:C.red},{label:'P/C',value:zeroDTESkew.pcRatio,sub:'ratio',color:C.textDim}].map(({label,value,sub,color}) => (
@@ -2415,7 +2408,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Trade Patterns */}
               {tradePatterns && tradePatterns.avgWinnerSize > 0 && (
                 <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 14px', boxShadow: '0 2px 10px rgba(0,212,160,0.07)', borderLeft: '3px solid #6620d4' }}>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>Ã°ÂÂ§Â  YOUR PATTERNS</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>ð§  YOUR PATTERNS</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
                     {[{label:'Best hour',value:tradePatterns.bestHour,color:C.synapse},{label:'Worst hour',value:tradePatterns.worstHour,color:C.red},{label:'Avg winner',value:`$${tradePatterns.avgWinnerSize}`,color:C.synapse},{label:'Avg loser',value:`$${tradePatterns.avgLoserSize}`,color:C.red}].map(({label,value,color}) => (
                       <div key={label} style={{ background: '#1a1f2e', borderRadius: 5, padding: '5px 8px' }}>
@@ -2424,33 +2417,33 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       </div>
                     ))}
                   </div>
-                  {tradePatterns.cutWinnersEarly && <div style={{ fontSize: 10, color: C.fire, padding: '4px 8px', background: 'rgba(224,80,0,0.07)', borderRadius: 4, marginBottom: 4 }}>Ã¢ÂÂ  You cut winners early Ã¢ÂÂ avg win ${tradePatterns.avgWinnerSize} vs avg loss ${tradePatterns.avgLoserSize}</div>}
-                  {tradePatterns.revengePatterns > 1 && <div style={{ fontSize: 10, color: C.red, padding: '4px 8px', background: 'rgba(255,77,109,0.06)', borderRadius: 4 }}>Ã¢ÂÂ  {tradePatterns.revengePatterns} potential revenge trades detected</div>}
+                  {tradePatterns.cutWinnersEarly && <div style={{ fontSize: 10, color: C.fire, padding: '4px 8px', background: 'rgba(224,80,0,0.07)', borderRadius: 4, marginBottom: 4 }}>â  You cut winners early â avg win ${tradePatterns.avgWinnerSize} vs avg loss ${tradePatterns.avgLoserSize}</div>}
+                  {tradePatterns.revengePatterns > 1 && <div style={{ fontSize: 10, color: C.red, padding: '4px 8px', background: 'rgba(255,77,109,0.06)', borderRadius: 4 }}>â  {tradePatterns.revengePatterns} potential revenge trades detected</div>}
                 </div>
               )}
 
               {/* Session Memory */}
               {sessionMemory && (
                 <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(0,212,160,0.06)', borderLeft: '3px solid rgba(0,212,160,0.3)' }}>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>Ã°ÂÂÂ¾ AI REMEMBERS</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>ð¾ AI REMEMBERS</div>
                   <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
                   <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
                 </div>
               )}
             </div>
 
-            {/* Right Ã¢ÂÂ AI Companion (HERO) */}
+            {/* Right â AI Companion (HERO) */}
             {companionOpen && (
               <div style={{ width: 380, background: '#0d1018', borderLeft: '2px solid #6620d4', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(0,212,160,0.1)' }}>
                 {/* Companion header */}
                 <div style={{ padding: '10px 14px', background: 'linear-gradient(90deg, rgba(0,212,160,0.1), rgba(0,153,204,0.05))', borderBottom: '2px solid rgba(0,212,160,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.3)`, background: 'rgba(0,212,160,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, position: 'relative', boxShadow: '0 0 10px rgba(0,212,160,0.1)' }}>
-                    Ã°ÂÂ§Â 
+                    ð§ 
                     <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.15)`, animation: 'brainRing 4s linear infinite' }} />
                   </div>
                   <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.teal }}>AI COMPANION</div>
                   <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
-                    {listening ? 'Ã¢ÂÂ LISTENING' : speaking ? 'Ã¢ÂÂ SPEAKING' : chatLoading ? 'Ã¢ÂÂ THINKING' : 'Ã¢ÂÂ READY'}
+                    {listening ? 'â LISTENING' : speaking ? 'â SPEAKING' : chatLoading ? 'â THINKING' : 'â READY'}
                   </div>
                   {aiResult && (
                     <div style={{ marginLeft: 'auto', background: `${signalColor}12`, border: `1px solid ${signalColor}30`, borderRadius: 2, padding: '2px 8px', display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -2458,16 +2451,16 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 8, color: C.textMuted }}>{aiResult.confidence}%</span>
                     </div>
                   )}
-                  <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>Ã¢Â¤Â¢</button>
-                  <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 16, padding: 0 }}>ÃÂ</button>
+                  <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>â¤¢</button>
+                  <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 16, padding: 0 }}>Ã</button>
                 </div>
 
                 {/* Context bar */}
                 <div style={{ display: 'flex', background: '#131720', borderBottom: `1px solid rgba(100,140,220,0.08)` }}>
                   {[
                     { label: 'SPX', value: fmt(currentPrice), color: C.text },
-                    { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼') : 'Ã¢ÂÂ', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
-                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : 'Ã¢ÂÂ', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
+                    { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'â²' : 'â¼') : 'â', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
+                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : 'â', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
                     { label: 'SCORE', value: `${score}/13`, color: gradeColor },
                     { label: 'P&L', value: `$${todayPnL.toFixed(0)}`, color: todayPnL >= 0 ? C.synapse : C.red },
                     { label: 'PLAN', value: activePlaybook ? activePlaybook.name.split(' ')[0] : 'None', color: activePlaybook ? C.teal : C.textMuted },
@@ -2483,7 +2476,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(13,17,23,0.8)' }}>
                   {chatMessages.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                      <div style={{ fontSize: 28, marginBottom: 8 }}>Ã°ÂÂÂÃ¯Â¸Â</div>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>ðï¸</div>
                       <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>Your AI companion is watching charts, options flow, and your plan. Ask anything or tap the mic.</div>
                       <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
                         {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
@@ -2531,11 +2524,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ padding: '10px 12px', background: 'rgba(13,17,23,0.98)', borderTop: `1px solid rgba(100,140,220,0.1)`, flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
                     <button onClick={listening ? stopListening : startListening} style={{ width: 40, height: 40, borderRadius: '50%', border: `1.5px solid ${listening ? 'rgba(204,16,64,0.4)' : 'rgba(204,16,64,0.25)'}`, background: listening ? 'rgba(204,16,64,0.1)' : 'rgba(204,16,64,0.05)', color: C.red, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? `0 0 0 5px rgba(204,16,64,0.08)` : 'none', animation: listening ? 'none' : 'micGlow 2s infinite', transition: 'all 0.2s', flexShrink: 0 }}>
-                      {listening ? 'Ã¢ÂÂ¹' : 'Ã°ÂÂÂÃ¯Â¸Â'}
+                      {listening ? 'â¹' : 'ðï¸'}
                     </button>
-                    <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap Ã¢ÂÂ¹ to stop)' : 'Ask your AI companion...'}
+                    <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap â¹ to stop)' : 'Ask your AI companion...'}
                       style={{ flex: 1, background: '#1a1f2e', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
-                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>Ã¢ÂÂ</button>
+                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>â</button>
                   </div>
                   {/* Voice switcher */}
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
@@ -2550,27 +2543,27 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             {/* Collapsed companion button */}
             {tab !== 'cockpit' && !companionOpen && (
               <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.teal, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(0,212,160,0.25)', zIndex: 500 }}>
-                Ã°ÂÂ§Â 
+                ð§ 
               </button>
             )}
           </div>
         )}
 
 
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
-        {/* TAB 1 Ã¢ÂÂ MORNING PLAN */}
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* TAB 1 â MORNING PLAN */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         {tab === 'plan' && (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#050609' }}>
 
-            {/* LEFT Ã¢ÂÂ Setup form */}
+            {/* LEFT â Setup form */}
             <div style={{ width: 240, background: '#0d1018', borderRight: `1px solid rgba(0,212,160,0.1)`, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0, boxShadow: '2px 0 8px rgba(100,140,220,0.06)' }}>
 
               <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14, letterSpacing: '0.5px' }}>Today's Setup</div>
 
               {/* Implied Move */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Implied Move (ÃÂ±PTS)</div>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Implied Move (Â±PTS)</div>
                 <input value={morningPlan.impliedMove} onChange={e => setMorningPlan(p => ({ ...p, impliedMove: e.target.value }))}
                   placeholder="e.g. 50" style={{ width: '100%', background: '#1a1f2e', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
@@ -2619,7 +2612,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               </div>
 
-              {/* Morning Notes Ã¢ÂÂ free text */}
+              {/* Morning Notes â free text */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Morning Plan / Notes</div>
                 <textarea
@@ -2666,7 +2659,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               )}
             </div>
 
-            {/* CENTER Ã¢ÂÂ AI Brief + Probability */}
+            {/* CENTER â AI Brief + Probability */}
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0, background: '#050609' }}>
 
               {/* Probability section */}
@@ -2698,7 +2691,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         ))}
                         {tiingoContext?.summary && (
                           <div style={{ marginTop: 8, fontSize: 9, color: C.textMuted, lineHeight: 1.5, padding: '8px 10px', background: 'rgba(240,244,250,0.6)', borderRadius: 5 }}>
-                            Ã°ÂÂÂ {tiingoContext.summary}
+                            ð {tiingoContext.summary}
                           </div>
                         )}
                       </>
@@ -2731,7 +2724,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         ].filter(Boolean).join(' ')
                         if (narrative) speak(narrative)
                       }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'rgba(0,212,160,0.08)', border: '1px solid rgba(0,212,160,0.25)', borderRadius: 6, color: C.teal, cursor: 'pointer', fontSize: 10, fontFamily: font, fontWeight: 700 }}>
-                        Ã°ÂÂÂ Read It
+                        ð Read It
                       </button>
                     )}
                     {aiLoading && <div style={{ width: 10, height: 10, border: `1.5px solid rgba(100,140,220,0.2)`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite', alignSelf: 'center' }} />}
@@ -2759,25 +2752,25 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div>
                     {aiResult.marketConditions && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Ã°ÂÂÂ Market Conditions</div>
+                        <div style={{ fontSize: 9, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>ð Market Conditions</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.marketConditions}</div>
                       </div>
                     )}
                     {aiResult.todaysEdge && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Ã¢ÂÂ¡ Today's Edge</div>
+                        <div style={{ fontSize: 9, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>â¡ Today's Edge</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.todaysEdge}</div>
                       </div>
                     )}
                     {aiResult.accountability && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Ã°ÂÂÂ¯ Accountability</div>
+                        <div style={{ fontSize: 9, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>ð¯ Accountability</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.accountability}</div>
                       </div>
                     )}
                     {aiResult.riskFlag && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(204,16,64,0.1)', background: 'rgba(204,16,64,0.03)' }}>
-                        <div style={{ fontSize: 9, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Ã¢ÂÂ  Risk Flag</div>
+                        <div style={{ fontSize: 9, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>â  Risk Flag</div>
                         <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7 }}>{aiResult.riskFlag}</div>
                       </div>
                     )}
@@ -2786,7 +2779,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Trade Levels</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                           {[
-                            {label:'Entry', value: aiResult.entryZone ? `${fmt(aiResult.entryZone.low)}Ã¢ÂÂ${fmt(aiResult.entryZone.high)}` : 'Ã¢ÂÂ', color: signalColor},
+                            {label:'Entry', value: aiResult.entryZone ? `${fmt(aiResult.entryZone.low)}â${fmt(aiResult.entryZone.high)}` : 'â', color: signalColor},
                             {label:'Stop', value: fmt(aiResult.stopLevel), color: C.red},
                             {label:'Target 1', value: fmt(aiResult.target1), color: C.synapse},
                             {label:'Target 2', value: fmt(aiResult.target2), color: C.synapse},
@@ -2807,12 +2800,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div style={{ fontSize: 9, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Live Data Inputs</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                     {[
-                      {label:'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'Ã¢ÂÂ² ABOVE' : 'Ã¢ÂÂ¼ BELOW') : 'Ã¢ÂÂ', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted},
-                      {label:'200 EMA', value: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'Ã¢ÂÂ² ABOVE' : 'Ã¢ÂÂ¼ BELOW') : 'Ã¢ÂÂ', color: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? C.synapse : C.red) : C.textMuted},
-                      {label:'VIX', value: vixPrice ? (vixPrice > 25 ? 'HIGH Ã¢ÂÂ ' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : 'Ã¢ÂÂ', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted},
-                      {label:'Breadth', value: marketIntel?.breadth?.bias || 'Ã¢ÂÂ', color: C.textDim},
+                      {label:'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'â² ABOVE' : 'â¼ BELOW') : 'â', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted},
+                      {label:'200 EMA', value: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'â² ABOVE' : 'â¼ BELOW') : 'â', color: currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? C.synapse : C.red) : C.textMuted},
+                      {label:'VIX', value: vixPrice ? (vixPrice > 25 ? 'HIGH â ' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : 'â', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted},
+                      {label:'Breadth', value: marketIntel?.breadth?.bias || 'â', color: C.textDim},
                       {label:'Flow', value: optionsFlow.length ? `${optionsFlow.length} alerts` : 'Loading...', color: optionsFlow.length ? C.synapse : C.textMuted},
-                      {label:'Tide', value: marketTide?.bias || 'Ã¢ÂÂ', color: C.textDim},
+                      {label:'Tide', value: marketTide?.bias || 'â', color: C.textDim},
                     ].map(({label, value, color}) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(100,140,220,0.06)' }}>
                         <span style={{ fontSize: 9, color: C.textMuted }}>{label}</span>
@@ -2836,12 +2829,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(0,212,160,0.25)'}`,
                     borderRadius: 8, padding: '10px 0', color: aiLoading ? C.textMuted : C.violet,
                     cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 11, fontWeight: 700, letterSpacing: '0.5px'
-                  }}>{aiLoading ? 'Analyzing...' : 'Ã¢ÂÂ» Refresh AI Analysis'}</button>
+                  }}>{aiLoading ? 'Analyzing...' : 'â» Refresh AI Analysis'}</button>
                 </div>
               </div>
             </div>
 
-            {/* RIGHT Ã¢ÂÂ Checklist */}
+            {/* RIGHT â Checklist */}
             <div style={{ width: 280, background: '#0d1018', borderLeft: `1px solid rgba(0,212,160,0.1)`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Pre-Trade Check</div>
@@ -2856,7 +2849,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Edit toggle */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                 <button onClick={() => setEditingChecklist(!editingChecklist)} style={{ fontSize: 10, color: C.teal, background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontFamily: font }}>
-                  {editingChecklist ? 'Ã¢ÂÂ Done' : 'Ã¢ÂÂ Edit'}
+                  {editingChecklist ? 'â Done' : 'â Edit'}
                 </button>
               </div>
 
@@ -2872,7 +2865,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         {['TIMING','CONFLUENCE','RISK','SYSTEM'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </select>
                       <button onClick={() => setCustomChecklist((p: any[]) => p.filter((_: any, i: number) => i !== idx))}
-                        style={{ color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>ÃÂ</button>
+                        style={{ color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>Ã</button>
                     </div>
                   ))}
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -2881,7 +2874,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       placeholder="Add new item, press Enter..."
                       style={{ flex: 1, background: '#1a1f2e', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 5, padding: '6px 10px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
                   </div>
-                  <button onClick={() => setCustomChecklist(CHECKLIST)} style={{ marginTop: 8, fontSize: 10, color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: font, padding: 0 }}>Ã¢ÂÂº Reset to defaults</button>
+                  <button onClick={() => setCustomChecklist(CHECKLIST)} style={{ marginTop: 8, fontSize: 10, color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: font, padding: 0 }}>âº Reset to defaults</button>
                 </div>
               ) : (
                 /* View mode */
@@ -2895,7 +2888,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           border: `1px solid ${checked[item.id] ? 'rgba(0,170,85,0.25)' : 'rgba(100,140,220,0.12)'}`,
                           transition: 'all 0.12s' }}>
                         <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked[item.id] ? C.synapse : 'rgba(100,140,220,0.3)'}`, background: checked[item.id] ? C.synapse : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
-                          {checked[item.id] && <span style={{ fontSize: 9, color: '#fff', fontWeight: 800 }}>Ã¢ÂÂ</span>}
+                          {checked[item.id] && <span style={{ fontSize: 9, color: '#fff', fontWeight: 800 }}>â</span>}
                         </div>
                         <span style={{ fontSize: 12, color: checked[item.id] ? C.text : C.textDim, lineHeight: 1.3 }}>{item.label}</span>
                       </div>
@@ -2908,9 +2901,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
 
 
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
-        {/* TAB 2 Ã¢ÂÂ COCKPIT */}
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* TAB 2 â COCKPIT */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         {tab === 'deepdive' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
@@ -2946,8 +2939,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div key={col} onClick={() => setDrawColor(col)} style={{ width: 16, height: 16, borderRadius: 2, background: col, cursor: 'pointer', border: drawColor === col ? '2px solid #fff' : '2px solid transparent', boxSizing: 'border-box' as const }} />
                   ))}
                 </div>
-                {[{ mode: 'horizontal', label: 'Ã¢ÂÂ Horizontal' }, { mode: 'trendline', label: 'Ã¢ÂÂ Trend Line' }, { mode: 'zone', label: 'Ã¢ÂÂ¬ S&D Zone' }].map(({ mode, label }) => (
-                  <button key={mode} onClick={() => setDrawMode(drawMode === mode ? null : mode)} style={{ width: '100%', background: drawMode === mode ? drawColor + '18' : 'transparent', border: `1px solid ${drawMode === mode ? drawColor : C.border}`, borderRadius: 3, padding: '4px 8px', color: drawMode === mode ? drawColor : C.textDim, cursor: 'pointer', fontFamily: font, fontSize: 9, textAlign: 'left' as const, marginBottom: 2 }}>{label}{drawMode === mode ? ' Ã¢ÂÂ' : ''}</button>
+                {[{ mode: 'horizontal', label: 'â Horizontal' }, { mode: 'trendline', label: 'â Trend Line' }, { mode: 'zone', label: 'â¬ S&D Zone' }].map(({ mode, label }) => (
+                  <button key={mode} onClick={() => setDrawMode(drawMode === mode ? null : mode)} style={{ width: '100%', background: drawMode === mode ? drawColor + '18' : 'transparent', border: `1px solid ${drawMode === mode ? drawColor : C.border}`, borderRadius: 3, padding: '4px 8px', color: drawMode === mode ? drawColor : C.textDim, cursor: 'pointer', fontFamily: font, fontSize: 9, textAlign: 'left' as const, marginBottom: 2 }}>{label}{drawMode === mode ? ' â' : ''}</button>
                 ))}
                 {drawMode && <div style={{ fontSize: 8, color: C.fire, padding: '3px 6px', background: C.fireDim, borderRadius: 3, marginBottom: 4 }}>{drawMode === 'zone' || drawMode === 'trendline' ? 'Click 2 pts' : 'Click to place'}</div>}
                 {(drawnLines.length > 0 || drawnZones.length > 0) && (
@@ -2962,7 +2955,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 8, color: C.textDim }}>BIAS</span>
                       <span style={{ fontSize: 9, fontWeight: 700, color: morningPlan.bias === 'long' ? C.synapse : morningPlan.bias === 'short' ? C.red : C.textDim, textTransform: 'uppercase' }}>{morningPlan.bias}</span>
                     </div>
-                    {morningPlan.impliedMove && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 8, color: C.textDim }}>IMPLIED</span><span style={{ fontSize: 9, color: C.text }}>ÃÂ±{morningPlan.impliedMove}</span></div>}
+                    {morningPlan.impliedMove && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 8, color: C.textDim }}>IMPLIED</span><span style={{ fontSize: 9, color: C.text }}>Â±{morningPlan.impliedMove}</span></div>}
                     {morningPlan.keyLevels && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 3 }}>Lvls: <span style={{ color: C.textDim }}>{morningPlan.keyLevels}</span></div>}
                   </div>
                 ) : (
@@ -2978,7 +2971,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 )}
               </div>
 
-              {/* Center Ã¢ÂÂ Chart */}
+              {/* Center â Chart */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Timeframe bar */}
                 <div style={{ height: 34, background: '#0d1018', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 2, padding: '0 10px', flexShrink: 0 }}>
@@ -3007,7 +3000,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               </div>
 
-              {/* Right Ã¢ÂÂ AI Detail */}
+              {/* Right â AI Detail */}
               <div style={{ width: 260, background: '#0d1018', borderLeft: `1px solid rgba(0,212,160,0.1)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.tealDim, flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -3029,7 +3022,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}>
                       <div style={{ fontSize: 8, color: C.textDim, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontWeight: 700 }}>Trade Levels</div>
                       {[
-                        { label: 'Entry', value: `${fmt(aiResult.entryZone?.low)} Ã¢ÂÂ ${fmt(aiResult.entryZone?.high)}`, color: signalColor },
+                        { label: 'Entry', value: `${fmt(aiResult.entryZone?.low)} â ${fmt(aiResult.entryZone?.high)}`, color: signalColor },
                         { label: 'Stop', value: fmt(aiResult.stopLevel), color: C.red },
                         { label: 'Target 1', value: fmt(aiResult.target1), color: C.synapse },
                         { label: 'Target 2', value: fmt(aiResult.target2), color: C.synapse },
@@ -3041,15 +3034,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       ))}
                     </div>
                   )}
-                  {aiResult?.marketConditions && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Ã°ÂÂÂ Market Conditions</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.marketConditions}</div></div>}
-                  {aiResult?.todaysEdge && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Ã¢ÂÂ¡ Today's Edge</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div></div>}
-                  {aiResult?.accountability && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Ã°ÂÂÂ¯ Accountability</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.accountability}</div></div>}
-                  {aiResult?.riskFlag && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Ã¢ÂÂ  Risk Flag</div><div style={{ fontSize: 10, color: C.red, lineHeight: 1.6 }}>{aiResult.riskFlag}</div></div>}
+                  {aiResult?.marketConditions && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>ð Market Conditions</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.marketConditions}</div></div>}
+                  {aiResult?.todaysEdge && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>â¡ Today's Edge</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div></div>}
+                  {aiResult?.accountability && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>ð¯ Accountability</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.accountability}</div></div>}
+                  {aiResult?.riskFlag && <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}><div style={{ fontSize: 8, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>â  Risk Flag</div><div style={{ fontSize: 10, color: C.red, lineHeight: 1.6 }}>{aiResult.riskFlag}</div></div>}
 
                   {/* Positioning */}
                   {aiResult && (
                     <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}>
-                      <div style={{ fontSize: 8, color: C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>Ã°ÂÂÂ Positioning</div>
+                      <div style={{ fontSize: 8, color: C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>ð Positioning</div>
                       <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
                         <div style={{ flex: 1, background: C.synapse + '10', border: `1px solid ${C.synapse}25`, borderRadius: 3, padding: '4px 6px', textAlign: 'center' }}>
                           <div style={{ fontSize: 7, color: C.textDim }}>BULLISH ABOVE</div>
@@ -3061,9 +3054,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         </div>
                       </div>
                       {[
-                        { label: 'VIX', value: vixPrice ? `${vixPrice.toFixed(2)} Ã¢ÂÂ ${vixPrice > 25 ? 'EXTREME' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL'}` : 'Ã¢ÂÂ', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
+                        { label: 'VIX', value: vixPrice ? `${vixPrice.toFixed(2)} â ${vixPrice > 25 ? 'EXTREME' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL'}` : 'â', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
                         { label: 'Breadth', value: marketIntel?.breadth?.bias || 'No data', color: C.textDim },
-                        { label: 'Score', value: `${score}/13 Ã¢ÂÂ Grade ${grade}`, color: gradeColor },
+                        { label: 'Score', value: `${score}/13 â Grade ${grade}`, color: gradeColor },
                       ].map(({ label, value, color }) => (
                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                           <span style={{ fontSize: 8, color: C.textDim }}>{label}</span>
@@ -3080,12 +3073,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
                     setAiLoading(false)
-                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : 'Ã¢ÂÂ» REFRESH AI'}</button>
+                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : 'â» REFRESH AI'}</button>
                 </div>
               </div>
             </div>
 
-            {/* Ã¢ÂÂÃ¢ÂÂ BOTTOM DATA PANELS Ã¢ÂÂÃ¢ÂÂ */}
+            {/* ââ BOTTOM DATA PANELS ââ */}
             <div style={{ height: 160, background: '#080a0f', borderTop: `1px solid ${C.border}`, display: 'flex', overflow: 'hidden', flexShrink: 0 }}>
 
               {/* Options Flow */}
@@ -3108,7 +3101,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <div style={{ padding: '1px 5px', borderRadius: 2, background: f.sentiment === 'BULLISH' ? C.synapse + '18' : f.sentiment === 'BEARISH' ? C.red + '18' : C.surface2, border: `1px solid ${f.sentiment === 'BULLISH' ? C.synapse + '40' : f.sentiment === 'BEARISH' ? C.red + '40' : C.border}` }}>
                         <span style={{ fontSize: 7, fontWeight: 700, color: f.sentiment === 'BULLISH' ? C.synapse : f.sentiment === 'BEARISH' ? C.red : C.textDim }}>{f.sentiment || 'NEUT'}</span>
                       </div>
-                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>Ã¢ÂÂ¡</span>}
+                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>â¡</span>}
                     </div>
                   ))}
                 </div>
@@ -3154,13 +3147,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
                 <div style={{ flex: 1, padding: '4px 10px', overflowY: 'auto' }}>
                   {[
-                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : 'Ã¢ÂÂ', sub: vixPrice ? (vixPrice > 25 ? 'EXTREME' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textDim },
-                    { label: 'Breadth', value: marketIntel?.breadth?.bias || 'Ã¢ÂÂ', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}Ã¢ÂÂ ${marketIntel.breadth.declining}Ã¢ÂÂ` : '', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
-                    { label: 'QQQ', value: marketIntel?.sectors?.QQQ ? `${Number(marketIntel.sectors.QQQ.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.QQQ.todayChange}%` : 'Ã¢ÂÂ', sub: 'Tech', color: Number(marketIntel?.sectors?.QQQ?.todayChange) > 0 ? C.synapse : C.red },
-                    { label: 'IWM', value: marketIntel?.sectors?.IWM ? `${Number(marketIntel.sectors.IWM.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.IWM.todayChange}%` : 'Ã¢ÂÂ', sub: 'Small Cap', color: Number(marketIntel?.sectors?.IWM?.todayChange) > 0 ? C.synapse : C.red },
-                    { label: 'XLK', value: marketIntel?.sectors?.XLK ? `${Number(marketIntel.sectors.XLK.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.XLK.todayChange}%` : 'Ã¢ÂÂ', sub: 'Tech Sector', color: Number(marketIntel?.sectors?.XLK?.todayChange) > 0 ? C.synapse : C.red },
-                    { label: 'XLF', value: marketIntel?.sectors?.XLF ? `${Number(marketIntel.sectors.XLF.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.XLF.todayChange}%` : 'Ã¢ÂÂ', sub: 'Financials', color: Number(marketIntel?.sectors?.XLF?.todayChange) > 0 ? C.synapse : C.red },
-                    { label: 'TLT', value: marketIntel?.sectors?.TLT ? `${Number(marketIntel.sectors.TLT.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.TLT.todayChange}%` : 'Ã¢ÂÂ', sub: 'Bonds', color: Number(marketIntel?.sectors?.TLT?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'VIX', value: vixPrice ? vixPrice.toFixed(2) : 'â', sub: vixPrice ? (vixPrice > 25 ? 'EXTREME' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textDim },
+                    { label: 'Breadth', value: marketIntel?.breadth?.bias || 'â', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}â ${marketIntel.breadth.declining}â` : '', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
+                    { label: 'QQQ', value: marketIntel?.sectors?.QQQ ? `${Number(marketIntel.sectors.QQQ.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.QQQ.todayChange}%` : 'â', sub: 'Tech', color: Number(marketIntel?.sectors?.QQQ?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'IWM', value: marketIntel?.sectors?.IWM ? `${Number(marketIntel.sectors.IWM.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.IWM.todayChange}%` : 'â', sub: 'Small Cap', color: Number(marketIntel?.sectors?.IWM?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'XLK', value: marketIntel?.sectors?.XLK ? `${Number(marketIntel.sectors.XLK.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.XLK.todayChange}%` : 'â', sub: 'Tech Sector', color: Number(marketIntel?.sectors?.XLK?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'XLF', value: marketIntel?.sectors?.XLF ? `${Number(marketIntel.sectors.XLF.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.XLF.todayChange}%` : 'â', sub: 'Financials', color: Number(marketIntel?.sectors?.XLF?.todayChange) > 0 ? C.synapse : C.red },
+                    { label: 'TLT', value: marketIntel?.sectors?.TLT ? `${Number(marketIntel.sectors.TLT.todayChange) > 0 ? '+' : ''}${marketIntel.sectors.TLT.todayChange}%` : 'â', sub: 'Bonds', color: Number(marketIntel?.sectors?.TLT?.todayChange) > 0 ? C.synapse : C.red },
                   ].map(({ label, value, sub, color }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: `1px solid ${C.border}` }}>
                       <div><span style={{ fontSize: 11, color: C.textDim }}>{label}</span>{sub && <span style={{ fontSize: 7, color: C.textMuted, marginLeft: 4 }}>{sub}</span>}</div>
@@ -3172,13 +3165,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </div>
           </div>
         )}
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
-        {/* TAB 3 Ã¢ÂÂ LOG TRADE */}
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* TAB 3 â LOG TRADE */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         {tab === 'log' && (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-            {/* Left Ã¢ÂÂ Trade entry */}
+            {/* Left â Trade entry */}
             <div style={{ width: 300, background: '#0d1018', borderRight: `1px solid rgba(0,212,160,0.1)`, padding: 16, overflowY: 'auto', flexShrink: 0 }}>
               <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>Log Trade</div>
 
@@ -3225,7 +3218,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   background: newTrade.inSystem ? C.tealDim : C.redDim, border: `1px solid ${newTrade.inSystem ? C.tealBorder : C.redBorder}`
                 }}>
                   <div style={{ width: 14, height: 14, borderRadius: 3, background: newTrade.inSystem ? C.teal : C.red, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 9, color: C.bg, fontWeight: 800 }}>Ã¢ÂÂ</span>
+                    <span style={{ fontSize: 9, color: C.bg, fontWeight: 800 }}>â</span>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: newTrade.inSystem ? C.teal : C.red }}>
                     {newTrade.inSystem ? 'IN-SYSTEM trade' : 'OUT-OF-SYSTEM trade'}
@@ -3252,17 +3245,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10, lineHeight: 1.5 }}>Upload a CSV export from ThinkorSwim, Tradovate, Webull, or any broker. Your trade history will feed the AI to improve its analysis.</div>
                 <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
                 <button onClick={() => fileInputRef.current?.click()} style={{ width: '100%', background: '#131720', border: `1px dashed ${C.border2}`, borderRadius: 6, padding: '10px 0', color: C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
-                  Ã°ÂÂÂ Upload CSV
+                  ð Upload CSV
                 </button>
                 {importStatus && (
-                  <div style={{ marginTop: 8, fontSize: 10, color: importStatus.startsWith('Ã¢ÂÂ') ? C.teal : C.yellow, padding: '6px 8px', background: importStatus.startsWith('Ã¢ÂÂ') ? C.tealDim : C.yellowDim, borderRadius: 5 }}>
+                  <div style={{ marginTop: 8, fontSize: 10, color: importStatus.startsWith('â') ? C.teal : C.yellow, padding: '6px 8px', background: importStatus.startsWith('â') ? C.tealDim : C.yellowDim, borderRadius: 5 }}>
                     {importStatus}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Right Ã¢ÂÂ Today's trades */}
+            {/* Right â Today's trades */}
             <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 700, color: C.text }}>Trade History</div>
@@ -3282,7 +3275,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 trades.map((t: any) => (
                   <div key={t.id} style={{ background: '#0d1018', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 6, background: t.pnl >= 0 ? C.tealDim : C.redDim, border: `1px solid ${t.pnl >= 0 ? C.tealBorder : C.redBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>{t.pnl >= 0 ? '+' : 'Ã¢ÂÂ'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>{t.pnl >= 0 ? '+' : 'â'}</span>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
@@ -3291,12 +3284,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: t.inSystem ? C.tealDim : C.redDim, color: t.inSystem ? C.teal : C.red }}>{t.inSystem ? 'IN-SYS' : 'OUT-SYS'}</span>
                         {t.playbook && <span style={{ fontSize: 9, color: C.textDim }}>{t.playbook}</span>}
                       </div>
-                      <div style={{ fontSize: 10, color: C.textDim }}>{t.date} {t.notes && `ÃÂ· ${t.notes}`}</div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{t.date} {t.notes && `Â· ${t.notes}`}</div>
                     </div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>
                       {t.pnl >= 0 ? '+' : ''}${typeof t.pnl === 'number' ? t.pnl.toFixed(0) : t.pnl}
                     </div>
-                    <button onClick={() => setTrades(p => p.filter((x: any) => x.id !== t.id))} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: 0 }}>ÃÂ</button>
+                    <button onClick={() => setTrades(p => p.filter((x: any) => x.id !== t.id))} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: 0 }}>Ã</button>
                   </div>
                 ))
               )}
@@ -3304,16 +3297,16 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
         )}
 
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
-        {/* TAB 4 Ã¢ÂÂ JOURNAL */}
-        {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* TAB 4 â JOURNAL */}
+        {/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         {tab === 'journal' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
             <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 20 }}>Performance Journal</div>
 
             {!tradeStats ? (
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>Ã°ÂÂÂ</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>ð</div>
                 <div style={{ fontSize: 14, color: C.textDim, marginBottom: 8 }}>No trade data yet</div>
                 <div style={{ fontSize: 12, color: C.textMuted }}>Log trades manually or import a CSV from your broker to unlock AI-powered pattern analysis</div>
               </div>
@@ -3356,19 +3349,19 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           max_tokens: 500,
                           messages: [{
                             role: 'user',
-                            content: `Analyze this trader's performance data and give 3 specific, actionable insights. Be direct and honest Ã¢ÂÂ call out patterns that are costing them money.
+                            content: `Analyze this trader's performance data and give 3 specific, actionable insights. Be direct and honest â call out patterns that are costing them money.
 
 Stats: Win rate ${tradeStats.winRate}%, ${tradeStats.totalTrades} trades, avg winner $${tradeStats.avgWin}, avg loser $${tradeStats.avgLoss}, profit factor ${tradeStats.profitFactor}x
 In-system win rate: ${tradeStats.inSystemWinRate}%
 Recent: ${tradeStats.recentForm}
 
-Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Focus on the biggest edge improvements.`
+Give exactly 3 insights labeled 1. 2. 3. â each under 2 sentences. Focus on the biggest edge improvements.`
                           }]
                         })
                       })
                       const data = await res.json()
                       const analysis = data.content?.[0]?.text || 'No analysis available'
-                      setChatMessages([{ role: 'assistant', content: 'Ã°ÂÂÂ Journal Analysis:\n\n' + analysis }])
+                      setChatMessages([{ role: 'assistant', content: 'ð Journal Analysis:\n\n' + analysis }])
                       setTab('cockpit')
                     } catch {}
                     setAiLoading(false)
@@ -3376,10 +3369,10 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
                     background: C.tealDim, border: `1px solid ${C.tealBorder}`, borderRadius: 8,
                     padding: '10px 16px', color: C.teal, cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, marginBottom: 12
                   }}>
-                    {aiLoading ? 'Ã¢ÂÂº Analyzing...' : 'Ã°ÂÂÂ Analyze My Patterns'}
+                    {aiLoading ? 'âº Analyzing...' : 'ð Analyze My Patterns'}
                   </button>
                   <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-                    Your trade history is feeding the AI engine Ã¢ÂÂ it uses your actual win rates, patterns, and playbook performance to personalize every signal and accountability call.
+                    Your trade history is feeding the AI engine â it uses your actual win rates, patterns, and playbook performance to personalize every signal and accountability call.
                   </div>
                 </div>
 
@@ -3413,7 +3406,7 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
         )}
       </div>
 
-        {/* Ã¢ÂÂÃ¢ÂÂ AI VOICE COMPANION (STAR FEATURE Ã¢ÂÂ always visible) Ã¢ÂÂÃ¢ÂÂ */}
+        {/* ââ AI VOICE COMPANION (STAR FEATURE â always visible) ââ */}
       <div style={{
         position: 'fixed', bottom: 0, right: 0,
         width: companionOpen ? 420 : 64,
@@ -3431,7 +3424,7 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 24, animation: 'aiGlow 3s ease-in-out infinite',
           }}>
-            Ã°ÂÂ§Â 
+            ð§ 
           </button>
         )}
 
@@ -3458,7 +3451,7 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
               {/* Brain orb */}
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(124,58,237,0.5)`, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                  Ã°ÂÂ§Â 
+                  ð§ 
                 </div>
                 <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(124,58,237,0.2)`, animation: 'brainRing 4s linear infinite' }} />
               </div>
@@ -3467,7 +3460,7 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
               </div>
               {/* Status */}
               <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(255,60,96,0.4)' : speaking ? 'rgba(124,58,237,0.4)' : 'rgba(0,229,255,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(255,60,96,0.08)' : speaking ? 'rgba(124,58,237,0.08)' : 'rgba(0,229,255,0.05)', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
-                {listening ? 'Ã¢ÂÂ LISTENING' : speaking ? 'Ã¢ÂÂ SPEAKING' : chatLoading ? 'Ã¢ÂÂ THINKING' : 'Ã¢ÂÂ READY'}
+                {listening ? 'â LISTENING' : speaking ? 'â SPEAKING' : chatLoading ? 'â THINKING' : 'â READY'}
               </div>
               {aiResult && (
                 <div style={{ marginLeft: 'auto', background: `${signalColor}15`, border: `1px solid ${signalColor}35`, borderRadius: 2, padding: '2px 8px', display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -3475,8 +3468,8 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
                   <span style={{ fontSize: 8, color: C.textDim }}>{aiResult.confidence}%</span>
                 </div>
               )}
-              <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>Ã¢Â¤Â¢</button>
-              <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: 16, padding: 0, marginLeft: 2 }}>ÃÂ</button>
+              <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>â¤¢</button>
+              <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: 16, padding: 0, marginLeft: 2 }}>Ã</button>
             </div>
 
             {/* Context snapshot */}
@@ -3488,8 +3481,8 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
             }}>
               {[
                 { label: 'SPX', value: fmt(currentPrice), color: C.text },
-                { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼') : 'Ã¢ÂÂ', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textDim },
-                { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : 'Ã¢ÂÂ', color: vixPrice && vixPrice > 25 ? C.red : vixPrice && vixPrice > 18 ? C.fire : C.synapse },
+                { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'â²' : 'â¼') : 'â', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textDim },
+                { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : 'â', color: vixPrice && vixPrice > 25 ? C.red : vixPrice && vixPrice > 18 ? C.fire : C.synapse },
                 { label: 'SCORE', value: `${score}/13`, color: gradeColor },
                 { label: 'P&L', value: `$${todayPnL.toFixed(0)}`, color: todayPnL >= 0 ? C.synapse : C.red },
                 { label: 'BOOK', value: activePlaybook ? activePlaybook.name.split(' ')[0] : 'None', color: activePlaybook ? C.teal : C.textMuted },
@@ -3505,7 +3498,7 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
             <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, position: 'relative', zIndex: 2, background: 'rgba(13,17,23,0.8)' }}>
               {chatMessages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                  <div style={{ fontSize: 32, marginBottom: 10 }}>Ã°ÂÂ§Â </div>
+                  <div style={{ fontSize: 32, marginBottom: 10 }}>ð§ </div>
                   <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
                     Watching your session live. All market data, your plan, and the chart are loaded. Ask anything or use the mic.
                   </div>
@@ -3581,14 +3574,14 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
                   transition: 'all 0.2s ease',
                   animation: listening ? 'none' : 'micGlow 2s ease-in-out infinite',
                 }}>
-                  {listening ? 'Ã¢ÂÂ¹' : 'Ã°ÂÂÂÃ¯Â¸Â'}
+                  {listening ? 'â¹' : 'ðï¸'}
                 </button>
 
                 <input
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChat()}
-                  placeholder={listening ? 'Listening... (tap Ã¢ÂÂ¹ to stop)' : 'Ask your AI companion...'}
+                  placeholder={listening ? 'Listening... (tap â¹ to stop)' : 'Ask your AI companion...'}
                   style={{
                     flex: 1, background: 'rgba(0,229,255,0.04)',
                     border: `1px solid ${listening ? 'rgba(255,60,96,0.4)' : 'rgba(0,229,255,0.12)'}`,
@@ -3604,14 +3597,14 @@ Give exactly 3 insights labeled 1. 2. 3. Ã¢ÂÂ each under 2 sentences. Fo
                   color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textDim,
                   cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed',
                   fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0,
-                }}>Ã¢ÂÂ</button>
+                }}>â</button>
               </div>
 
-              {/* Voice switcher Ã¢ÂÂ compact */}
+              {/* Voice switcher â compact */}
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid rgba(124,58,237,0.12)` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                   <span style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px', textTransform: 'uppercase' }}>Voice</span>
-                  {speaking && <span style={{ fontSize: 8, color: C.teal, animation: 'pulse 0.8s infinite' }}>Ã¢ÂÂ speaking</span>}
+                  {speaking && <span style={{ fontSize: 8, color: C.teal, animation: 'pulse 0.8s infinite' }}>â speaking</span>}
                   <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>+ more voices</button>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
