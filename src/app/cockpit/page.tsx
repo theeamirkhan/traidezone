@@ -3345,114 +3345,153 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
 
         {/* ═══════════════════════════════════════════════════════ */}
-        {/* TAB 4 — JOURNAL */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {tab === 'journal' && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-            <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 20 }}>Performance Journal</div>
-
-            {!tradeStats ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
-                <div style={{ fontSize: 14, color: C.textDim, marginBottom: 8 }}>No trade data yet</div>
-                <div style={{ fontSize: 12, color: C.textMuted }}>Log trades manually or import a CSV from your broker to unlock AI-powered pattern analysis</div>
-              </div>
-            ) : (
-              <>
-                {/* Stats grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-                  {[
-                    { label: 'Win Rate', value: tradeStats.winRate + '%', color: tradeStats.winRate >= 60 ? C.teal : tradeStats.winRate >= 50 ? C.yellow : C.red },
-                    { label: 'Total Trades', value: tradeStats.totalTrades, color: C.text },
-                    { label: 'Avg Winner', value: '$' + tradeStats.avgWin, color: C.teal },
-                    { label: 'Avg Loser', value: '$' + tradeStats.avgLoss, color: C.red },
-                    { label: 'Profit Factor', value: tradeStats.profitFactor + 'x', color: parseFloat(tradeStats.profitFactor) >= 1.5 ? C.teal : C.yellow },
-                    { label: 'Total P&L', value: '$' + tradeStats.totalPnl, color: parseFloat(tradeStats.totalPnl) >= 0 ? C.teal : C.red },
-                    { label: 'In-System W%', value: tradeStats.inSystemWinRate + '%', color: C.teal },
-                    { label: 'Recent Form', value: tradeStats.recentForm, color: C.textDim },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: '#0d1018', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px' }}>
-                      <div style={{ fontSize: 10, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{label}</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color, fontFamily: fontDisplay }}>{value}</div>
+        {/* TAB 4 — JOURNAL / ANALYTICS */}
+        {tab === 'journal' && (() => {
+          const allT=trades,winners=allT.filter((t:any)=>parseFloat(t.pnl)>0),losers=allT.filter((t:any)=>parseFloat(t.pnl)<0)
+          const totalPnl=allT.reduce((s:number,t:any)=>s+(parseFloat(t.pnl)||0),0)
+          const winRate=allT.length?Math.round(winners.length/allT.length*100):0
+          const avgWin=winners.length?winners.reduce((s:number,t:any)=>s+parseFloat(t.pnl),0)/winners.length:0
+          const avgLoss=losers.length?Math.abs(losers.reduce((s:number,t:any)=>s+parseFloat(t.pnl),0)/losers.length):0
+          const pf=avgLoss>0?avgWin/avgLoss:0
+          const lw=winners.length?Math.max(...winners.map((t:any)=>parseFloat(t.pnl))):0
+          const ll=losers.length?Math.max(...losers.map((t:any)=>Math.abs(parseFloat(t.pnl)))):0
+          const byDay:any={};allT.forEach((t:any)=>{const d=t.date||'';if(!byDay[d])byDay[d]={pnl:0};byDay[d].pnl+=parseFloat(t.pnl)||0})
+          const de=Object.entries(byDay) as [string,any][];const dw=de.filter(([,v])=>v.pnl>0).length
+          const dwp=de.length?Math.round(dw/de.length*100):0
+          const byH:any={};allT.forEach((t:any)=>{const h=t.time?parseInt(t.time.split(':')[0]):null;if(h!==null){if(!byH[h])byH[h]=0;byH[h]+=parseFloat(t.pnl)||0}})
+          const byS:any={};allT.forEach((t:any)=>{const k=t.playbook||'No playbook';if(!byS[k])byS[k]={wins:0,total:0,pnl:0};byS[k].total++;if(parseFloat(t.pnl)>0)byS[k].wins++;byS[k].pnl+=parseFloat(t.pnl)||0})
+          const bH=Object.entries(byH).sort((a:any,b:any)=>b[1]-a[1])[0]
+          const wH=Object.entries(byH).sort((a:any,b:any)=>a[1]-b[1])[0]
+          const now2=new Date(),yr=now2.getFullYear(),mo=now2.getMonth()
+          const dim=new Date(yr,mo+1,0).getDate(),fdm=new Date(yr,mo,1).getDay(),moS=String(mo+1).padStart(2,'0')
+          return(
+            <div style={{flex:1,overflowY:'auto',padding:20,background:'#050609'}}>
+              <div style={{fontFamily:fontDisplay,fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>Performance Analytics</div>
+              {allT.length===0?(
+                <div style={{textAlign:'center',padding:'60px 20px',background:'#0d1018',borderRadius:12,border:'1px solid '+C.border}}>
+                  <div style={{fontSize:40,marginBottom:12}}>📊</div>
+                  <div style={{fontSize:14,color:C.textDim,marginBottom:8}}>No trade data yet</div>
+                  <div style={{fontSize:12,color:C.textMuted}}>Import a CSV in LOG TRADE to unlock analytics</div>
+                </div>
+              ):(<>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:10,marginBottom:16}}>
+                  {[{l:'Net P&L',v:(totalPnl>=0?'+':'')+'$'+Math.round(totalPnl).toLocaleString(),c:totalPnl>=0?C.synapse:C.red,s:allT.length+' trades'},
+                    {l:'Trade Win %',v:winRate+'%',c:winRate>=60?C.synapse:winRate>=50?C.yellow:C.red,s:winners.length+'/'+allT.length},
+                    {l:'Avg Win',v:'+$'+Math.round(avgWin),c:C.synapse,s:'Per winner'},
+                    {l:'Avg Loss',v:'-$'+Math.round(avgLoss),c:C.red,s:'Per loser'},
+                    {l:'Day Win %',v:dwp+'%',c:dwp>=60?C.synapse:dwp>=50?C.yellow:C.red,s:dw+'/'+de.length+' days'},
+                    {l:'Profit Factor',v:pf.toFixed(2)+'x',c:pf>=1.5?C.synapse:pf>=1?C.yellow:C.red,s:'Win/loss ratio'}
+                  ].map(({l,v,c:col,s})=>(
+                    <div key={l} style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>{l}</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:col,marginBottom:2}}>{v}</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>{s}</div>
                     </div>
                   ))}
                 </div>
-
-                {/* AI Pattern Analysis */}
-                <div style={{ background: '#0d1018', border: `1px solid ${C.tealBorder}`, borderRadius: 12, padding: 18, marginBottom: 16, animation: 'aiGlow 4s ease-in-out infinite' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.teal, animation: 'pulse 2s infinite' }} />
-                    <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: C.teal }}>AI Pattern Recognition</div>
+                <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16,marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Daily P&L — {new Date(yr,mo).toLocaleString('default',{month:'long',year:'numeric'})}</div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:4}}>
+                    {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=><div key={d} style={{textAlign:'center',fontSize:10,color:C.textMuted}}>{d}</div>)}
                   </div>
-                  <button onClick={async () => {
-                    if (!keys[ANTH_KEY] || !tradeStats) return
-                    setAiLoading(true)
-                    try {
-                      const res = await fetch('/api/ai', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-api-key': keys[ANTH_KEY], 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-                        body: JSON.stringify({
-                          model: 'claude-sonnet-4-20250514',
-                          max_tokens: 500,
-                          messages: [{
-                            role: 'user',
-                            content: `Analyze this trader's performance data and give 3 specific, actionable insights. Be direct and honest — call out patterns that are costing them money.
-
-Stats: Win rate ${tradeStats.winRate}%, ${tradeStats.totalTrades} trades, avg winner $${tradeStats.avgWin}, avg loser $${tradeStats.avgLoss}, profit factor ${tradeStats.profitFactor}x
-In-system win rate: ${tradeStats.inSystemWinRate}%
-Recent: ${tradeStats.recentForm}
-
-Give exactly 3 insights labeled 1. 2. 3. — each under 2 sentences. Focus on the biggest edge improvements.`
-                          }]
-                        })
-                      })
-                      const data = await res.json()
-                      const analysis = data.content?.[0]?.text || 'No analysis available'
-                      setChatMessages([{ role: 'assistant', content: '📊 Journal Analysis:\n\n' + analysis }])
-                      setTab('cockpit')
-                    } catch {}
-                    setAiLoading(false)
-                  }} disabled={aiLoading} style={{
-                    background: C.tealDim, border: `1px solid ${C.tealBorder}`, borderRadius: 8,
-                    padding: '10px 16px', color: C.teal, cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, marginBottom: 12
-                  }}>
-                    {aiLoading ? '↺ Analyzing...' : '🔊Â Analyze My Patterns'}
-                  </button>
-                  <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-                    Your trade history is feeding the AI engine — it uses your actual win rates, patterns, and playbook performance to personalize every signal and accountability call.
-                  </div>
-                </div>
-
-                {/* Playbook breakdown */}
-                {playbooks.length > 0 && (
-                  <div style={{ background: '#0d1018', border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Playbook Performance</div>
-                    {playbooks.map(pb => {
-                      const pbTrades = trades.filter((t: any) => t.playbook === pb.name)
-                      const pbWins = pbTrades.filter((t: any) => t.pnl > 0).length
-                      const pbWinRate = pbTrades.length ? Math.round(pbWins / pbTrades.length * 100) : null
-                      return (
-                        <div key={pb.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 6, marginBottom: 4, background: '#131720', border: `1px solid ${C.border}` }}>
-                          <span style={{ fontSize: 11, color: C.text }}>{pb.name}</span>
-                          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                            <span style={{ fontSize: 10, color: C.textDim }}>{pbTrades.length} trades</span>
-                            {pbWinRate !== null ? (
-                              <span style={{ fontSize: 11, fontWeight: 700, color: pbWinRate >= 60 ? C.teal : pbWinRate >= 50 ? C.yellow : C.red }}>{pbWinRate}%</span>
-                            ) : (
-                              <span style={{ fontSize: 10, color: C.textMuted }}>No data</span>
-                            )}
-                          </div>
-                        </div>
-                      )
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
+                    {Array.from({length:fdm}).map((_,i)=><div key={'e'+i} style={{aspectRatio:'1'}}/>)}
+                    {Array.from({length:dim}).map((_,i)=>{
+                      const day=i+1,ds=yr+'-'+moS+'-'+String(day).padStart(2,'0'),dd=byDay[ds],dow=(fdm+i)%7,isWe=dow===0||dow===6
+                      return <div key={day} style={{aspectRatio:'1',borderRadius:5,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:isWe?'transparent':dd?(dd.pnl>=0?'rgba(0,170,85,0.15)':'rgba(204,16,64,0.12)'):'#131720',border:dd?'1px solid '+(dd.pnl>=0?'rgba(0,170,85,0.3)':'rgba(204,16,64,0.25)'):'1px solid '+C.border}}>
+                        <span style={{fontSize:9,color:C.textMuted}}>{day}</span>
+                        {dd&&<span style={{fontSize:9,fontWeight:700,color:dd.pnl>=0?C.synapse:C.red}}>{dd.pnl>=0?'+':''}${Math.round(dd.pnl)}</span>}
+                      </div>
                     })}
                   </div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                  <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Win / Loss Breakdown</div>
+                    <div style={{height:8,borderRadius:4,background:'#1a1f2e',overflow:'hidden',marginBottom:8}}><div style={{height:'100%',width:winRate+'%',background:C.synapse,borderRadius:4}}/></div>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:14}}>
+                      <span style={{color:C.synapse,fontWeight:700}}>{winRate}% wins</span>
+                      <span style={{color:C.red,fontWeight:700}}>{100-winRate}% losses</span>
+                    </div>
+                    {[{l:'Total',v:allT.length,c:C.text},{l:'Winners',v:winners.length,c:C.synapse},{l:'Losers',v:losers.length,c:C.red},{l:'Largest win',v:'+$'+Math.round(lw),c:C.synapse},{l:'Largest loss',v:'-$'+Math.round(ll),c:C.red},{l:'Profit factor',v:pf.toFixed(2)+'x',c:pf>=1?C.synapse:C.red}].map(({l,v,c:col})=>(
+                      <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}>
+                        <span style={{color:C.textDim}}>{l}</span><span style={{fontWeight:700,color:col}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Playbook Performance</div>
+                    {Object.keys(byS).length===0?<div style={{fontSize:12,color:C.textMuted}}>Log trades with playbooks to see breakdown</div>
+                    :Object.entries(byS).sort((a:any,b:any)=>b[1].pnl-a[1].pnl).map(([name,s]:any)=>{
+                      const pbWr=s.total?Math.round(s.wins/s.total*100):0
+                      return <div key={name} style={{marginBottom:12}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                          <span style={{fontSize:11,color:C.text,fontWeight:600}}>{name}</span>
+                          <span style={{fontSize:11,fontWeight:700,color:s.pnl>=0?C.synapse:C.red}}>{s.pnl>=0?'+':''}${Math.round(s.pnl)}</span>
+                        </div>
+                        <div style={{display:'flex',gap:8,fontSize:10,color:C.textMuted,marginBottom:4}}><span>{s.total} trades</span><span style={{color:pbWr>=60?C.synapse:pbWr>=50?C.yellow:C.red}}>{pbWr}% win</span></div>
+                        <div style={{height:4,borderRadius:2,background:'#1a1f2e',overflow:'hidden'}}><div style={{height:'100%',width:pbWr+'%',background:pbWr>=60?C.synapse:pbWr>=50?C.yellow:C.red}}/></div>
+                      </div>
+                    })}
+                  </div>
+                </div>
+                {Object.keys(byH).length>0&&(
+                  <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16,marginBottom:16}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>P&L by Hour of Day</div>
+                    <div style={{display:'flex',gap:4,alignItems:'flex-end',height:80,marginBottom:8}}>
+                      {Array.from({length:14},(_,i)=>i+8).map(h=>{
+                        const p=byH[h]||0,maxA=Math.max(...Object.values(byH).map((v:any)=>Math.abs(v)),1),hP=Math.abs(p)/maxA*100
+                        return <div key={h} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                          <div style={{width:'100%',display:'flex',flexDirection:'column',justifyContent:p>=0?'flex-end':'flex-start',height:60}}>
+                            <div style={{width:'100%',height:hP+'%',minHeight:p!==0?2:0,background:p>=0?'rgba(0,170,85,0.7)':'rgba(204,16,64,0.7)',borderRadius:2}}/>
+                          </div>
+                          <span style={{fontSize:8,color:C.textMuted}}>{h>12?h-12+'p':h+'a'}</span>
+                        </div>
+                      })}
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                      {bH&&<div style={{background:'rgba(0,170,85,0.08)',border:'1px solid rgba(0,170,85,0.2)',borderRadius:6,padding:'8px 10px'}}>
+                        <div style={{fontSize:10,color:C.textMuted,marginBottom:2}}>Best hour</div>
+                        <div style={{fontSize:12,color:C.synapse,fontWeight:700}}>{parseInt(bH[0])>12?parseInt(bH[0])-12+'PM':bH[0]+'AM'} (+${Math.round(bH[1] as number)})</div>
+                      </div>}
+                      {wH&&<div style={{background:'rgba(204,16,64,0.06)',border:'1px solid rgba(204,16,64,0.2)',borderRadius:6,padding:'8px 10px'}}>
+                        <div style={{fontSize:10,color:C.textMuted,marginBottom:2}}>Worst hour</div>
+                        <div style={{fontSize:12,color:C.red,fontWeight:700}}>{parseInt(wH[0])>12?parseInt(wH[0])-12+'PM':wH[0]+'AM'} (-${Math.round(Math.abs(wH[1] as number))})</div>
+                      </div>}
+                    </div>
+                  </div>
                 )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
+                <div style={{background:'#0d1018',border:'1px solid '+C.tealBorder,borderRadius:10,padding:16}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                    <div style={{width:8,height:8,borderRadius:'50%',background:C.teal,animation:'pulse 2s infinite'}}/>
+                    <div style={{fontFamily:fontDisplay,fontSize:12,fontWeight:700,color:C.teal}}>AI Pattern Recognition</div>
+                  </div>
+                  <button onClick={async()=>{
+                    setAiLoading(true)
+                    try{
+                      const sStr=Object.entries(byS).map(([n,s]:any)=>n+': '+s.total+'t '+Math.round(s.wins/s.total*100)+'% $'+Math.round(s.pnl)).join(' | ')
+                      const hStr=Object.entries(byH).sort((a:any,b:any)=>+a[0]-+b[0]).map(([h,p]:any)=>h+'=$'+Math.round(p)).join(', ')
+                      const r2=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:'Analyze this SPX trader. 4 brutally honest insights.
 
+Win: '+winRate+'% | PnL: $'+Math.round(totalPnl)+' | AvgW: $'+Math.round(avgWin)+' | AvgL: $'+Math.round(avgLoss)+' | PF: '+pf.toFixed(2)+'x | DayWin: '+dwp+'%
+Playbooks: '+sStr+'
+Hours: '+hStr+'
+
+4 numbered insights, 2 sentences each. Be specific and direct.'}]})})
+                      const d2=await r2.json(),txt=d2.content?.[0]?.text||'No analysis'
+                      setChatMessages([{role:'assistant',content:'📊 Pattern Analysis:
+
+'+txt}]);setTab('cockpit')
+                    }catch{}setAiLoading(false)
+                  }} style={{background:C.tealDim,border:'1px solid '+C.tealBorder,borderRadius:8,padding:'10px 16px',color:C.teal,cursor:'pointer',fontFamily:font,fontSize:12,fontWeight:700,marginBottom:12}}>
+                    {aiLoading?'↻ Analyzing...':'🔍 Analyze My Trading Patterns'}
+                  </button>
+                  <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>Your trade history, hourly patterns, playbook performance, and day stats all feed the AI companion — making every response more personalized over time.</div>
+                </div>
+              </>)}
+            </div>
+          )
+        })()}
         {/* ── AI VOICE COMPANION (STAR FEATURE — always visible) ── */}
       <div style={{
         position: 'fixed', bottom: 0, right: 0,
