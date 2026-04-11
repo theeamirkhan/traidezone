@@ -934,7 +934,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
-    localStorage.setItem('tz-ai-tone', aiTone.toString())
+    localStorage.setItem('tz-dark-mode', darkMode.toString())     localStorage.setItem('tz-ai-tone', aiTone.toString())
     localStorage.setItem('tz-user-name', userName)
     localStorage.setItem('tz-welcome-message', welcomeMessage)
     onClose()
@@ -1123,12 +1123,11 @@ export default function CockpitPage() {
   // Keys
   const [keys, setKeys] = useState<any>({ [POLY_KEY]: 'server', [ANTH_KEY]: 'server', [UW_KEY]: 'server', [EL_KEY]: 'server', [TIINGO_KEY]: 'server' })
   const [showSettings, setShowSettings] = useState(false)
-  const [showDisclosure, setShowDisclosure] = useState(false)
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
-  const [darkMode, setDarkMode] = useState(() => false)
-
+  const [darkMode, setDarkMode] = useState(() => { if (typeof window !== 'undefined') { const saved = localStorage.getItem('tz-dark-mode'); return saved !== null ? saved === 'true' : true } return true })
+  
   // Market data
   const [candles, setCandles] = useState<any[]>([])
   const [spyCandles, setSpyCandles] = useState<any[]>([])
@@ -1223,7 +1222,11 @@ export default function CockpitPage() {
   const [chartTf, setChartTf] = useState<string>('5')
   const chartTfRef = useRef<string>('5')
   // Keep ref in sync so fetchHistory always reads latest TF without stale closure
-  useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
+ `useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
+useEffect(() => { document.body.style.background = darkMode ? '#080a0f' : '#f0f4f8' }, [darkMode])`
+  useEffect(() => {
+    document.body.style.background = darkMode ? '#080a0f' : '#f0f4f8'
+  }, [darkMode])
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<any>(null)
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -2023,10 +2026,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#080a0f', color: '#8090b0', fontFamily: font }}>Loading...</div>
 
   // Dark mode is now default â DC not needed, CC = C always
-  const CC = C
-
+const CC = darkMode ? C : { ...C, bg: '#f0f4f8', surface: '#ffffff', surface2: '#f5f7fa', text: '#0d1018', textDim: '#4a5568', textMuted: '#718096', border: 'rgba(0,0,0,0.08)' }
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#080a0f', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
+    <div style={{ width: '100vw', height: '100vh', background: CC.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
         * { box-sizing: border-box; }
