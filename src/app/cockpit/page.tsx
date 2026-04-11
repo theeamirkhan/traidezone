@@ -3381,10 +3381,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     {l:'Avg Loss',v:'-$'+Math.round(avgLoss),c:C.red,s:'Per loser'},
                     {l:'Day Win %',v:dwp+'%',c:dwp>=60?C.synapse:dwp>=50?C.yellow:C.red,s:dw+'/'+de.length+' days'},
                     {l:'Profit Factor',v:pf.toFixed(2)+'x',c:pf>=1.5?C.synapse:pf>=1?C.yellow:C.red,s:'Win/loss ratio'}
-                  ].map(({l,v,c:col,s})=>(
+                  ].map(({l,v,c:clr,s})=>(
                     <div key={l} style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
                       <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>{l}</div>
-                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:col,marginBottom:2}}>{v}</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:clr,marginBottom:2}}>{v}</div>
                       <div style={{fontSize:10,color:C.textMuted}}>{s}</div>
                     </div>
                   ))}
@@ -3415,7 +3415,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                     {[{l:'Total',v:allT.length,c:C.text},{l:'Winners',v:winners.length,c:C.synapse},{l:'Losers',v:losers.length,c:C.red},{l:'Largest win',v:'+$'+Math.round(lw),c:C.synapse},{l:'Largest loss',v:'-$'+Math.round(ll),c:C.red},{l:'Profit factor',v:pf.toFixed(2)+'x',c:pf>=1?C.synapse:C.red}].map(({l,v,c:col})=>(
                       <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}>
-                        <span style={{color:C.textDim}}>{l}</span><span style={{fontWeight:700,color:col}}>{v}</span>
+                        <span style={{color:C.textDim}}>{l}</span><span style={{fontWeight:700,color:clr}}>{v}</span>
                       </div>
                     ))}
                   </div>
