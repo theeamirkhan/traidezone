@@ -1128,7 +1128,7 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
-  const [darkMode, setDarkMode] = useState(() => false)
+  const [darkMode, setDarkMode] = useState(() => true)
 
   // Market data
   const [candles, setCandles] = useState<any[]>([])
