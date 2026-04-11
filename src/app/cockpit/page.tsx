@@ -1126,7 +1126,13 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
-  const [darkMode, setDarkMode] = useState(() => { if (typeof window !== 'undefined') { const saved = localStorage.getItem('tz-dark-mode'); return saved !== null ? saved === 'true' : true } return true })
+const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('tz-dark-mode')
+      return saved !== null ? saved === 'true' : true
+    }
+    return true
+  })
   
   // Market data
   const [candles, setCandles] = useState<any[]>([])
