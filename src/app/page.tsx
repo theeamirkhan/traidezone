@@ -49,7 +49,7 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <a href="#how" style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.5px', textTransform: 'uppercase' }}>How it works</a>
           <a href="#pricing" style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Pricing</a>
-          <button onClick={() => router.push('/sign-up')} style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '8px 16px', background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Join Waitlist</button>
+          <button onClick={() => router.push('/sign-up')} style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '8px 16px', background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Get Started</button>
           <button onClick={() => router.push('/sign-in')} style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '8px 16px', background: 'transparent', color: '#e8eaf0', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, cursor: 'pointer' }}>Sign In</button>
         </div>
       </nav>
