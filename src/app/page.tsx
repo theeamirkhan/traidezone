@@ -5,12 +5,12 @@ import { useState, useEffect } from 'react'
 export default function LandingPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
-  const [spx, setSpx] = useState('—')
-  const [vix, setVix] = useState('—')
-  const [spxChange, setSpxChange] = useState('')
+  const [spx, setSpx] = useState<string>('—')
+  const [vix, setVix] = useState<string>('—')
+  const [spxChange, setSpxChange] = useState<string>('')
 
   useEffect(() => {
-    fetch('/api/polygon?apiKey=server&path=/v2/aggs/ticker/SPY/range/1/day/2026-03-25/2026-03-31?adjusted=true&sort=desc&limit=2')
+    fetch('/api/polygon?apiKey=server&path=/v2/aggs/ticker/SPY/range/1/day/2026-04-01/2026-04-11?adjusted=true&sort=desc&limit=2')
       .then(r => r.json()).then(d => {
         if (d.results?.[0]) {
           const c = d.results[0]
@@ -19,7 +19,7 @@ export default function LandingPage() {
           setSpxChange((parseFloat(chg) >= 0 ? '+' : '') + chg + '%')
         }
       }).catch(() => {})
-    fetch('/api/polygon?apiKey=server&path=/v2/aggs/ticker/I:VIX1D/range/1/day/2026-03-25/2026-03-31?adjusted=true&sort=desc&limit=1')
+    fetch('/api/polygon?apiKey=server&path=/v2/aggs/ticker/I:VIX1D/range/1/day/2026-04-01/2026-04-11?adjusted=true&sort=desc&limit=1')
       .then(r => r.json()).then(d => {
         if (d.results?.[0]) setVix(d.results[0].c.toFixed(2))
       }).catch(() => {})
@@ -30,263 +30,142 @@ export default function LandingPage() {
   }
 
   return (
-    <>
+    <div style={{ background: '#080a0f', minHeight: '100vh', color: '#e8eaf0', fontFamily: "'JetBrains Mono', monospace" }}>
       <style>{`
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #080a0f; color: #e8eaf0; font-family: 'JetBrains Mono', monospace; overflow-x: hidden; }
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@300;400;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #080a0f; overflow-x: hidden; }
         .syne { font-family: 'Syne', sans-serif; }
         .green { color: #00d4a0; }
         .dim { color: #6b7280; }
-        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(8,10,15,0.92); backdrop-filter: blur(12px); flex-wrap: wrap; gap: 12px; }
-        .nav-logo { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; }
-        .nav-links { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-        .nav-link { font-size: 11px; color: #6b7280; text-decoration: none; letter-spacing: 0.5px; text-transform: uppercase; }
-        .btn-nav { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; padding: 8px 16px; background: #00d4a0; color: #080a0f; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-        .btn-signin { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; padding: 8px 16px; background: transparent; color: #e8eaf0; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-        hero { display: block; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 120px 24px 60px; }
-        .hero-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid rgba(0,212,160,0.3); border-radius: 99px; font-size: 11px; color: #00d4a0; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 32px; }
-        .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #00d4a0; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
-        .hero-title { font-family: 'Syne', sans-serif; font-size: clamp(40px, 8vw, 88px); font-weight: 800; line-height: 1.0; letter-spacing: -2px; margin-bottom: 24px; }
-        .hero-sub { font-size: 15px; color: #6b7280; max-width: 480px; line-height: 1.7; margin-bottom: 40px; font-weight: 300; }
-        .hero-form { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px; margin: 0 auto; }
-        .hero-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 14px 18px; color: #e8eaf0; font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; width: 100%; }
-        .hero-input::placeholder { color: #3d4451; }
-        .btn-primary { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; padding: 16px 28px; background: #00d4a0; color: #080a0f; border: none; border-radius: 8px; cursor: pointer; width: 100%; }
-        .form-note { font-size: 11px; color: #3d4451; }
-        .ticker-bar { margin-top: 56px; width: 100%; max-width: 600px; background: rgba(13,17,23,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; border-left: 3px solid #00d4a0; }
-        .ticker-item { display: flex; flex-direction: column; gap: 2px; }
-        .ticker-name { font-size: 9px; color: #6b7280; letter-spacing: 1px; text-transform: uppercase; }
-        .ticker-val { font-size: 14px; font-weight: 700; }
-        .up { color: #00d4a0; }
-        .down { color: #ff4d6d; }
-        section { padding: 80px 24px; max-width: 900px; margin: 0 auto; }
-        .section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #00d4a0; margin-bottom: 16px; font-weight: 700; }
-        .section-title { font-family: 'Syne', sans-serif; font-size: clamp(28px, 5vw, 48px); font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-bottom: 16px; }
-        .section-sub { font-size: 14px; color: #6b7280; max-width: 480px; line-height: 1.7; font-weight: 300; margin-bottom: 48px; }
-        .pain-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 48px; }
-        @media(min-width: 640px) { .pain-grid { grid-template-columns: 1fr 1fr; } }
-        .pain-item { display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: rgba(255,77,109,0.04); border: 1px solid rgba(255,77,109,0.1); border-radius: 10px; }
-        .pain-x { color: #ff4d6d; font-size: 14px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
-        .pain-text { font-size: 13px; color: #6b7280; line-height: 1.5; }
-        .solution-item { display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: rgba(0,212,160,0.04); border: 1px solid rgba(0,212,160,0.12); border-radius: 10px; }
-        .solution-check { color: #00d4a0; font-size: 14px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
-        .features-grid { display: grid; grid-template-columns: 1fr; gap: 2px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
-        @media(min-width: 640px) { .features-grid { grid-template-columns: 1fr 1fr; } }
-        .feature-card { background: #0d1018; padding: 28px 24px; }
-        .feature-icon { font-size: 24px; margin-bottom: 16px; }
-        .feature-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-        .feature-desc { font-size: 12px; color: #6b7280; line-height: 1.7; }
-        .steps { display: flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
-        .step { display: flex; align-items: flex-start; gap: 24px; padding: 28px 24px; background: #0d1018; }
-        .step-num { font-family: 'Syne', sans-serif; font-size: 40px; font-weight: 800; color: #3d4451; line-height: 1; min-width: 48px; }
-        .step-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-        .step-desc { font-size: 12px; color: #6b7280; line-height: 1.7; }
-        .pricing-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-        @media(min-width: 640px) { .pricing-grid { grid-template-columns: 1fr 1fr; } }
-        .pricing-card { background: #0d1018; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 28px 20px; position: relative; }
-        .pricing-card.popular { border-color: rgba(0,212,160,0.4); background: linear-gradient(135deg, rgba(0,212,160,0.04), #0d1018); }
-        .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #00d4a0; color: #080a0f; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 99px; white-space: nowrap; font-family: 'Syne', sans-serif; }
-        .tier-name { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #6b7280; margin-bottom: 12px; }
-        .tier-price { font-family: 'Syne', sans-serif; font-size: 42px; font-weight: 800; letter-spacing: -2px; line-height: 1; margin-bottom: 4px; }
-        .tier-period { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
-        .voice-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: rgba(0,212,160,0.08); border: 1px solid rgba(0,212,160,0.2); border-radius: 5px; margin-bottom: 20px; }
-        .voice-badge-text { font-size: 10px; color: #00d4a0; font-weight: 700; }
-        .tier-features { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
-        .tier-feature { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7280; }
-        .tf-check { color: #00d4a0; font-weight: 700; }
-        .tf-x { color: #3d4451; }
-        .btn-plan { width: 100%; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; padding: 12px; border-radius: 8px; cursor: pointer; }
-        .btn-plan-primary { background: #00d4a0; border: none; color: #080a0f; }
-        .btn-plan-outline { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #6b7280; }
-        .cta-section { padding: 80px 24px; text-align: center; }
-        .cta-title { font-family: 'Syne', sans-serif; font-size: clamp(28px, 5vw, 52px); font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-bottom: 16px; }
-        .cta-sub { font-size: 14px; color: #6b7280; margin-bottom: 32px; }
-        .cta-form { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 0 auto; }
-        footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-        .footer-logo { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: #6b7280; }
-        .footer-text { font-size: 11px; color: #3d4451; }
+        a { text-decoration: none; color: inherit; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        @keyframes spin { to{transform:rotate(360deg)} }
       `}</style>
 
       {/* Nav */}
-      <nav>
-        <div className="nav-logo">tr<span className="green">AI</span>de Zone</div>
-        <div className="nav-links">
-          <a href="#how" className="nav-link">How it works</a>
-          <a href="#pricing" className="nav-link">Pricing</a>
-          <a href="/sign-up" className="btn-nav">Join Waitlist</a>
-          <a href="/sign-in" className="btn-signin">Sign In</a>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,10,15,0.92)', backdropFilter: 'blur(12px)', flexWrap: 'wrap', gap: 12 }}>
+        <div className="syne" style={{ fontSize: 20, fontWeight: 800 }}>tr<span className="green">AI</span>de Zone</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <a href="#how" style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.5px', textTransform: 'uppercase' }}>How it works</a>
+          <a href="#pricing" style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Pricing</a>
+          <button onClick={() => router.push('/sign-up')} style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '8px 16px', background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Join Waitlist</button>
+          <button onClick={() => router.push('/sign-in')} style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '8px 16px', background: 'transparent', color: '#e8eaf0', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, cursor: 'pointer' }}>Sign In</button>
         </div>
       </nav>
 
       {/* Hero */}
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '100px 24px 60px' }}>
-        <div className="hero-badge"><div className="badge-dot" />Now in early access</div>
-        <h1 className="hero-title syne">
-          Your AI companion<br />
-          for <span className="green">disciplined</span><br />
-          <span className="dim">trading.</span>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '120px 24px 60px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', border: '1px solid rgba(0,212,160,0.3)', borderRadius: 99, fontSize: 11, color: '#00d4a0', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: 32 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00d4a0', animation: 'pulse 2s infinite' }} />
+          Now in early access
+        </div>
+        <h1 className="syne" style={{ fontSize: 'clamp(40px, 8vw, 88px)', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-2px', marginBottom: 24 }}>
+          Your AI companion<br />for <span className="green">disciplined</span><br /><span className="dim">trading.</span>
         </h1>
-        <p className="hero-sub">
+        <p style={{ fontSize: 15, color: '#6b7280', maxWidth: 480, lineHeight: 1.7, marginBottom: 40, fontWeight: 300 }}>
           tr<span className="green">AI</span>de Zone sits with you during every trade — watching the chart, knowing your rules, and keeping you accountable in real time.
         </p>
-        <div className="hero-form">
-          <input className="hero-input" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleGetAccess()} />
-          <button className="btn-primary syne" onClick={handleGetAccess}>Get Early Access →</button>
-          <div className="form-note">No credit card required · Early access is free</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 400 }}>
+          <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleGetAccess()}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '14px 18px', color: '#e8eaf0', fontFamily: 'inherit', fontSize: 13, outline: 'none', width: '100%' }} />
+          <button className="syne" onClick={handleGetAccess} style={{ fontSize: 15, fontWeight: 800, padding: '16px 28px', background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 8, cursor: 'pointer', width: '100%' }}>
+            Get Early Access →
+          </button>
+          <div style={{ fontSize: 11, color: '#3d4451' }}>No credit card required · Early access is free</div>
         </div>
 
         {/* Live ticker */}
-        <div className="ticker-bar">
-          <div style={{ fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#00d4a0', fontWeight: 700 }}>● LIVE</div>
-          <div className="ticker-item">
-            <div className="ticker-name">SPX</div>
-            <div className={`ticker-val ${spxChange.startsWith('+') ? 'up' : spxChange.startsWith('-') ? 'down' : ''}`}>{spx}</div>
+        <div style={{ marginTop: 56, width: '100%', maxWidth: 600, background: 'rgba(13,17,23,0.8)', border: '1px solid rgba(255,255,255,0.06)', borderLeft: '3px solid #00d4a0', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' as const }}>
+          <div style={{ fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase' as const, color: '#00d4a0', fontWeight: 700 }}>● LIVE</div>
+          <div>
+            <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase' as const }}>SPX</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: spxChange.startsWith('+') ? '#00d4a0' : spxChange.startsWith('-') ? '#ff4d6d' : '#e8eaf0' }}>{spx}</div>
           </div>
-          <div className="ticker-item">
-            <div className="ticker-name">Change</div>
-            <div className={`ticker-val ${spxChange.startsWith('+') ? 'up' : 'down'}`}>{spxChange || '—'}</div>
+          <div>
+            <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase' as const }}>Change</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: spxChange.startsWith('+') ? '#00d4a0' : '#ff4d6d' }}>{spxChange || '—'}</div>
           </div>
-          <div className="ticker-item">
-            <div className="ticker-name">VIX</div>
-            <div className={`ticker-val ${parseFloat(vix) > 20 ? 'down' : 'up'}`}>{vix}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', background: 'rgba(0,212,160,0.08)', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 6 }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 12, fontWeight: 800, color: '#00d4a0' }}>WAIT</div>
-            <div style={{ fontSize: 10, color: '#6b7280' }}>weekend</div>
+          <div>
+            <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase' as const }}>VIX</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: parseFloat(vix) > 20 ? '#ff4d6d' : '#00d4a0' }}>{vix}</div>
           </div>
         </div>
       </div>
 
-      {/* Problem / Solution */}
-      <section>
-        <div className="section-label">The problem</div>
-        <h2 className="section-title syne">Most traders know<br />the rules. They just<br /><span className="dim">don't follow them.</span></h2>
-        <div className="pain-grid">
-          {[
-            'You average into losers hoping they\'ll turn around',
-            'You trade out of boredom, not confluence',
-            'You hold losing trades 10x longer than winning ones',
-            'You abandon your morning plan the moment price moves',
-          ].map((p, i) => (
-            <div key={i} className="pain-item">
-              <span className="pain-x">✕</span>
-              <span className="pain-text">{p}</span>
-            </div>
-          ))}
-        </div>
-        <h2 className="section-title syne">tr<span className="green">AI</span>de Zone is the<br />accountability partner<br />in your ear.</h2>
-        <div className="pain-grid">
-          {[
-            'Calls out averaging down before you add the position',
-            'Scores each setup against your personal confluence rules',
-            'Knows your morning plan and holds you to it all day',
-            'Learns your patterns from your actual trade history',
-          ].map((p, i) => (
-            <div key={i} className="solution-item">
-              <span className="solution-check">✓</span>
-              <span className="pain-text">{p}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features */}
-      <section>
-        <div className="section-label">What you get</div>
-        <h2 className="section-title syne">Everything you need.<br /><span className="dim">Nothing you don't.</span></h2>
-        <div className="features-grid">
-          {[
-            { icon: '🤖', title: 'AI Engine', desc: 'Live SPX signals every 3 minutes. VWAP, 200 EMA, VIX, options flow — synthesized into a clear LONG, SHORT, or WAIT.' },
-            { icon: '🎙️', title: 'Voice Companion', desc: 'Talk to your AI coach hands-free during live trades. Always on, never distracted.' },
-            { icon: '📋', title: 'Morning Plan', desc: 'Set your game plan before market open. tr\u00AIde Zone holds you to it all day.' },
-            { icon: '📊', title: 'Your Edge, Quantified', desc: 'Upload your broker statement. The AI uses your real stats to personalize every signal.' },
-            { icon: '⚡', title: 'Options Flow', desc: 'Live unusual options activity on SPX, SPY, and QQQ before you enter a trade.' },
-            { icon: '✅', title: 'Pre-Trade Checklist', desc: '6-point confluence checklist before every entry. No confluence, no trade.' },
-          ].map((f, i) => (
-            <div key={i} className="feature-card">
-              <div className="feature-icon">{f.icon}</div>
-              <div className="feature-title syne">{f.title}</div>
-              <div className="feature-desc">{f.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* How it works */}
-      <section id="how">
-        <div className="section-label">How it works</div>
-        <h2 className="section-title syne">Simple. Powerful.<br /><span className="green">Always in your corner.</span></h2>
-        <div className="steps">
+      <div id="how" style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase' as const, color: '#00d4a0', marginBottom: 16, fontWeight: 700 }}>How it works</div>
+        <h2 className="syne" style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.1, marginBottom: 48 }}>
+          Simple. Powerful.<br /><span className="green">Always in your corner.</span>
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden' }}>
           {[
-            { n: '01', t: 'Set your system', d: 'Tell tr\u00AIde Zone your trading rules — what you trade, when you enter, where you stop out.' },
-            { n: '02', t: 'Set your morning plan', d: 'Before market open, tell it what you\'re looking for today. It holds you to that plan all session.' },
+            { n: '01', t: 'Set your system', d: 'Tell trAIde Zone your trading rules — what you trade, when you enter, where you stop out.' },
+            { n: '02', t: 'Set your morning plan', d: "Before market open, tell it what you're looking for today. It holds you to that plan all session." },
             { n: '03', t: 'Trade with your companion', d: 'Turn on continuous voice mode. Ask anything. Get answers grounded in live data instantly.' },
-            { n: '04', t: 'Get better, measurably', d: 'Upload your statements monthly. Watch your win rate improve as the AI refines its understanding of your edge.' },
+            { n: '04', t: 'Get better, measurably', d: 'Upload your statements monthly. Watch your win rate improve as the AI refines your edge.' },
           ].map((s, i) => (
-            <div key={i} className="step">
-              <div className="step-num">{s.n}</div>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 24, padding: '28px 24px', background: '#0d1018' }}>
+              <div className="syne" style={{ fontSize: 40, fontWeight: 800, color: '#3d4451', lineHeight: 1, minWidth: 48 }}>{s.n}</div>
               <div>
-                <div className="step-title syne">{s.t}</div>
-                <div className="step-desc">{s.d}</div>
+                <div className="syne" style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{s.t}</div>
+                <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.7 }}>{s.d}</div>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
       {/* Pricing */}
-      <section id="pricing">
-        <div className="section-label">Pricing</div>
-        <h2 className="section-title syne">Straightforward pricing.<br /><span className="green">No surprises.</span></h2>
-        <p className="section-sub">Voice minutes reset monthly. Go over? Pay a small per-minute rate — never cut off mid-trade.</p>
-        <div className="pricing-grid">
+      <div id="pricing" style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase' as const, color: '#00d4a0', marginBottom: 16, fontWeight: 700 }}>Pricing</div>
+        <h2 className="syne" style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.1, marginBottom: 16 }}>
+          Straightforward pricing.<br /><span className="green">No surprises.</span>
+        </h2>
+        <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 48, lineHeight: 1.7 }}>Voice minutes reset monthly. Go over? Pay a small per-minute rate.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
           {[
-            { name: 'Starter', price: '$19', period: '/mo', voice: '60 min/mo', overage: '$0.10/min', features: ['50 AI analysis calls/month', '60 voice minutes', 'Morning plan + checklist', 'Live SPX signals'], noFeatures: ['Options flow', 'Unlimited AI calls'], popular: false },
-            { name: 'Pro', price: '$39', period: '/mo', voice: '180 min/mo', overage: '$0.08/min', features: ['Unlimited AI calls', '180 voice minutes', 'Options flow + 0DTE skew', 'Trade pattern analysis', 'Morning plan + checklist'], noFeatures: [], popular: true },
-            { name: 'Elite', price: '$79', period: '/mo', voice: '480 min/mo', overage: '$0.06/min', features: ['Unlimited AI calls', '480 voice minutes', 'Full intelligence suite', 'Priority support'], noFeatures: [], popular: false },
-            { name: 'Elite+', price: '$129', period: '/mo', voice: 'Unlimited', overage: 'No overage', features: ['Unlimited AI calls', 'Unlimited voice — all session', 'No overage ever', 'Early access + priority support'], noFeatures: [], popular: false },
+            { name: 'Starter', price: '$19', voice: '60 min/mo', overage: '$0.10/min', popular: false },
+            { name: 'Pro', price: '$39', voice: '180 min/mo', overage: '$0.08/min', popular: true },
+            { name: 'Elite', price: '$79', voice: '480 min/mo', overage: '$0.06/min', popular: false },
+            { name: 'Elite+', price: '$129', voice: 'Unlimited', overage: 'No overage', popular: false },
           ].map((tier, i) => (
-            <div key={i} className={`pricing-card ${tier.popular ? 'popular' : ''}`}>
-              {tier.popular && <div className="popular-badge">Most Popular</div>}
-              <div className="tier-name">{tier.name}</div>
-              <div className="tier-price syne">{tier.price}</div>
-              <div className="tier-period">per month</div>
-              <div className="voice-badge">
-                <span>🎙️</span>
-                <span className="voice-badge-text">{tier.voice}</span>
-                <span style={{ fontSize: 10, color: '#6b7280' }}>· {tier.overage}</span>
-              </div>
-              <ul className="tier-features">
-                {tier.features.map((f, j) => <li key={j} className="tier-feature"><span className="tf-check">✓</span>{f}</li>)}
-                {tier.noFeatures.map((f, j) => <li key={j} className="tier-feature" style={{ opacity: 0.4 }}><span className="tf-x">✗</span>{f}</li>)}
-              </ul>
-              <button className={`btn-plan ${tier.popular ? 'btn-plan-primary' : 'btn-plan-outline'}`}
-                onClick={() => router.push('/sign-up')}>
+            <div key={i} style={{ background: tier.popular ? 'linear-gradient(135deg, rgba(0,212,160,0.06), #0d1018)' : '#0d1018', border: `1px solid ${tier.popular ? 'rgba(0,212,160,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 16, padding: '28px 20px', position: 'relative' as const }}>
+              {tier.popular && <div style={{ position: 'absolute' as const, top: -12, left: '50%', transform: 'translateX(-50%)', background: '#00d4a0', color: '#080a0f', fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' as const, padding: '4px 12px', borderRadius: 99, whiteSpace: 'nowrap' as const }}>Most Popular</div>}
+              <div style={{ fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase' as const, color: '#6b7280', marginBottom: 12 }}>{tier.name}</div>
+              <div className="syne" style={{ fontSize: 42, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1 }}>{tier.price}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>per month</div>
+              <div style={{ fontSize: 11, color: '#00d4a0', marginBottom: 24 }}>🎙️ {tier.voice} · {tier.overage}</div>
+              <button onClick={() => router.push('/sign-up')} style={{ width: '100%', fontFamily: "'Syne', sans-serif", fontSize: 13, fontWeight: 800, padding: 12, borderRadius: 8, cursor: 'pointer', background: tier.popular ? '#00d4a0' : 'transparent', border: tier.popular ? 'none' : '1px solid rgba(255,255,255,0.12)', color: tier.popular ? '#080a0f' : '#6b7280' }}>
                 Get Started
               </button>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
       {/* CTA */}
-      <div className="cta-section">
-        <h2 className="cta-title syne">Stop trading alone.<br /><span className="green">Trade in the zone.</span></h2>
-        <p className="cta-sub">Join traders getting early access to tr<span className="green">AI</span>de Zone.</p>
-        <div className="cta-form">
-          <input className="hero-input" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
-          <button className="btn-primary syne" onClick={handleGetAccess}>Get Early Access →</button>
+      <div style={{ padding: '80px 24px', textAlign: 'center' as const }}>
+        <h2 className="syne" style={{ fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.1, marginBottom: 16 }}>
+          Stop trading alone.<br /><span className="green">Trade in the zone.</span>
+        </h2>
+        <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 32 }}>Join traders getting early access to tr<span className="green">AI</span>de Zone.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360, margin: '0 auto' }}>
+          <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '14px 18px', color: '#e8eaf0', fontFamily: 'inherit', fontSize: 13, outline: 'none' }} />
+          <button className="syne" onClick={handleGetAccess} style={{ fontSize: 15, fontWeight: 800, padding: '16px 28px', background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+            Get Early Access →
+          </button>
         </div>
       </div>
 
       {/* Footer */}
-      <footer>
-        <div className="footer-logo">tr<span className="green">AI</span>de Zone</div>
-        <div className="footer-text">© 2026 tr<span className="green">AI</span>de Zone · Built for traders who take discipline seriously</div>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
+        <div className="syne" style={{ fontSize: 16, fontWeight: 800, color: '#6b7280' }}>tr<span className="green">AI</span>de Zone</div>
+        <div style={{ fontSize: 11, color: '#3d4451' }}>© 2026 trAIde Zone · Built for disciplined traders</div>
       </footer>
-    </>
+    </div>
   )
 }
