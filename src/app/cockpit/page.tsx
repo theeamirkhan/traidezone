@@ -720,7 +720,7 @@ async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tra
     const text = data.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g, '').trim() || '[]'
     const newMemories = JSON.parse(text)
     if (Array.isArray(newMemories) && newMemories.length > 0) {
-      newMemories.forEach((m: string) => addMemory(m))
+      newMemories.forEach((m: string) => { addMemory(m); sbPost('session_memory', { memory: `[${new Date().toLocaleDateString()}] ${m}` }) })
     }
   } catch {}
 }
@@ -923,6 +923,17 @@ function analyzeTradeHistory(trades: any[]) {
   }
 }
 
+// ── SUPABASE HELPERS ──────────────────────────────────────────────────────
+async function sbGet(table: string) {
+  try { const r = await fetch(`/api/userdata?table=${table}`); const d = await r.json(); return d.data || null } catch { return null }
+}
+async function sbPost(table: string, data: any) {
+  try { await fetch('/api/userdata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table, data }) }) } catch {}
+}
+async function sbDelete(table: string, id?: string) {
+  try { await fetch(`/api/userdata?table=${table}${id ? '&id=' + id : ''}`, { method: 'DELETE' }) } catch {}
+}
+
 // ── BRAND LOGO COMPONENT ───────────────────────────────────────────────────
 const TZ = () => (
   <span>tr<span style={{color:'#00d4a0',fontWeight:900}}>AI</span>de Zone</span>
@@ -938,6 +949,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
     localStorage.setItem('tz-ai-tone', aiTone.toString())
     localStorage.setItem('tz-user-name', userName)
     localStorage.setItem('tz-welcome-message', welcomeMessage)
+    sbPost('settings', { voiceId: vals[VOICE_ID] || voiceId, voiceSpeed, aiTone, darkMode, userName, welcomeMessage })
     onClose()
   }
 
@@ -1279,6 +1291,18 @@ export default function CockpitPage() {
     const accepted = localStorage.getItem('tz-disclosure-accepted')
     if (!accepted) setShowDisclosure(true)
 
+    // Load per-user data from Supabase
+    const loadUserData = async () => {
+      const [tradesData, playbooksData, planData, memoryData, settingsData] = await Promise.all([
+        sbGet('trades'), sbGet('playbooks'), sbGet('morning_plan'), sbGet('session_memory'), sbGet('settings')
+      ])
+      if (tradesData?.length) { const mapped = tradesData.map((t: any) => ({ ...t, inSystem: t.in_system, pnl: parseFloat(t.pnl)||0 })); setTrades(mapped); setTradeStats(analyzeTradeHistory(mapped)) }
+      if (playbooksData?.length) setPlaybooks(playbooksData.map((p: any) => ({ id: p.id, name: p.name, setup: p.setup, entry: p.entry, stop: p.stop, target: p.target, notes: p.notes })))
+      if (planData) setMorningPlan({ bias: planData.bias||'', impliedMove: planData.implied_move||'', keyLevels: planData.key_levels||'', gapDirection: planData.gap_direction||'flat', gapSize: planData.gap_size||'', notes: planData.notes||'' })
+      if (memoryData?.length) setSessionMemory(memoryData.join('\n'))
+      if (settingsData) { if (settingsData.voice_id) setVoiceId(settingsData.voice_id); if (settingsData.ai_tone) setAiTone(settingsData.ai_tone); if (settingsData.dark_mode !== null) setDarkMode(settingsData.dark_mode); if (settingsData.user_name) setUserName(settingsData.user_name); if (settingsData.welcome_message) setWelcomeMessage(settingsData.welcome_message) }
+    }
+    loadUserData()
     const savedTrades = localStorage.getItem('tz-trades')
     if (savedTrades) {
       try {
@@ -1298,6 +1322,7 @@ export default function CockpitPage() {
   // Save morning plan
   useEffect(() => {
     localStorage.setItem('tz-morning-plan', JSON.stringify(morningPlan))
+    sbPost('morning_plan', morningPlan)
     if (openPrice) {
       const im = parseFloat(morningPlan.impliedMove) || 0
       setLevels((p: any) => ({
@@ -1990,6 +2015,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       if (!parsed.length) { setImportStatus('No trades found — check CSV format'); return }
       const allTrades = [...trades, ...parsed.map(t => ({ ...t, id: Date.now() + Math.random(), inSystem: true }))]
       setTrades(allTrades)
+      sbPost('trades_bulk', { trades: parsed })
       setImportStatus(`✓ Imported ${parsed.length} trades — AI now has your history`)
     }
     reader.readAsText(file)
@@ -2447,7 +2473,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 14px', boxShadow: '0 1px 6px rgba(0,212,160,0.06)', borderLeft: '3px solid rgba(0,212,160,0.3)' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
                   <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
-                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
+                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); sbDelete('session_memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
                 </div>
               )}
             </div>
@@ -3254,6 +3280,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   pnl: parseFloat(newTrade.pnl) || 0,
                 }
                 setTrades(p => [trade, ...p])
+                sbPost('trade', trade)
                 setNewTrade({ symbol: 'SPX', direction: 'call', entry: '', exit: '', pnl: '', inSystem: true, notes: '', playbook: '' })
               }} style={{ width: '100%', background: C.teal, border: 'none', borderRadius: 8, padding: '10px 0', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>
                 Save Trade
