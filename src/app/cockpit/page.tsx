@@ -2195,8 +2195,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
       {/* ── TABS — WHITE ── */}
       <div style={{ height: 44, background: 'rgba(13,17,23,0.98)', borderBottom: `1px solid rgba(0,212,160,0.12)`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0, flexShrink: 0, backdropFilter: 'blur(10px)' }}>
-        {(['plan', 'cockpit', 'deepdive', 'journal'] as const).map(t => {
-          const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', journal: 'JOURNAL' }
+        {(['plan', 'cockpit', 'deepdive', 'log', 'journal'] as const).map(t => {
+          const labels: any = { plan: 'MORNING PLAN', cockpit: 'SUMMARY', deepdive: 'DEEP DIVE', log: 'LOG TRADE', journal: 'JOURNAL' }
           return (
             <button key={t} onClick={() => setTab(t as any)} style={{
               background: 'transparent',
