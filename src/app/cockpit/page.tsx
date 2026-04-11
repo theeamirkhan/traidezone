@@ -934,6 +934,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
+    localStorage.setItem('tz-dark-mode', darkMode.toString())
     localStorage.setItem('tz-dark-mode', darkMode.toString())     localStorage.setItem('tz-ai-tone', aiTone.toString())
     localStorage.setItem('tz-user-name', userName)
     localStorage.setItem('tz-welcome-message', welcomeMessage)
@@ -1224,6 +1225,14 @@ const [darkMode, setDarkMode] = useState<boolean>(() => {
   const [drawnZones, setDrawnZones] = useState<any[]>([])
   const [drawPreview, setDrawPreview] = useState<any>(null)
   const [overlayCrosshair, setOverlayCrosshair] = useState<any>(null)
+  useEffect(() => {
+    const saved = localStorage.getItem('tz-dark-mode')
+    if (saved !== null) setDarkMode(saved === 'true')
+  }, [])
+  useEffect(() => {
+    document.body.style.background = darkMode ? '#080a0f' : '#f0f4f8'
+    localStorage.setItem('tz-dark-mode', darkMode.toString())
+  }, [darkMode])
   const [drawPoint1, setDrawPoint1] = useState<any>(null)
   const [chartTf, setChartTf] = useState<string>('5')
   const chartTfRef = useRef<string>('5')
