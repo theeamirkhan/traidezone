@@ -1237,8 +1237,7 @@ const [darkMode, setDarkMode] = useState<boolean>(() => {
   const [chartTf, setChartTf] = useState<string>('5')
   const chartTfRef = useRef<string>('5')
   // Keep ref in sync so fetchHistory always reads latest TF without stale closure
- `useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
-useEffect(() => { document.body.style.background = darkMode ? '#080a0f' : '#f0f4f8' }, [darkMode])`
+ useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
   useEffect(() => {
     document.body.style.background = darkMode ? '#080a0f' : '#f0f4f8'
   }, [darkMode])
