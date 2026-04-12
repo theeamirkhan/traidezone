@@ -970,7 +970,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20, padding: '12px 14px', background: '#131720', borderRadius: 10, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Appearance</div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? 'Ã°ÂÂÂ Dark mode' : '☀️ Light mode'}</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? '🌙Â Dark mode' : '☀️ Light mode'}</div>
           </div>
           <button onClick={() => setDarkMode(!darkMode)} style={{
             width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative' as const,
@@ -1048,7 +1048,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 10 }}>AI Coaching Tone</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 10, color: C.textDim }}>Ã°ÂÂªÂ Drill Sergeant</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>🪖 Drill Sergeant</span>
             <span style={{ fontSize: 10, color: C.teal, fontWeight: 700 }}>{['','Drill Sergeant','Direct & Firm','Balanced','Encouraging','Life Coach'][aiTone]}</span>
             <span style={{ fontSize: 10, color: C.textDim }}>Life Coach 🧘</span>
           </div>
@@ -2959,7 +2959,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div key={col} onClick={() => setDrawColor(col)} style={{ width: 16, height: 16, borderRadius: 2, background: col, cursor: 'pointer', border: drawColor === col ? '2px solid #fff' : '2px solid transparent', boxSizing: 'border-box' as const }} />
                   ))}
                 </div>
-                {[{ mode: 'horizontal', label: '— Horizontal' }, { mode: 'trendline', label: 'Ã¢ÂÂ Trend Line' }, { mode: 'zone', label: '▬ S&D Zone' }].map(({ mode, label }) => (
+                {[{ mode: 'horizontal', label: '— Horizontal' }, { mode: 'trendline', label: '↗ Trend Line' }, { mode: 'zone', label: '▬ S&D Zone' }].map(({ mode, label }) => (
                   <button key={mode} onClick={() => setDrawMode(drawMode === mode ? null : mode)} style={{ width: '100%', background: drawMode === mode ? drawColor + '18' : 'transparent', border: `1px solid ${drawMode === mode ? drawColor : C.border}`, borderRadius: 3, padding: '4px 8px', color: drawMode === mode ? drawColor : C.textDim, cursor: 'pointer', fontFamily: font, fontSize: 9, textAlign: 'left' as const, marginBottom: 2 }}>{label}{drawMode === mode ? ' ✓' : ''}</button>
                 ))}
                 {drawMode && <div style={{ fontSize: 8, color: C.fire, padding: '3px 6px', background: C.fireDim, borderRadius: 3, marginBottom: 4 }}>{drawMode === 'zone' || drawMode === 'trendline' ? 'Click 2 pts' : 'Click to place'}</div>}
@@ -3265,7 +3265,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10, lineHeight: 1.5 }}>Upload a CSV export from ThinkorSwim, Tradovate, Webull, or any broker. Your trade history will feed the AI to improve its analysis.</div>
                 <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
                 <button onClick={() => fileInputRef.current?.click()} style={{ width: '100%', background: '#131720', border: `1px dashed ${C.border2}`, borderRadius: 6, padding: '10px 0', color: C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
-                  Ã°ÂÂÂ Upload CSV
+                  📂 Upload CSV
                 </button>
                 {importStatus && (
                   <div style={{ marginTop: 8, fontSize: 10, color: importStatus.startsWith('✓') ? C.teal : C.yellow, padding: '6px 8px', background: importStatus.startsWith('✓') ? C.tealDim : C.yellowDim, borderRadius: 5 }}>
