@@ -1131,6 +1131,20 @@ export default function CockpitPage() {
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
   const [darkMode, setDarkMode] = useState(() => true)
 
+  const CC = darkMode ? C_DARK : {
+    ...C,
+    bg: '#f0f4f8', deep: '#e4eaf2', surface: '#ffffff', surface2: '#f5f7fa', surface3: '#edf1f7',
+    border: 'rgba(0,0,0,0.08)', border2: 'rgba(0,153,204,0.3)',
+    text: '#0d1018', textDim: '#4a5568', textMuted: '#718096',
+    tealDim: 'rgba(0,153,204,0.12)', tealBorder: 'rgba(0,153,204,0.3)',
+    violetDim: 'rgba(0,212,160,0.1)', violetBorder: 'rgba(0,212,160,0.3)',
+    redDim: 'rgba(204,16,64,0.08)', redBorder: 'rgba(204,16,64,0.25)',
+    fireDim: 'rgba(224,80,0,0.08)', fireBorder: 'rgba(224,80,0,0.25)',
+    yellowDim: 'rgba(192,112,0,0.1)',
+  }
+  const C = CC  // C now tracks dark/light mode across all 454 references
+
+
   // Market data
   const [candles, setCandles] = useState<any[]>([])
   const [spyCandles, setSpyCandles] = useState<any[]>([])
@@ -1217,7 +1231,7 @@ export default function CockpitPage() {
 
   // Drawing state
   const [drawMode, setDrawMode] = useState<string | null>(null)
-  const [drawColor, setDrawColor] = useState(C.teal)
+  const [drawColor, setDrawColor] = useState(C_DARK.teal)
   const [drawnLines, setDrawnLines] = useState<any[]>([])
   const [drawnZones, setDrawnZones] = useState<any[]>([])
   const [drawPreview, setDrawPreview] = useState<any>(null)
@@ -2035,18 +2049,6 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#080a0f', color: '#8090b0', fontFamily: font }}>Loading...</div>
 
   // CC switches based on darkMode
-  const CC = darkMode ? C_DARK : {
-    ...C,
-    bg: '#f0f4f8', deep: '#e4eaf2', surface: '#ffffff', surface2: '#f5f7fa', surface3: '#edf1f7',
-    border: 'rgba(0,0,0,0.08)', border2: 'rgba(0,153,204,0.3)',
-    text: '#0d1018', textDim: '#4a5568', textMuted: '#718096',
-    tealDim: 'rgba(0,153,204,0.12)', tealBorder: 'rgba(0,153,204,0.3)',
-    violetDim: 'rgba(0,212,160,0.1)', violetBorder: 'rgba(0,212,160,0.3)',
-    redDim: 'rgba(204,16,64,0.08)', redBorder: 'rgba(204,16,64,0.25)',
-    fireDim: 'rgba(224,80,0,0.08)', fireBorder: 'rgba(224,80,0,0.25)',
-    yellowDim: 'rgba(192,112,0,0.1)',
-  }
-  const C = CC  // C now tracks dark/light mode across all 454 references
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: darkMode ? '#080a0f' : '#f0f4f8', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
