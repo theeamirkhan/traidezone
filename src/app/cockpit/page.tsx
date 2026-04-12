@@ -880,24 +880,104 @@ async function fetchTiingoContext(tiingoKey: string, gapDirection: string, gapSi
   } catch (e) { return null }
 }
 function parseBrokerCSV(text: string): any[] {
-  const lines = text.trim().split('\n')
-  if (!lines.length) return []
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g, '_'))
-  const trades: any[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+  const rawLines = text.split('\n')
+
+  // Find the header row — first line where first cell doesn't start with comma/empty
+  let headerIdx = -1
+  for (let i = 0; i < rawLines.length; i++) {
+    const l = rawLines[i].trim()
+    if (!l || l.startsWith(',')) continue
+    // Must have at least 3 comma-separated values and look like a header
+    const parts = l.split(',')
+    if (parts.length >= 3 && (
+      l.toLowerCase().includes('symbol') || l.toLowerCase().includes('date') ||
+      l.toLowerCase().includes('exec') || l.toLowerCase().includes('side') ||
+      l.toLowerCase().includes('p/l') || l.toLowerCase().includes('pnl')
+    )) { headerIdx = i; break }
+  }
+  if (headerIdx === -1) return []
+
+  const headers = rawLines[headerIdx].split(',').map(h => h.trim().replace(/^"|"$/g,'').toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/__+/g,'_'))
+  const dataLines = rawLines.slice(headerIdx + 1)
+  const rows: any[] = []
+
+  for (const line of dataLines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith(',,,') ) continue
+    // Handle quoted fields with commas inside
+    const cols: string[] = []
+    let cur = '', inQ = false
+    for (const ch of trimmed + ',') {
+      if (ch === '"') { inQ = !inQ }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = '' }
+      else cur += ch
+    }
     if (cols.length < 3) continue
     const row: any = {}
-    headers.forEach((h, idx) => { row[h] = cols[idx] })
-    // Normalize common broker column names
-    const date = row.date || row.exec_time || row.time || row.trade_date || ''
-    const symbol = row.symbol || row.ticker || row.instrument || ''
-    const side = (row.side || row.action || row.buy_sell || row.transaction_type || '').toLowerCase()
-    const qty = parseFloat(row.qty || row.quantity || row.shares || '0')
-    const price = parseFloat(row.price || row.exec_price || row.fill_price || '0')
-    const pnl = parseFloat(row.pnl || row.p_l || row.realized_pnl || row.net_amount || '0')
-    if (symbol && (price || pnl)) {
-      trades.push({ date, symbol, side, qty, price, pnl, raw: row })
+    headers.forEach((h, i) => { row[h] = (cols[i] || '').trim() })
+    rows.push(row)
+  }
+
+  // TOS Account Trade History: pair BUY+OPEN with SELL+CLOSE for same symbol
+  // Check if this looks like a TOS exec history (has side/pos_effect columns, no pnl)
+  const hasPnl = headers.some(h => h.includes('p_l') || h.includes('pnl') || h.includes('realized'))
+  const hasSide = headers.some(h => h === 'side' || h === 'buy_sell')
+  const hasPosEffect = headers.some(h => h.includes('pos_effect') || h.includes('position_effect'))
+
+  if (!hasPnl && hasSide && hasPosEffect) {
+    // TOS mode: match opens to closes by symbol
+    const trades: any[] = []
+    const opens: any[] = []
+    for (const row of rows) {
+      const rawDate = row.exec_time || row.date || row.time || ''
+      // Normalize date from M/D/YY or MM/DD/YYYY to YYYY-MM-DD
+      let date = rawDate.split(' ')[0]
+      const dm = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+      if (dm) {
+        const yr = dm[3].length === 2 ? '20' + dm[3] : dm[3]
+        date = yr + '-' + dm[1].padStart(2,'0') + '-' + dm[2].padStart(2,'0')
+      }
+      const time = rawDate.split(' ')[1] || ''
+      const symbol = (row.symbol || row.instrument || '').trim()
+      const side = (row.side || '').toLowerCase()
+      const posEffect = (row.pos_effect || row.position_effect || '').toLowerCase()
+      const qty = parseFloat(row.qty || row.quantity || '1')
+      const price = parseFloat(row.net_price || row.price || '0')
+      const isOpen = posEffect.includes('open') || side === 'buy'
+      const isClose = posEffect.includes('close') || (side === 'sell' && !posEffect.includes('open'))
+      if (!symbol || !price) continue
+      if (isOpen) {
+        opens.push({ date, time, symbol, qty, price, side })
+      } else if (isClose) {
+        // Find matching open for same symbol
+        const openIdx = opens.findIndex(o => o.symbol === symbol)
+        if (openIdx >= 0) {
+          const open = opens.splice(openIdx, 1)[0]
+          const multiplier = symbol.toUpperCase().includes('SPX') || symbol.toUpperCase().includes('SPY') ? 100 : 1
+          const pnl = (side === 'sell' ? (price - open.price) : (open.price - price)) * qty * multiplier
+          trades.push({ date, time: time || open.time, symbol: symbol.split(' ')[0], direction: open.side === 'buy' ? 'call' : 'put', pnl: parseFloat(pnl.toFixed(2)), price, notes: symbol })
+        } else {
+          // No matching open — record as standalone with 0 pnl
+          trades.push({ date, time, symbol: symbol.split(' ')[0], pnl: 0, price, notes: symbol })
+        }
+      }
+    }
+    return trades
+  }
+
+  // Generic mode: direct P&L column
+  const trades: any[] = []
+  for (const row of rows) {
+    const rawDate = row.date || row.exec_time || row.time || row.trade_date || ''
+    let date = rawDate.split(' ')[0]
+    const dm = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+    if (dm) { const yr = dm[3].length === 2 ? '20' + dm[3] : dm[3]; date = yr + '-' + dm[1].padStart(2,'0') + '-' + dm[2].padStart(2,'0') }
+    const symbol = (row.symbol || row.ticker || row.instrument || '').split(' ')[0]
+    const pnl = parseFloat(row.p_l || row.pnl || row.realized_pnl || row.net_amount || row.net_p_l || '0')
+    const price = parseFloat(row.price || row.net_price || row.exec_price || '0')
+    const playbook = row.strategy || row.setup || row.playbook || ''
+    if (symbol && !isNaN(pnl)) {
+      trades.push({ date, symbol, pnl, price, playbook, notes: row.notes || '' })
     }
   }
   return trades
@@ -3327,6 +3407,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* TAB 4 — JOURNAL / ANALYTICS */}
         {tab === 'journal' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: 20, background: '#050609' }}>
+            <input ref={journalImportRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
 
             {/* Header row with title + import button */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -3541,9 +3622,6 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
         )}
       </div>
-
-        {/* Hidden file input for journal import — always mounted */}
-        <input ref={journalImportRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
 
         {/* ── AI VOICE COMPANION (STAR FEATURE — always visible) ── */}
       <div style={{
