@@ -1132,7 +1132,7 @@ export default function CockpitPage() {
   const [darkMode, setDarkMode] = useState(() => true)
 
   const CC = darkMode ? C_DARK : {
-    ...C,
+    ...C_DARK,
     bg: '#f0f4f8', deep: '#e4eaf2', surface: '#ffffff', surface2: '#f5f7fa', surface3: '#edf1f7',
     border: 'rgba(0,0,0,0.08)', border2: 'rgba(0,153,204,0.3)',
     text: '#0d1018', textDim: '#4a5568', textMuted: '#718096',
