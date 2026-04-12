@@ -262,7 +262,7 @@ Notes: ${activePlaybook.notes || 'None'}`
   const morningSection = morningPlan
     ? `MORNING PLAN:
 Bias: ${morningPlan.bias || 'Not set'}
-Implied move: Ã±${morningPlan.impliedMove || '?'} pts
+Implied move: ±${morningPlan.impliedMove || '?'} pts
 Key levels: ${morningPlan.keyLevels || 'Not set'}
 Gap: ${morningPlan.gapDirection || 'Flat'} ${morningPlan.gapSize ? morningPlan.gapSize + 'pts' : ''}${morningPlan.notes ? `\nTrader's thesis: ${morningPlan.notes}` : ''}`
     : 'No morning plan entered'
@@ -970,7 +970,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20, padding: '12px 14px', background: '#131720', borderRadius: 10, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Appearance</div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? '🌙Â Dark mode' : 'Ã¢ÂÂ️ Light mode'}</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? '🌙™ Dark mode' : '☀️ Light mode'}</div>
           </div>
           <button onClick={() => setDarkMode(!darkMode)} style={{
             width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative' as const,
@@ -1010,7 +1010,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
                   </button>
                   <button type="button" onClick={e => { e.stopPropagation(); testVoice(v.id, v.name) }}
                     style={{ position: 'absolute' as const, top: 5, right: 5, fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${C.tealBorder}`, background: previewingVoice === v.id ? C.tealDim : 'transparent', color: C.teal, cursor: 'pointer' }}>
-                    {previewingVoice === v.id ? 'Ã¢ÂÂ¸' : '▶'}
+                    {previewingVoice === v.id ? '▶' : '▶'}
                   </button>
                 </div>
               )
@@ -1050,7 +1050,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 10, color: C.textDim }}>🪖 Drill Sergeant</span>
             <span style={{ fontSize: 10, color: C.teal, fontWeight: 700 }}>{['','Drill Sergeant','Direct & Firm','Balanced','Encouraging','Life Coach'][aiTone]}</span>
-            <span style={{ fontSize: 10, color: C.textDim }}>Life Coach Ã°ÂÂ§Â</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>Life Coach 🧘</span>
           </div>
           <input type="range" min={1} max={5} value={aiTone} onChange={e => setAiTone(parseInt(e.target.value))}
             style={{ width: '100%', accentColor: '#00d4a0', cursor: 'pointer' }} />
@@ -1195,6 +1195,7 @@ export default function CockpitPage() {
   const [newTrade, setNewTrade] = useState({ symbol: 'SPX', direction: 'call', entry: '', exit: '', pnl: '', inSystem: true, notes: '', playbook: '' })
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const journalImportRef = useRef<HTMLInputElement>(null)
 
   // Voice
   const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
@@ -1896,7 +1897,7 @@ ${tiingoContext ? tiingoContext.summary : 'No Tiingo key — add for historical 
 
 ═══ MORNING PLAN ═══
 Bias: ${morningPlan.bias || 'NOT SET — trading without a plan'}
-Implied Move: Ã±${morningPlan.impliedMove || 'not set'} pts
+Implied Move: ±${morningPlan.impliedMove || 'not set'} pts
 Key Levels: ${morningPlan.keyLevels || 'not set'}
 Gap: ${morningPlan.gapDirection || 'flat'} ${morningPlan.gapSize ? morningPlan.gapSize + 'pts' : ''}${morningPlan.notes ? `\nTrader's notes: ${morningPlan.notes}` : ''}
 
@@ -2189,7 +2190,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </span>
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: '4px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: '#6b7280', cursor: 'pointer', marginRight: 6 }}>Sign Out</button>
-          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>Ã¢ÂÂ</button>
+          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>↺</button>
         </div>
       </div>
 
@@ -2369,7 +2370,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10 }}>
                   {marketNews && (
                     <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,153,204,0.08)', borderLeft: '3px solid #0099cc' }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>📁Â° TODAY'S NEWS</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>📁° TODAY'S NEWS</div>
                       <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{marketNews}</div>
                     </div>
                   )}
@@ -2399,7 +2400,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   )}
                   {macroRegime && (
                     <div style={{ background: '#0d1018', borderRadius: 8, padding: '10px 12px', boxShadow: '0 2px 10px rgba(0,170,85,0.07)', borderLeft: `3px solid ${macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire}` }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: '1px', marginBottom: 6 }}>🌙Â MACRO REGIME</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: '1px', marginBottom: 6 }}>🌍 MACRO REGIME</div>
                       <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 900, color: macroRegime.regime==='RISK-ON'?C.synapse:macroRegime.regime==='RISK-OFF'?C.red:C.fire, marginBottom: 4 }}>{macroRegime.regime}</div>
                       <div style={{ fontSize: 9, color: C.textMuted, marginBottom: 3 }}>Fed: <span style={{ color: C.text, fontWeight: 700 }}>{macroRegime.fedStance} ({macroRegime.rateLevel})</span></div>
                       <div style={{ fontSize: 10, color: C.text, lineHeight: 1.5 }}>{macroRegime.regimeSummary}</div>
@@ -2463,7 +2464,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                   <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.teal }}>AI COMPANION</div>
                   <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
-                    {listening ? '✏ LISTENING' : speaking ? 'Ã¢ÂÂ SPEAKING' : chatLoading ? 'Ã¢ÂÂ THINKING' : 'Ã¢ÂÂ READY'}
+                    {listening ? '✏ LISTENING' : speaking ? '↗ SPEAKING' : chatLoading ? '⏳ THINKING' : '✓ READY'}
                   </div>
                   {aiResult && (
                     <div style={{ marginLeft: 'auto', background: `${signalColor}12`, border: `1px solid ${signalColor}30`, borderRadius: 2, padding: '2px 8px', display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -2472,7 +2473,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
                   <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
-                  <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 16, padding: 0 }}>ÃÂ</button>
+                  <button onClick={() => setCompanionOpen(false)} title="Minimize companion" style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: '2px 6px', borderRadius: 4, lineHeight: 1 }}>— </button>
                 </div>
 
                 {/* Context bar */}
@@ -2544,9 +2545,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ padding: '10px 12px', background: 'rgba(13,17,23,0.98)', borderTop: `1px solid rgba(100,140,220,0.1)`, flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
                     <button onClick={listening ? stopListening : startListening} style={{ width: 40, height: 40, borderRadius: '50%', border: `1.5px solid ${listening ? 'rgba(204,16,64,0.4)' : 'rgba(204,16,64,0.25)'}`, background: listening ? 'rgba(204,16,64,0.1)' : 'rgba(204,16,64,0.05)', color: C.red, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? `0 0 0 5px rgba(204,16,64,0.08)` : 'none', animation: listening ? 'none' : 'micGlow 2s infinite', transition: 'all 0.2s', flexShrink: 0 }}>
-                      {listening ? 'Ã¢ÂÂ¹' : '🎙️'}
+                      {listening ? '↹' : '🎙️'}
                     </button>
-                    <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap Ã¢ÂÂ¹ to stop)' : 'Ask your AI companion...'}
+                    <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ↹ to stop)' : 'Ask your AI companion...'}
                       style={{ flex: 1, background: '#1a1f2e', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
                     <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
                   </div>
@@ -2561,8 +2562,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             )}
 
             {/* Collapsed companion button */}
-            {tab !== 'cockpit' && !companionOpen && (
-              <button onClick={() => setCompanionOpen(true)} style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: C.teal, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(0,212,160,0.25)', zIndex: 500 }}>
+            {!companionOpen && (
+              <button onClick={() => setCompanionOpen(true)} title="Open AI Companion" style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: 'rgba(0,212,160,0.15)', border: '2px solid rgba(0,212,160,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(0,212,160,0.25)', zIndex: 500 }}>
                 🧠
               </button>
             )}
@@ -2583,7 +2584,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Implied Move */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Implied Move (Ã±PTS)</div>
+                <div style={{ fontSize: 11, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 5, fontWeight: 600 }}>Implied Move (±PTS)</div>
                 <input value={morningPlan.impliedMove} onChange={e => setMorningPlan(p => ({ ...p, impliedMove: e.target.value }))}
                   placeholder="e.g. 50" style={{ width: '100%', background: '#1a1f2e', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
@@ -2627,7 +2628,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       border: `1.5px solid ${morningPlan.gapDirection === g ? col : 'rgba(100,140,220,0.2)'}`,
                       borderRadius: 6, padding: '7px 0', color: morningPlan.gapDirection === g ? col : C.textMuted,
                       cursor: 'pointer', fontSize: 9, fontWeight: 700, fontFamily: font, textTransform: 'uppercase' as const, transition: 'all 0.15s'
-                    }}>{g === 'gap up' ? 'GAP UP' : g === 'gap down' ? 'GAP DN' : 'FLAT'}</button>
+                    }}>{g === 'gap up' ? 'Gap Up' : g === 'gap down' ? 'Gap Down' : 'Flat'}</button>
                   ))}
                 </div>
               </div>
@@ -2885,7 +2886,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         {['TIMING','CONFLUENCE','RISK','SYSTEM'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </select>
                       <button onClick={() => setCustomChecklist((p: any[]) => p.filter((_: any, i: number) => i !== idx))}
-                        style={{ color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>ÃÂ</button>
+                        style={{ color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>✕</button>
                     </div>
                   ))}
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -2975,7 +2976,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 8, color: C.textDim }}>BIAS</span>
                       <span style={{ fontSize: 9, fontWeight: 700, color: morningPlan.bias === 'long' ? C.synapse : morningPlan.bias === 'short' ? C.red : C.textDim, textTransform: 'uppercase' }}>{morningPlan.bias}</span>
                     </div>
-                    {morningPlan.impliedMove && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 8, color: C.textDim }}>IMPLIED</span><span style={{ fontSize: 9, color: C.text }}>Ã±{morningPlan.impliedMove}</span></div>}
+                    {morningPlan.impliedMove && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 8, color: C.textDim }}>IMPLIED</span><span style={{ fontSize: 9, color: C.text }}>±{morningPlan.impliedMove}</span></div>}
                     {morningPlan.keyLevels && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 3 }}>Lvls: <span style={{ color: C.textDim }}>{morningPlan.keyLevels}</span></div>}
                   </div>
                 ) : (
@@ -3062,7 +3063,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {/* Positioning */}
                   {aiResult && (
                     <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}` }}>
-                      <div style={{ fontSize: 8, color: C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>📁Â Positioning</div>
+                      <div style={{ fontSize: 8, color: C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>📁 Positioning</div>
                       <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
                         <div style={{ flex: 1, background: C.synapse + '10', border: `1px solid ${C.synapse}25`, borderRadius: 3, padding: '4px 6px', textAlign: 'center' }}>
                           <div style={{ fontSize: 7, color: C.textDim }}>BULLISH ABOVE</div>
@@ -3265,7 +3266,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10, lineHeight: 1.5 }}>Upload a CSV export from ThinkorSwim, Tradovate, Webull, or any broker. Your trade history will feed the AI to improve its analysis.</div>
                 <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
                 <button onClick={() => fileInputRef.current?.click()} style={{ width: '100%', background: '#131720', border: `1px dashed ${C.border2}`, borderRadius: 6, padding: '10px 0', color: C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
-                  📁Â Upload CSV
+                  📁 Upload CSV
                 </button>
                 {importStatus && (
                   <div style={{ marginTop: 8, fontSize: 10, color: importStatus.startsWith('✓') ? C.teal : C.yellow, padding: '6px 8px', background: importStatus.startsWith('✓') ? C.tealDim : C.yellowDim, borderRadius: 5 }}>
@@ -3295,7 +3296,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 trades.map((t: any) => (
                   <div key={t.id} style={{ background: '#0d1018', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 6, background: t.pnl >= 0 ? C.tealDim : C.redDim, border: `1px solid ${t.pnl >= 0 ? C.tealBorder : C.redBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>{t.pnl >= 0 ? '+' : 'Ã¢ÂÂ'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>{t.pnl >= 0 ? '+' : '≈'}</span>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
@@ -3304,12 +3305,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: t.inSystem ? C.tealDim : C.redDim, color: t.inSystem ? C.teal : C.red }}>{t.inSystem ? 'IN-SYS' : 'OUT-SYS'}</span>
                         {t.playbook && <span style={{ fontSize: 9, color: C.textDim }}>{t.playbook}</span>}
                       </div>
-                      <div style={{ fontSize: 10, color: C.textDim }}>{t.date} {t.notes && `ÃÂ· ${t.notes}`}</div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{t.date} {t.notes && `· ${t.notes}`}</div>
                     </div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: t.pnl >= 0 ? C.teal : C.red }}>
                       {t.pnl >= 0 ? '+' : ''}${typeof t.pnl === 'number' ? t.pnl.toFixed(0) : t.pnl}
                     </div>
-                    <button onClick={() => setTrades(p => p.filter((x: any) => x.id !== t.id))} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: 0 }}>ÃÂ</button>
+                    <button onClick={() => setTrades(p => p.filter((x: any) => x.id !== t.id))} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: 0 }}>✕</button>
                   </div>
                 ))
               )}
@@ -3327,7 +3328,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, color: C.text }}>Performance Analytics</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <button onClick={() => fileInputRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 6, padding: '6px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600 }}>
+                                <button onClick={() => journalImportRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 6, padding: '6px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600 }}>
                   📂 Import CSV
                 </button>
                 {importStatus && <span style={{ fontSize: 10, color: importStatus.startsWith('✓') ? C.synapse : C.yellow }}>{importStatus}</span>}
@@ -3373,7 +3374,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
                 <div style={{ fontSize: 14, color: C.textDim, marginBottom: 8 }}>No trade data yet</div>
                 <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>Import a TOS CSV or add trades in the LOG TRADE tab</div>
-                <button onClick={() => fileInputRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 8, padding: '10px 20px', color: C.teal, cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
+                <button onClick={() => journalImportRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 8, padding: '10px 20px', color: C.teal, cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
                   📂 Import Trades CSV
                 </button>
               </div>
@@ -3537,6 +3538,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
       </div>
 
+        {/* Hidden file input for journal import — always mounted */}
+        <input ref={journalImportRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
+
         {/* ── AI VOICE COMPANION (STAR FEATURE — always visible) ── */}
       <div style={{
         position: 'fixed', bottom: 0, right: 0,
@@ -3591,7 +3595,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </div>
               {/* Status */}
               <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(255,60,96,0.4)' : speaking ? 'rgba(124,58,237,0.4)' : 'rgba(0,229,255,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(255,60,96,0.08)' : speaking ? 'rgba(124,58,237,0.08)' : 'rgba(0,229,255,0.05)', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
-                {listening ? '✏ LISTENING' : speaking ? 'Ã¢ÂÂ SPEAKING' : chatLoading ? 'Ã¢ÂÂ THINKING' : 'Ã¢ÂÂ READY'}
+                {listening ? '✏ LISTENING' : speaking ? '↗ SPEAKING' : chatLoading ? '⏳ THINKING' : '✓ READY'}
               </div>
               {aiResult && (
                 <div style={{ marginLeft: 'auto', background: `${signalColor}15`, border: `1px solid ${signalColor}35`, borderRadius: 2, padding: '2px 8px', display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -3600,7 +3604,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               )}
               <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
-              <button onClick={() => setCompanionOpen(false)} style={{ background: 'transparent', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: 16, padding: 0, marginLeft: 2 }}>ÃÂ</button>
+              <button onClick={() => setCompanionOpen(false)} title="Minimize" style={{ background: 'transparent', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: 16, padding: 0, marginLeft: 2 }}>⌄</button>
             </div>
 
             {/* Context snapshot */}
@@ -3705,14 +3709,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   transition: 'all 0.2s ease',
                   animation: listening ? 'none' : 'micGlow 2s ease-in-out infinite',
                 }}>
-                  {listening ? 'Ã¢ÂÂ¹' : '🎙️'}
+                  {listening ? '↹' : '🎙️'}
                 </button>
 
                 <input
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChat()}
-                  placeholder={listening ? 'Listening... (tap Ã¢ÂÂ¹ to stop)' : 'Ask your AI companion...'}
+                  placeholder={listening ? 'Listening... (tap ↹ to stop)' : 'Ask your AI companion...'}
                   style={{
                     flex: 1, background: 'rgba(0,229,255,0.04)',
                     border: `1px solid ${listening ? 'rgba(255,60,96,0.4)' : 'rgba(0,229,255,0.12)'}`,
