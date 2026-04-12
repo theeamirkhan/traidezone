@@ -3344,7 +3344,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
         )}
 
-        {/* TAB 4 — JOURNAL / ANALYTICS */}
+{/* TAB 4 — JOURNAL / ANALYTICS PLACEHOLDER */}
         {tab === 'journal' && (()=>{
           const allT: any[] = trades
           const netPnl: number = allT.reduce((s,t)=>s+(Number(t.pnl)||0),0)
