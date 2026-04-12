@@ -3346,164 +3346,184 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
         {/* ═══════════════════════════════════════════════════════ */}
         {/* TAB 4 — JOURNAL / ANALYTICS */}
-        {tab === 'journal' && (() => {
-          const allT=trades
-          const wins=allT.filter((t:any)=>parseFloat(t.pnl)>0)
-          const losses=allT.filter((t:any)=>parseFloat(t.pnl)<0)
-          const netPnl=allT.reduce((s:number,t:any)=>s+(parseFloat(t.pnl)||0),0)
-          const winPct=allT.length?Math.round(wins.length/allT.length*100):0
-          const avgW=wins.length?wins.reduce((s:number,t:any)=>s+parseFloat(t.pnl),0)/wins.length:0
-          const avgL=losses.length?Math.abs(losses.reduce((s:number,t:any)=>s+parseFloat(t.pnl),0)/losses.length):0
-          const pf=avgL>0?avgW/avgL:0
-          const bigW=wins.length?Math.max(...wins.map((t:any)=>parseFloat(t.pnl))):0
-          const bigL=losses.length?Math.max(...losses.map((t:any)=>Math.abs(parseFloat(t.pnl)))):0
-          const byDay:any={}
-          allT.forEach((t:any)=>{const dk=t.date||'';if(!byDay[dk])byDay[dk]={pnl:0};byDay[dk].pnl+=parseFloat(t.pnl)||0})
-          const dayArr=Object.entries(byDay) as [string,any][]
-          const dayW=dayArr.filter(([,v])=>v.pnl>0).length
-          const dayWpct=dayArr.length?Math.round(dayW/dayArr.length*100):0
-          const byHr:any={}
-          allT.forEach((t:any)=>{const hv=t.time?parseInt(t.time.split(':')[0]):null;if(hv!==null){if(!byHr[hv])byHr[hv]=0;byHr[hv]+=parseFloat(t.pnl)||0}})
-          const byPb:any={}
-          allT.forEach((t:any)=>{const pk=t.playbook||'No playbook';if(!byPb[pk])byPb[pk]={w:0,tot:0,pnl:0};byPb[pk].tot++;if(parseFloat(t.pnl)>0)byPb[pk].w++;byPb[pk].pnl+=parseFloat(t.pnl)||0})
-          const topHr=Object.entries(byHr).sort((a:any,b:any)=>b[1]-a[1])[0]
-          const botHr=Object.entries(byHr).sort((a:any,b:any)=>a[1]-b[1])[0]
+        {tab === 'journal' && (()=>{
+          const allT: any[] = trades
+          const totalPnl: number = allT.reduce((s,t)=>s+(Number(t.pnl)||0),0)
+          const wins: any[] = allT.filter(t=>Number(t.pnl)>0)
+          const losses: any[] = allT.filter(t=>Number(t.pnl)<0)
+          const winPct: number = allT.length?Math.round(wins.length/allT.length*100):0
+          const avgW: number = wins.length?wins.reduce((s,t)=>s+Number(t.pnl),0)/wins.length:0
+          const avgL: number = losses.length?Math.abs(losses.reduce((s,t)=>s+Number(t.pnl),0)/losses.length):0
+          const pf: number = avgL>0?avgW/avgL:0
+          const bigW: number = wins.length?Math.max(...wins.map(t=>Number(t.pnl))):0
+          const bigL: number = losses.length?Math.max(...losses.map(t=>Math.abs(Number(t.pnl)))):0
+          const byDay: Record<string,{pnl:number}> = {}
+          allT.forEach(t=>{const k=t.date||'';if(!byDay[k])byDay[k]={pnl:0};byDay[k].pnl+=Number(t.pnl)||0})
+          const dayArr = Object.entries(byDay)
+          const dayW = dayArr.filter(([,v])=>v.pnl>0).length
+          const dayWpct = dayArr.length?Math.round(dayW/dayArr.length*100):0
+          const byHr: Record<number,number> = {}
+          allT.forEach(t=>{const hv=t.time?parseInt(t.time):null;if(hv!==null){byHr[hv]=(byHr[hv]||0)+Number(t.pnl)||0}})
+          const hrEntries = Object.entries(byHr).map(([h,p])=>({h:parseInt(h),p:Number(p)}))
+          const topHr = hrEntries.sort((a,b)=>b.p-a.p)[0]
+          const botHr = hrEntries.sort((a,b)=>a.p-b.p)[0]
+          const maxHrAbs = hrEntries.length?Math.max(...hrEntries.map(e=>Math.abs(e.p)),1):1
+          const byPb: Record<string,{w:number,tot:number,pnl:number}> = {}
+          allT.forEach(t=>{const k=t.playbook||'No playbook';if(!byPb[k])byPb[k]={w:0,tot:0,pnl:0};byPb[k].tot++;if(Number(t.pnl)>0)byPb[k].w++;byPb[k].pnl+=Number(t.pnl)||0})
           const now2=new Date(),yr=now2.getFullYear(),mo=now2.getMonth()
           const dim=new Date(yr,mo+1,0).getDate(),fdm=new Date(yr,mo,1).getDay(),mos=String(mo+1).padStart(2,'0')
-          const statRows=[
-            {label:'Total trades',value:allT.length,color:C.text},
-            {label:'Winners',value:wins.length,color:C.synapse},
-            {label:'Losers',value:losses.length,color:C.red},
-            {label:'Largest win',value:'+$'+Math.round(bigW),color:C.synapse},
-            {label:'Largest loss',value:'-$'+Math.round(bigL),color:C.red},
-            {label:'Profit factor',value:pf.toFixed(2)+'x',color:pf>=1?C.synapse:C.red},
-          ]
-          const metricCards=[
-            {label:'Net P&L',value:(netPnl>=0?'+':'')+'$'+Math.round(netPnl).toLocaleString(),color:netPnl>=0?C.synapse:C.red,sub:allT.length+' trades'},
-            {label:'Trade Win %',value:winPct+'%',color:winPct>=60?C.synapse:winPct>=50?C.yellow:C.red,sub:wins.length+'/'+allT.length},
-            {label:'Avg Win',value:'+$'+Math.round(avgW),color:C.synapse,sub:'Per winner'},
-            {label:'Avg Loss',value:'-$'+Math.round(avgL),color:C.red,sub:'Per loser'},
-            {label:'Day Win %',value:dayWpct+'%',color:dayWpct>=60?C.synapse:dayWpct>=50?C.yellow:C.red,sub:dayW+'/'+dayArr.length+' days'},
-            {label:'Profit Factor',value:pf.toFixed(2)+'x',color:pf>=1.5?C.synapse:pf>=1?C.yellow:C.red,sub:'Win/loss ratio'},
-          ]
           return(
             <div style={{flex:1,overflowY:'auto',padding:20,background:'#050609'}}>
               <div style={{fontFamily:fontDisplay,fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>Performance Analytics</div>
-              {allT.length===0?(
+              {allT.length===0 ? (
                 <div style={{textAlign:'center',padding:'60px 20px',background:'#0d1018',borderRadius:12,border:'1px solid '+C.border}}>
                   <div style={{fontSize:40,marginBottom:12}}>📊</div>
                   <div style={{fontSize:14,color:C.textDim,marginBottom:8}}>No trade data yet</div>
                   <div style={{fontSize:12,color:C.textMuted}}>Import a CSV in LOG TRADE to unlock analytics</div>
                 </div>
-              ):(<>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:10,marginBottom:16}}>
-                  {metricCards.map(({label,value,color,sub})=>(
-                    <div key={label} style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
-                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>{label}</div>
-                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:color,marginBottom:2}}>{value}</div>
-                      <div style={{fontSize:10,color:C.textMuted}}>{sub}</div>
+              ) : (
+                <div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:10,marginBottom:16}}>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',marginBottom:6}}>Net P&L</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:totalPnl>=0?C.synapse:C.red}}>{totalPnl>=0?'+':''}${Math.round(totalPnl).toLocaleString()}</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>{allT.length} trades</div>
                     </div>
-                  ))}
-                </div>
-                <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16,marginBottom:16}}>
-                  <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Daily P&L — {new Date(yr,mo).toLocaleString('default',{month:'long',year:'numeric'})}</div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:4}}>
-                    {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=><div key={d} style={{textAlign:'center',fontSize:10,color:C.textMuted}}>{d}</div>)}
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
-                    {Array.from({length:fdm}).map((_,i)=><div key={'e'+i} style={{aspectRatio:'1'}}/>)}
-                    {Array.from({length:dim}).map((_,i)=>{
-                      const day=i+1,ds=yr+'-'+mos+'-'+String(day).padStart(2,'0'),dd=byDay[ds],dow=(fdm+i)%7,isWe=dow===0||dow===6
-                      return <div key={day} style={{aspectRatio:'1',borderRadius:5,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:isWe?'transparent':dd?(dd.pnl>=0?'rgba(0,170,85,0.15)':'rgba(204,16,64,0.12)'):'#131720',border:dd?'1px solid '+(dd.pnl>=0?'rgba(0,170,85,0.3)':'rgba(204,16,64,0.25)'):'1px solid '+C.border}}>
-                        <span style={{fontSize:9,color:C.textMuted}}>{day}</span>
-                        {dd&&<span style={{fontSize:9,fontWeight:700,color:dd.pnl>=0?C.synapse:C.red}}>{dd.pnl>=0?'+':''}${Math.round(dd.pnl)}</span>}
-                      </div>
-                    })}
-                  </div>
-                </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-                  <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16}}>
-                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Win / Loss Breakdown</div>
-                    <div style={{height:8,borderRadius:4,background:'#1a1f2e',overflow:'hidden',marginBottom:8}}><div style={{height:'100%',width:winPct+'%',background:C.synapse,borderRadius:4}}/></div>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:14}}>
-                      <span style={{color:C.synapse,fontWeight:700}}>{winPct}% wins</span>
-                      <span style={{color:C.red,fontWeight:700}}>{100-winPct}% losses</span>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',marginBottom:6}}>Trade Win %</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:winPct>=60?C.synapse:winPct>=50?C.yellow:C.red}}>{winPct}%</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>{wins.length}/{allT.length}</div>
                     </div>
-                    {statRows.map(({label,value,color})=>(
-                      <div key={label} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}>
-                        <span style={{color:C.textDim}}>{label}</span>
-                        <span style={{fontWeight:700,color:color}}>{value}</span>
-                      </div>
-                    ))}
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',marginBottom:6}}>Avg Win</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:C.synapse}}>+${Math.round(avgW)}</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>Per winner</div>
+                    </div>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',marginBottom:6}}>Avg Loss</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:C.red}}>-${Math.round(avgL)}</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>Per loser</div>
+                    </div>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',marginBottom:6}}>Day Win %</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:dayWpct>=60?C.synapse:dayWpct>=50?C.yellow:C.red}}>{dayWpct}%</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>{dayW}/{dayArr.length} days</div>
+                    </div>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,color:C.textMuted,textTransform:'uppercase',marginBottom:6}}>Profit Factor</div>
+                      <div style={{fontFamily:fontDisplay,fontSize:18,fontWeight:700,color:pf>=1.5?C.synapse:pf>=1?C.yellow:C.red}}>{pf.toFixed(2)}x</div>
+                      <div style={{fontSize:10,color:C.textMuted}}>Win/loss ratio</div>
+                    </div>
                   </div>
-                  <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16}}>
-                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Playbook Performance</div>
-                    {Object.keys(byPb).length===0?<div style={{fontSize:12,color:C.textMuted}}>Log trades with playbooks to see breakdown</div>
-                    :Object.entries(byPb).sort((a:any,b:any)=>b[1].pnl-a[1].pnl).map(([name,pb]:any)=>{
-                      const pbWr=pb.tot?Math.round(pb.w/pb.tot*100):0
-                      return <div key={name} style={{marginBottom:12}}>
-                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                          <span style={{fontSize:11,color:C.text,fontWeight:600}}>{name}</span>
-                          <span style={{fontSize:11,fontWeight:700,color:pb.pnl>=0?C.synapse:C.red}}>{pb.pnl>=0?'+':''}${Math.round(pb.pnl)}</span>
-                        </div>
-                        <div style={{display:'flex',gap:8,fontSize:10,color:C.textMuted,marginBottom:4}}><span>{pb.tot} trades</span><span style={{color:pbWr>=60?C.synapse:pbWr>=50?C.yellow:C.red}}>{pbWr}% win</span></div>
-                        <div style={{height:4,borderRadius:2,background:'#1a1f2e',overflow:'hidden'}}><div style={{height:'100%',width:pbWr+'%',background:pbWr>=60?C.synapse:pbWr>=50?C.yellow:C.red}}/></div>
-                      </div>
-                    })}
-                  </div>
-                </div>
-                {Object.keys(byHr).length>0&&(
                   <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16,marginBottom:16}}>
-                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>P&L by Hour of Day</div>
-                    <div style={{display:'flex',gap:4,alignItems:'flex-end',height:80,marginBottom:8}}>
-                      {Array.from({length:14},(_,i)=>i+8).map(h=>{
-                        const hp=byHr[h]||0,mx=Math.max(...Object.values(byHr).map((v:any)=>Math.abs(v)),1),hpct=Math.abs(hp)/mx*100
-                        return <div key={h} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-                          <div style={{width:'100%',display:'flex',flexDirection:'column',justifyContent:hp>=0?'flex-end':'flex-start',height:60}}>
-                            <div style={{width:'100%',height:hpct+'%',minHeight:hp!==0?2:0,background:hp>=0?'rgba(0,170,85,0.7)':'rgba(204,16,64,0.7)',borderRadius:2}}/>
-                          </div>
-                          <span style={{fontSize:8,color:C.textMuted}}>{h>12?h-12+'p':h+'a'}</span>
+                    <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Daily P&L — {new Date(yr,mo).toLocaleString('default',{month:'long',year:'numeric'})}</div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:4}}>
+                      {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=><div key={d} style={{textAlign:'center',fontSize:10,color:C.textMuted}}>{d}</div>)}
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
+                      {Array.from({length:fdm}).map((_,i)=><div key={'e'+i} style={{aspectRatio:'1'}}/>)}
+                      {Array.from({length:dim}).map((_,i)=>{
+                        const day=i+1,ds=yr+'-'+mos+'-'+String(day).padStart(2,'0'),dd=byDay[ds],dow=(fdm+i)%7,isWe=dow===0||dow===6
+                        return <div key={day} style={{aspectRatio:'1',borderRadius:5,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:isWe?'transparent':dd?(dd.pnl>=0?'rgba(0,170,85,0.15)':'rgba(204,16,64,0.12)'):'#131720',border:'1px solid '+(dd?(dd.pnl>=0?'rgba(0,170,85,0.3)':'rgba(204,16,64,0.25)'):C.border)}}>
+                          <span style={{fontSize:9,color:C.textMuted}}>{day}</span>
+                          {dd && <span style={{fontSize:9,fontWeight:700,color:dd.pnl>=0?C.synapse:C.red}}>{dd.pnl>=0?'+':''}${Math.round(dd.pnl)}</span>}
                         </div>
                       })}
                     </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                      {topHr&&<div style={{background:'rgba(0,170,85,0.08)',border:'1px solid rgba(0,170,85,0.2)',borderRadius:6,padding:'8px 10px'}}>
-                        <div style={{fontSize:10,color:C.textMuted,marginBottom:2}}>Best hour</div>
-                        <div style={{fontSize:12,color:C.synapse,fontWeight:700}}>{parseInt(topHr[0])>12?parseInt(topHr[0])-12+'PM':topHr[0]+'AM'} (+${Math.round(topHr[1] as number)})</div>
-                      </div>}
-                      {botHr&&<div style={{background:'rgba(204,16,64,0.06)',border:'1px solid rgba(204,16,64,0.2)',borderRadius:6,padding:'8px 10px'}}>
-                        <div style={{fontSize:10,color:C.textMuted,marginBottom:2}}>Worst hour</div>
-                        <div style={{fontSize:12,color:C.red,fontWeight:700}}>{parseInt(botHr[0])>12?parseInt(botHr[0])-12+'PM':botHr[0]+'AM'} (-${Math.round(Math.abs(botHr[1] as number))})</div>
-                      </div>}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16}}>
+                      <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Win / Loss Breakdown</div>
+                      <div style={{height:8,borderRadius:4,background:'#1a1f2e',overflow:'hidden',marginBottom:8}}>
+                        <div style={{height:'100%',width:winPct+'%',background:C.synapse,borderRadius:4}}/>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:14}}>
+                        <span style={{color:C.synapse,fontWeight:700}}>{winPct}% wins</span>
+                        <span style={{color:C.red,fontWeight:700}}>{100-winPct}% losses</span>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}><span style={{color:C.textDim}}>Total trades</span><span style={{fontWeight:700,color:C.text}}>{allT.length}</span></div>
+                      <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}><span style={{color:C.textDim}}>Winners</span><span style={{fontWeight:700,color:C.synapse}}>{wins.length}</span></div>
+                      <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}><span style={{color:C.textDim}}>Losers</span><span style={{fontWeight:700,color:C.red}}>{losses.length}</span></div>
+                      <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}><span style={{color:C.textDim}}>Largest win</span><span style={{fontWeight:700,color:C.synapse}}>+${Math.round(bigW)}</span></div>
+                      <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid '+C.border,fontSize:12}}><span style={{color:C.textDim}}>Largest loss</span><span style={{fontWeight:700,color:C.red}}>-${Math.round(bigL)}</span></div>
+                      <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:12}}><span style={{color:C.textDim}}>Profit factor</span><span style={{fontWeight:700,color:pf>=1?C.synapse:C.red}}>{pf.toFixed(2)}x</span></div>
+                    </div>
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16}}>
+                      <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>Playbook Performance</div>
+                      {Object.keys(byPb).length===0 ? <div style={{fontSize:12,color:C.textMuted}}>Log trades with playbooks to see breakdown</div>
+                      : Object.entries(byPb).sort((a,b)=>b[1].pnl-a[1].pnl).map(([name,pb])=>{
+                        const pbWr=pb.tot?Math.round(pb.w/pb.tot*100):0
+                        return <div key={name} style={{marginBottom:12}}>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                            <span style={{fontSize:11,color:C.text,fontWeight:600}}>{name}</span>
+                            <span style={{fontSize:11,fontWeight:700,color:pb.pnl>=0?C.synapse:C.red}}>{pb.pnl>=0?'+':''}${Math.round(pb.pnl)}</span>
+                          </div>
+                          <div style={{display:'flex',gap:8,fontSize:10,color:C.textMuted,marginBottom:4}}>
+                            <span>{pb.tot} trades</span>
+                            <span style={{color:pbWr>=60?C.synapse:pbWr>=50?C.yellow:C.red}}>{pbWr}% win</span>
+                          </div>
+                          <div style={{height:4,borderRadius:2,background:'#1a1f2e',overflow:'hidden'}}>
+                            <div style={{height:'100%',width:pbWr+'%',background:pbWr>=60?C.synapse:pbWr>=50?C.yellow:C.red}}/>
+                          </div>
+                        </div>
+                      })}
                     </div>
                   </div>
-                )}
-                <div style={{background:'#0d1018',border:'1px solid '+C.tealBorder,borderRadius:10,padding:16}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-                    <div style={{width:8,height:8,borderRadius:'50%',background:C.teal,animation:'pulse 2s infinite'}}/>
-                    <div style={{fontFamily:fontDisplay,fontSize:12,fontWeight:700,color:C.teal}}>AI Pattern Recognition</div>
-                  </div>
-                  <button onClick={async()=>{
-                    setAiLoading(true)
-                    try{
-                      const pbStr=Object.entries(byPb).map(([n,pb]:any)=>n+': '+pb.tot+'t '+Math.round(pb.w/pb.tot*100)+'% $'+Math.round(pb.pnl)).join(' | ')
-                      const hrStr=Object.entries(byHr).sort((a:any,b:any)=>+a[0]-+b[0]).map(([h,p]:any)=>h+'=$'+Math.round(p)).join(', ')
-                      const resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:'Analyze this SPX options trader. Give 4 brutally honest numbered insights (2 sentences each) calling out bad patterns and what is working.
+                  {hrEntries.length>0 && (
+                    <div style={{background:'#0d1018',border:'1px solid '+C.border,borderRadius:10,padding:16,marginBottom:16}}>
+                      <div style={{fontSize:11,fontWeight:700,color:C.textDim,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:12}}>P&L by Hour of Day</div>
+                      <div style={{display:'flex',gap:4,alignItems:'flex-end',height:80,marginBottom:8}}>
+                        {Array.from({length:14},(_,i)=>i+8).map(h=>{
+                          const hp=byHr[h]||0,hpct=Math.abs(hp)/maxHrAbs*100
+                          return <div key={h} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                            <div style={{width:'100%',display:'flex',flexDirection:'column',justifyContent:hp>=0?'flex-end':'flex-start',height:60}}>
+                              <div style={{width:'100%',height:hpct+'%',minHeight:hp!==0?2:0,background:hp>=0?'rgba(0,170,85,0.7)':'rgba(204,16,64,0.7)',borderRadius:2}}/>
+                            </div>
+                            <span style={{fontSize:8,color:C.textMuted}}>{h>12?h-12+'p':h+'a'}</span>
+                          </div>
+                        })}
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                        {topHr && <div style={{background:'rgba(0,170,85,0.08)',border:'1px solid rgba(0,170,85,0.2)',borderRadius:6,padding:'8px 10px'}}>
+                          <div style={{fontSize:10,color:C.textMuted,marginBottom:2}}>Best hour</div>
+                          <div style={{fontSize:12,color:C.synapse,fontWeight:700}}>{topHr.h>12?topHr.h-12+'PM':topHr.h+'AM'} (+${Math.round(topHr.p)})</div>
+                        </div>}
+                        {botHr && <div style={{background:'rgba(204,16,64,0.06)',border:'1px solid rgba(204,16,64,0.2)',borderRadius:6,padding:'8px 10px'}}>
+                          <div style={{fontSize:10,color:C.textMuted,marginBottom:2}}>Worst hour</div>
+                          <div style={{fontSize:12,color:C.red,fontWeight:700}}>{botHr.h>12?botHr.h-12+'PM':botHr.h+'AM'} (-${Math.round(Math.abs(botHr.p))})</div>
+                        </div>}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{background:'#0d1018',border:'1px solid '+C.tealBorder,borderRadius:10,padding:16}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                      <div style={{width:8,height:8,borderRadius:'50%',background:C.teal,animation:'pulse 2s infinite'}}/>
+                      <div style={{fontFamily:fontDisplay,fontSize:12,fontWeight:700,color:C.teal}}>AI Pattern Recognition</div>
+                    </div>
+                    <button onClick={async()=>{
+                      setAiLoading(true)
+                      try{
+                        const pbStr=Object.entries(byPb).map(([n,pb])=>n+': '+pb.tot+'t '+Math.round(pb.w/pb.tot*100)+'% $'+Math.round(pb.pnl)).join(' | ')
+                        const hrStr=hrEntries.sort((a,b)=>a.h-b.h).map(e=>e.h+'=$'+Math.round(e.p)).join(', ')
+                        const resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:'Analyze this SPX options trader. 4 brutally honest numbered insights (2 sentences each).
 
-Win: '+winPct+'% | PnL: $'+Math.round(netPnl)+' | AvgW: $'+Math.round(avgW)+' | AvgL: $'+Math.round(avgL)+' | PF: '+pf.toFixed(2)+'x | DayWin: '+dayWpct+'%
+Win: '+winPct+'% | PnL: $'+Math.round(totalPnl)+' | AvgW: $'+Math.round(avgW)+' | AvgL: $'+Math.round(avgL)+' | PF: '+pf.toFixed(2)+'x | DayWin: '+dayWpct+'%
 Playbooks: '+pbStr+'
 Hours: '+hrStr}]})})
-                      const dat=await resp.json(),txt=dat.content?.[0]?.text||'No analysis'
-                      setChatMessages([{role:'assistant',content:'📊 Pattern Analysis:
+                        const dat=await resp.json()
+                        setChatMessages([{role:'assistant',content:'📊 Pattern Analysis:
 
-'+txt}]);setTab('cockpit')
-                    }catch{}setAiLoading(false)
-                  }} style={{background:C.tealDim,border:'1px solid '+C.tealBorder,borderRadius:8,padding:'10px 16px',color:C.teal,cursor:'pointer',fontFamily:font,fontSize:12,fontWeight:700,marginBottom:12}}>
-                    {aiLoading?'↻ Analyzing...':'🔍 Analyze My Trading Patterns'}
-                  </button>
-                  <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>Your full trade history, hourly patterns, playbook performance, and day-level stats feed the AI companion — making every response more personalized over time.</div>
+'+(dat.content?.[0]?.text||'No analysis')}])
+                        setTab('cockpit')
+                      }catch{}
+                      setAiLoading(false)
+                    }} style={{background:C.tealDim,border:'1px solid '+C.tealBorder,borderRadius:8,padding:'10px 16px',color:C.teal,cursor:'pointer',fontFamily:font,fontSize:12,fontWeight:700,marginBottom:12}}>
+                      {aiLoading?'↻ Analyzing...':'🔍 Analyze My Trading Patterns'}
+                    </button>
+                    <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>Your full trade history, hourly patterns, playbook performance, and day stats feed the AI companion — making every response more personalized over time.</div>
+                  </div>
                 </div>
-              </>)}
+              )}
             </div>
           )
         })()}
