@@ -13,7 +13,7 @@ const VOICE_ID = 'tz-voice-id'
 
 // ── COLOR SYSTEM — NEURAL BLACK ────────────────────────────────────────────
 // ── COLOR SYSTEM — PEARL WHITE ────────────────────────────────────────────
-const C = {
+const C_DARK = {
   bg: '#080a0f',
   deep: '#050609',
   surface: '#0d1018',
@@ -53,6 +53,7 @@ const C = {
   purpleGlow: 'rgba(0,212,160,0.06)',
   redBorderLegacy: 'rgba(204,16,64,0.18)',
 }
+const C = C_DARK  // Module-level fallback; component overrides with const C = CC
 const font = "'Share Tech Mono', monospace"
 const fontDisplay = "'Orbitron', sans-serif"
 
@@ -970,7 +971,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20, padding: '12px 14px', background: '#131720', borderRadius: 10, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Appearance</div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? '🌙™ Dark mode' : '☀️ Light mode'}</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{darkMode ? '🌙 Dark mode' : '☀️ Light mode'}</div>
           </div>
           <button onClick={() => setDarkMode(!darkMode)} style={{
             width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative' as const,
@@ -2034,7 +2035,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   if (!isLoaded) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#080a0f', color: '#8090b0', fontFamily: font }}>Loading...</div>
 
   // CC switches based on darkMode
-  const CC = darkMode ? C : {
+  const CC = darkMode ? C_DARK : {
     ...C,
     bg: '#f0f4f8', deep: '#e4eaf2', surface: '#ffffff', surface2: '#f5f7fa', surface3: '#edf1f7',
     border: 'rgba(0,0,0,0.08)', border2: 'rgba(0,153,204,0.3)',
@@ -2045,6 +2046,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     fireDim: 'rgba(224,80,0,0.08)', fireBorder: 'rgba(224,80,0,0.25)',
     yellowDim: 'rgba(192,112,0,0.1)',
   }
+  const C = CC  // C now tracks dark/light mode across all 454 references
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: darkMode ? '#080a0f' : '#f0f4f8', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
@@ -2190,7 +2192,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </span>
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: '4px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: '#6b7280', cursor: 'pointer', marginRight: 6 }}>Sign Out</button>
-          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 2, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>↺</button>
+          <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 4, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
         </div>
       </div>
 
