@@ -3318,38 +3318,220 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
 
         {/* ═══════════════════════════════════════════════════════ */}
+        {/* ═══════════════════════════════════════════════════════ */}
         {/* TAB 4 — JOURNAL / ANALYTICS */}
         {tab === 'journal' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: 20, background: '#050609' }}>
-            <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 16 }}>Performance Analytics</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
-              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Net P&L</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.totalPnl) >= 0 ? C.synapse : C.red }}>{tradeStats ? (parseFloat(tradeStats.totalPnl) >= 0 ? '+' : '') + '$' + tradeStats.totalPnl : '$0'}</div>
-              </div>
-              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Trade Win %</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.winRate) >= 60 ? C.synapse : C.red }}>{tradeStats ? tradeStats.winRate + '%' : '0%'}</div>
-              </div>
-              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Profit Factor</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.profitFactor) >= 1.5 ? C.synapse : C.yellow }}>{tradeStats ? tradeStats.profitFactor + 'x' : '0x'}</div>
-              </div>
-              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Avg Win</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: C.synapse }}>{tradeStats ? '+$' + tradeStats.avgWin : '$0'}</div>
-              </div>
-              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Avg Loss</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: C.red }}>{tradeStats ? '-$' + tradeStats.avgLoss : '$0'}</div>
-              </div>
-              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Total Trades</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: C.text }}>{tradeStats ? tradeStats.totalTrades : 0}</div>
+
+            {/* Header row with title + import button */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, color: C.text }}>Performance Analytics</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <button onClick={() => fileInputRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 6, padding: '6px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600 }}>
+                  📂 Import CSV
+                </button>
+                {importStatus && <span style={{ fontSize: 10, color: importStatus.startsWith('✓') ? C.synapse : C.yellow }}>{importStatus}</span>}
               </div>
             </div>
-            {!tradeStats && (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: C.textMuted, fontSize: 13 }}>Import trades in LOG TRADE to unlock full analytics</div>
+
+            {/* 6 stat cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 16 }}>
+              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>Net P&L</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.totalPnl) >= 0 ? C.synapse : C.red }}>{tradeStats ? (parseFloat(tradeStats.totalPnl) >= 0 ? '+' : '') + '$' + tradeStats.totalPnl : '$0'}</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>{trades.length} trades</div>
+              </div>
+              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>Win Rate</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.winRate) >= 60 ? C.synapse : tradeStats && parseFloat(tradeStats.winRate) >= 50 ? C.yellow : C.red }}>{tradeStats ? tradeStats.winRate + '%' : '0%'}</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>{tradeStats ? Math.round(trades.filter((t: any) => t.pnl > 0).length) + '/' + trades.length : '0/0'}</div>
+              </div>
+              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>Avg Win</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 700, color: C.synapse }}>{tradeStats ? '+$' + tradeStats.avgWin : '$0'}</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>per winner</div>
+              </div>
+              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>Avg Loss</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 700, color: C.red }}>{tradeStats ? '-$' + tradeStats.avgLoss : '$0'}</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>per loser</div>
+              </div>
+              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>Profit Factor</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.profitFactor) >= 1.5 ? C.synapse : tradeStats && parseFloat(tradeStats.profitFactor) >= 1 ? C.yellow : C.red }}>{tradeStats ? tradeStats.profitFactor + 'x' : '0x'}</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>win/loss ratio</div>
+              </div>
+              <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>In-System</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 700, color: tradeStats && parseFloat(tradeStats.inSystemWinRate) >= 60 ? C.synapse : C.yellow }}>{tradeStats ? tradeStats.inSystemWinRate + '%' : '0%'}</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>playbook trades</div>
+              </div>
+            </div>
+
+            {!trades.length ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#0d1018', borderRadius: 12, border: '1px solid ' + C.border }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+                <div style={{ fontSize: 14, color: C.textDim, marginBottom: 8 }}>No trade data yet</div>
+                <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>Import a TOS CSV or add trades in the LOG TRADE tab</div>
+                <button onClick={() => fileInputRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 8, padding: '10px 20px', color: C.teal, cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
+                  📂 Import Trades CSV
+                </button>
+              </div>
+            ) : (
+              <div>
+
+                {/* Daily P&L Calendar */}
+                {(() => {
+                  const now2 = new Date(), yr = now2.getFullYear(), mo = now2.getMonth()
+                  const dim = new Date(yr, mo + 1, 0).getDate()
+                  const fdm = new Date(yr, mo, 1).getDay()
+                  const mos = String(mo + 1).padStart(2, '0')
+                  const monthLabel = now2.toLocaleString('default', { month: 'long', year: 'numeric' })
+                  const byDay: Record<string, number> = {}
+                  trades.forEach((t: any) => { const k = String(t.date || ''); if (k) byDay[k] = (byDay[k] || 0) + (parseFloat(t.pnl) || 0) })
+                  return (
+                    <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Daily P&L — {monthLabel}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+                        {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, color: C.textMuted, fontWeight: 600 }}>{d}</div>)}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+                        {Array.from({ length: fdm }).map((_, i) => <div key={'e' + i} />)}
+                        {Array.from({ length: dim }).map((_, i) => {
+                          const day = i + 1
+                          const ds = yr + '-' + mos + '-' + String(day).padStart(2, '0')
+                          const pnl = byDay[ds]
+                          const dow = (fdm + i) % 7
+                          const isWe = dow === 0 || dow === 6
+                          return (
+                            <div key={day} style={{ aspectRatio: '1', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isWe ? 'transparent' : pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.15)' : 'rgba(204,16,64,0.12)') : '#131720', border: '1px solid ' + (pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.3)' : 'rgba(204,16,64,0.3)') : C.border) }}>
+                              <span style={{ fontSize: 8, color: C.textMuted, lineHeight: 1 }}>{day}</span>
+                              {pnl != null && <span style={{ fontSize: 8, fontWeight: 700, color: pnl >= 0 ? C.synapse : C.red, lineHeight: 1 }}>{pnl >= 0 ? '+' : ''}{Math.round(pnl)}</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Hour of day + Playbook side by side */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+
+                  {/* P&L by Hour */}
+                  {(() => {
+                    const byHr: Record<number, number> = {}
+                    trades.forEach((t: any) => {
+                      if (!t.time) return
+                      const h = parseInt(t.time.split(':')[0])
+                      if (!isNaN(h)) byHr[h] = (byHr[h] || 0) + (parseFloat(t.pnl) || 0)
+                    })
+                    const hrs = Object.entries(byHr).map(([h, p]) => ({ h: parseInt(h), p: p as number })).sort((a, b) => a.h - b.h)
+                    const maxAbs = hrs.length ? Math.max(...hrs.map(e => Math.abs(e.p)), 1) : 1
+                    const best = hrs.length ? [...hrs].sort((a, b) => b.p - a.p)[0] : null
+                    const worst = hrs.length ? [...hrs].sort((a, b) => a.p - b.p)[0] : null
+                    return (
+                      <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 10, padding: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>P&L by Hour</div>
+                        {hrs.length === 0 ? (
+                          <div style={{ fontSize: 11, color: C.textMuted }}>Add trades with time data to see hourly breakdown</div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 64, marginBottom: 6 }}>
+                              {Array.from({ length: 14 }, (_, i) => i + 7).map(h => {
+                                const hp = byHr[h] || 0
+                                const hpct = Math.abs(hp) / maxAbs * 100
+                                return (
+                                  <div key={h} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: hp >= 0 ? 'flex-end' : 'flex-start', height: 52 }}>
+                                      <div style={{ width: '100%', height: hpct + '%', minHeight: hp !== 0 ? 2 : 0, background: hp >= 0 ? 'rgba(0,170,85,0.7)' : 'rgba(204,16,64,0.7)', borderRadius: 2 }} />
+                                    </div>
+                                    <span style={{ fontSize: 7, color: C.textMuted }}>{h > 12 ? h - 12 + 'p' : h + 'a'}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                              {best && <div style={{ background: 'rgba(0,170,85,0.08)', border: '1px solid rgba(0,170,85,0.2)', borderRadius: 5, padding: '6px 8px' }}>
+                                <div style={{ fontSize: 9, color: C.textMuted }}>Best</div>
+                                <div style={{ fontSize: 11, color: C.synapse, fontWeight: 700 }}>{best.h > 12 ? best.h - 12 + 'PM' : best.h + 'AM'} (+${Math.round(best.p)})</div>
+                              </div>}
+                              {worst && <div style={{ background: 'rgba(204,16,64,0.06)', border: '1px solid rgba(204,16,64,0.2)', borderRadius: 5, padding: '6px 8px' }}>
+                                <div style={{ fontSize: 9, color: C.textMuted }}>Worst</div>
+                                <div style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>{worst.h > 12 ? worst.h - 12 + 'PM' : worst.h + 'AM'} (${Math.round(worst.p)})</div>
+                              </div>}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Playbook breakdown */}
+                  {(() => {
+                    const byPb: Record<string, { w: number, tot: number, pnl: number }> = {}
+                    trades.forEach((t: any) => {
+                      const k = String(t.playbook || 'No playbook')
+                      if (!byPb[k]) byPb[k] = { w: 0, tot: 0, pnl: 0 }
+                      byPb[k].tot++
+                      if (parseFloat(t.pnl) > 0) byPb[k].w++
+                      byPb[k].pnl += parseFloat(t.pnl) || 0
+                    })
+                    const pbs = Object.entries(byPb).sort((a, b) => b[1].pnl - a[1].pnl)
+                    return (
+                      <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 10, padding: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Playbook Performance</div>
+                        {pbs.map(([name, pb]) => {
+                          const wr = pb.tot ? Math.round(pb.w / pb.tot * 100) : 0
+                          return (
+                            <div key={name} style={{ marginBottom: 10 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>{name}</span>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: pb.pnl >= 0 ? C.synapse : C.red }}>{pb.pnl >= 0 ? '+' : ''}${Math.round(pb.pnl)}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, fontSize: 9, color: C.textMuted, marginBottom: 3 }}>
+                                <span>{pb.tot} trades</span>
+                                <span style={{ color: wr >= 60 ? C.synapse : wr >= 50 ? C.yellow : C.red }}>{wr}% win</span>
+                              </div>
+                              <div style={{ height: 3, borderRadius: 2, background: '#1a1f2e' }}>
+                                <div style={{ height: '100%', width: wr + '%', background: wr >= 60 ? C.synapse : wr >= 50 ? C.yellow : C.red, borderRadius: 2 }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* AI Pattern Analysis */}
+                <div style={{ background: '#0d1018', border: '1px solid ' + C.tealBorder, borderRadius: 10, padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.teal }} />
+                    <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.teal }}>AI Pattern Recognition</div>
+                  </div>
+                  <button onClick={async () => {
+                    setAiLoading(true)
+                    try {
+                      const wins = trades.filter((t: any) => parseFloat(t.pnl) > 0)
+                      const losses = trades.filter((t: any) => parseFloat(t.pnl) < 0)
+                      const avgW = wins.length ? wins.reduce((s: number, t: any) => s + parseFloat(t.pnl), 0) / wins.length : 0
+                      const avgL = losses.length ? Math.abs(losses.reduce((s: number, t: any) => s + parseFloat(t.pnl), 0) / losses.length) : 0
+                      const prompt = `Analyze SPX options trader data. Win rate: ${tradeStats?.winRate}%, Total P&L: $${tradeStats?.totalPnl}, Profit factor: ${tradeStats?.profitFactor}x, Avg win: $${Math.round(avgW)}, Avg loss: $${Math.round(avgL)}, In-system win rate: ${tradeStats?.inSystemWinRate}%, Total trades: ${trades.length}. Give 3 specific, actionable insights to improve edge. Be direct and quantitative. Format: 1. [insight] 2. [insight] 3. [insight]`
+                      const resp = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }) })
+                      const dat = await resp.json()
+                      const analysis = dat.content?.[0]?.text || 'No analysis available'
+                      setChatMessages([{ role: 'assistant', content: '🧠 Pattern Analysis:\n\n' + analysis }])
+                      setTab('cockpit')
+                    } catch (e) { console.error(e) }
+                    setAiLoading(false)
+                  }} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 7, padding: '8px 14px', color: C.teal, cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: 700, marginRight: 8 }}>
+                    {aiLoading ? '↻ Analyzing...' : '🔍 Analyze My Patterns'}
+                  </button>
+                  <span style={{ fontSize: 10, color: C.textMuted }}>Sends your stats to AI — results appear in cockpit chat</span>
+                </div>
+
+              </div>
             )}
           </div>
         )}
