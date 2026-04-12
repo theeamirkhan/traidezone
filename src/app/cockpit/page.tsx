@@ -3502,15 +3502,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                     <button onClick={async()=>{
                       setAiLoading(true)
-                      try{
-                        const pbStr=Object.entries(byPb).map(([n,pb])=>n+': '+pb.tot+'t '+Math.round(pb.w/pb.tot*100)+'% $'+Math.round(pb.pnl)).join(' | ')
-                        const hrStr=hrEntries.sort((a,b)=>a.h-b.h).map(e=>e.h+'=$'+Math.round(e.p)).join(', ')
-                        const resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:'Analyze this SPX options trader. 4 brutally honest numbered insights (2 sentences each).
-
-Win: '+winPct+'% | PnL: $'+Math.round(totalPnl)+' | AvgW: $'+Math.round(avgW)+' | AvgL: $'+Math.round(avgL)+' | PF: '+pf.toFixed(2)+'x | DayWin: '+dayWpct+'%
-Playbooks: '+pbStr+'
-Hours: '+hrStr}]})})
-                        const dat=await resp.json()
+try{ const pbStr=Object.entries(byPb).map(([n,pb])=>n+': '+pb.tot+'t '+Math.round(pb.w/pb.tot*100)+'% $'+Math.round(pb.pnl)).join(' | ') const hrStr=hrEntries.sort((a,b)=>a.h-b.h).map(e=>e.h+'=$'+Math.round(e.p)).join(', ') const resp=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:'Analyze this SPX options trader. 4 brutally honest numbered insights (2 sentences each). Win: '+winPct+'% | PnL: $'+Math.round(totalPnl)+' | AvgW: $'+Math.round(avgW)+' | AvgL: $'+Math.round(avgL)+' | PF: '+pf.toFixed(2)+'x | DayWin: '+dayWpct+'% Playbooks: '+pbStr+' Hours: '+hrStr}]})}) const dat=await resp.json()
                         setChatMessages([{role:'assistant',content:'📊 Pattern Analysis:
 
 '+(dat.content?.[0]?.text||'No analysis')}])
