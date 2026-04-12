@@ -1063,13 +1063,13 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 10 }}>Voice Speed</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 10, color: C.textDim }}>ð¢ Slower</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>🐢 Slower</span>
             <span style={{ fontSize: 10, color: C.teal, fontWeight: 700 }}>{voiceSpeed <= 0.8 ? 'Slow' : voiceSpeed <= 1.0 ? 'Normal' : voiceSpeed <= 1.2 ? 'Fast' : 'Faster'}</span>
-            <span style={{ fontSize: 10, color: C.textDim }}>Faster ð</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>Faster 🐇</span>
           </div>
           <input type="range" min={0.7} max={1.4} step={0.1} value={voiceSpeed} onChange={e => { setVoiceSpeed(parseFloat(e.target.value)); localStorage.setItem('tz-voice-speed', e.target.value) }}
             style={{ width: '100%', accentColor: '#00d4a0', cursor: 'pointer' }} />
-          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Current: {voiceSpeed}x â Normal is 1.0x</div>
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Current: {voiceSpeed}x — Normal is 1.0x</div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button onClick={save} style={{ flex: 1, background: C.teal, color: '#080a0f', border: 'none', borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>Save</button>
