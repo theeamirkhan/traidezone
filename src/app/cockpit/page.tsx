@@ -3342,9 +3342,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               )}
             </div>
           </div>
-
         )}
 
+        {/* ═══════════════════════════════════════════════════════ */}
         {/* TAB 4 — JOURNAL / ANALYTICS */}
         {tab === 'journal' && (()=>{
           const allT: any[] = trades
