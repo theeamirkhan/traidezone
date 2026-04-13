@@ -1830,6 +1830,8 @@ export default function CockpitPage() {
     greetedRef.current = true
 
     const delay = setTimeout(async () => {
+      // Check if AudioContext can be created (requires prior user gesture)
+      // If not, show text greeting instead of trying to speak
       try {
         const name = traderProfile?.name || userName || 'trader'
         const sessionNum = traderProfile?.session_count || 0
@@ -1859,7 +1861,8 @@ export default function CockpitPage() {
         const data = await res.json()
         const greeting = data.content?.[0]?.text || `Hey ${name}, let's get to work. SPX at ${currentPrice?.toFixed(0)}, VIX at ${vixPrice?.toFixed(1)}.`
         setChatMessages(p => [...p, { role: 'assistant', content: greeting }])
-        speak(greeting)
+        // Only speak if user has interacted with page (AudioContext requires user gesture)
+        try { speak(greeting) } catch {}
       } catch {}
     }, 2500) // slight delay so market data has time to load
 
@@ -2236,9 +2239,16 @@ export default function CockpitPage() {
       })
 
       if (!res.ok) {
-        console.error('TZ voice error:', res.status, await res.text())
+        const errData = await res.json().catch(() => ({}))
+        console.error('TZ voice error:', res.status, errData)
+        // Fallback to Web Speech if OpenAI fails
         setSpeaking(false)
         if (wasListening) startListening()
+        try {
+          const utter = new SpeechSynthesisUtterance(text)
+          utter.rate = voiceSpeed || 1.0
+          window.speechSynthesis.speak(utter)
+        } catch {}
         return
       }
 
@@ -4144,6 +4154,28 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {listening ? '↹' : '🎙️'}
                 </button>
 
+                {voiceEngine === 'openai' && !speaking && (
+                  <button onClick={async () => {
+                    try {
+                      const res = await fetch('/api/voice', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ engine: 'openai', text: 'Voice check. Ready to trade.', voice: voiceId || 'nova', speed: voiceSpeed || 1.0 }) })
+                      const ct = res.headers.get('content-type') || ''
+                      if (ct.includes('audio')) {
+                        const buf = await res.arrayBuffer()
+                        const ACtx = window.AudioContext || (window as any).webkitAudioContext
+                        const ctx = new ACtx()
+                        if (ctx.state === 'suspended') await ctx.resume()
+                        const audio = await ctx.decodeAudioData(buf)
+                        const src = ctx.createBufferSource()
+                        src.buffer = audio; src.connect(ctx.destination); src.start(0)
+                      } else {
+                        const d = await res.json()
+                        alert('Voice error: ' + (d.detail || d.error))
+                      }
+                    } catch(e: any) { alert('Voice error: ' + e.message) }
+                  }} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, border: `1px solid ${C.tealBorder}`, background: 'transparent', color: C.teal, cursor: 'pointer', fontFamily: font, flexShrink: 0 }}>
+                    🔊 test
+                  </button>
+                )}
                 <input
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}

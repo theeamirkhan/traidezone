@@ -1,41 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
-// Per-user rate limiter (in-memory, resets on cold start — supplement with DB limits later)
+// Per-user rate limiter — only counts OpenAI TTS chars, not webspeech
 const voiceLimits = new Map<string, { chars: number; resetAt: number }>()
-const CHARS_PER_HOUR = 50_000  // ~55 min of average responses before throttle
+const CHARS_PER_HOUR = 200_000  // generous limit — ~3-4 hrs of active conversation
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Character-based rate limit (more accurate than request count for TTS)
-  const now = Date.now()
-  const userLimit = voiceLimits.get(userId)
   const body = await req.json()
   const { text, voice = 'nova', engine = 'openai', speed = 1.0 } = body
 
-  if (!text || typeof text !== 'string' || text.length > 4000) {
+  if (!text || typeof text !== 'string' || text.length === 0) {
     return NextResponse.json({ error: 'Invalid text' }, { status: 400 })
   }
 
-  if (userLimit && now < userLimit.resetAt) {
-    if (userLimit.chars + text.length > CHARS_PER_HOUR) {
-      return NextResponse.json({ error: 'Rate limit exceeded — try again in an hour' }, { status: 429 })
-    }
-    userLimit.chars += text.length
-  } else {
-    voiceLimits.set(userId, { chars: text.length, resetAt: now + 3_600_000 })
-  }
+  // Cap individual request size
+  const trimmed = text.substring(0, 4000)
 
-  // Web Speech (browser-side) — server just echoes back, no cost
+  // Web Speech — free, no rate limit needed, just echo back
   if (engine === 'webspeech') {
-    return NextResponse.json({ engine: 'webspeech', text })
+    return NextResponse.json({ engine: 'webspeech', text: trimmed })
   }
 
-  // OpenAI TTS — primary premium voice
+  // OpenAI TTS — apply rate limit only here
+  const now = Date.now()
+  const userLimit = voiceLimits.get(userId)
+  if (userLimit && now < userLimit.resetAt) {
+    if (userLimit.chars + trimmed.length > CHARS_PER_HOUR) {
+      return NextResponse.json({ error: 'Voice rate limit exceeded — resets in 1 hour' }, { status: 429 })
+    }
+    userLimit.chars += trimmed.length
+  } else {
+    voiceLimits.set(userId, { chars: trimmed.length, resetAt: now + 3_600_000 })
+  }
+
   const openaiKey = process.env.OPENAI_API_KEY
-  if (!openaiKey) return NextResponse.json({ error: 'Voice service not configured' }, { status: 503 })
+  if (!openaiKey) {
+    console.error('OPENAI_API_KEY not set')
+    return NextResponse.json({ error: 'Voice service not configured' }, { status: 503 })
+  }
 
   try {
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -45,18 +50,23 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: 'tts-1',          // tts-1 = fast + cheap; tts-1-hd = higher quality
-        input: text,
-        voice: voice,            // alloy, echo, fable, onyx, nova, shimmer
-        speed: Math.min(Math.max(speed, 0.25), 4.0),
+        model: 'tts-1',
+        input: trimmed,
+        voice: voice,
+        speed: Math.min(Math.max(Number(speed) || 1.0, 0.25), 4.0),
         response_format: 'mp3',
       }),
     })
 
     if (!res.ok) {
-      const err = await res.text()
-      console.error('OpenAI TTS error:', res.status, err)
-      return NextResponse.json({ error: 'Voice request failed' }, { status: res.status })
+      const errText = await res.text()
+      console.error('OpenAI TTS error:', res.status, errText)
+      // Return the actual error so client can see what went wrong
+      return NextResponse.json({ 
+        error: 'OpenAI TTS failed', 
+        status: res.status,
+        detail: errText.substring(0, 200)
+      }, { status: res.status })
     }
 
     const buffer = await res.arrayBuffer()
@@ -67,7 +77,8 @@ export async function POST(req: NextRequest) {
         'Cache-Control': 'no-store',
       }
     })
-  } catch (e) {
-    return NextResponse.json({ error: 'Voice request failed' }, { status: 500 })
+  } catch (e: any) {
+    console.error('Voice route exception:', e?.message)
+    return NextResponse.json({ error: 'Voice request failed', detail: e?.message }, { status: 500 })
   }
 }
