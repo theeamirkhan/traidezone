@@ -1386,20 +1386,45 @@ export default function CockpitPage() {
     const accepted = localStorage.getItem('tz-disclosure-accepted')
     if (!accepted) setShowDisclosure(true)
 
-    const savedTrades = localStorage.getItem('tz-trades')
-    if (savedTrades) {
+    // Load from Supabase (cloud-first, localStorage fallback)
+    ;(async () => {
       try {
-        const t = JSON.parse(savedTrades)
-        setTrades(t)
-        setTradeStats(analyzeTradeHistory(t))
-      } catch {}
-    }
+        const [tradesRes, playbooksRes] = await Promise.all([
+          fetch('/api/userdata?table=trades'),
+          fetch('/api/userdata?table=playbooks'),
+        ])
+        if (tradesRes.ok) {
+          const { data } = await tradesRes.json()
+          if (data && data.length > 0) {
+            const mapped = data.map((r: any) => ({ ...r, id: r.id, pnl: parseFloat(r.pnl) || 0, inSystem: r.in_system }))
+            setTrades(mapped)
+            setTradeStats(analyzeTradeHistory(mapped))
+            localStorage.setItem('tz-trades', JSON.stringify(mapped))
+          } else {
+            const saved = localStorage.getItem('tz-trades')
+            if (saved) { try { const t = JSON.parse(saved); setTrades(t); if (t.length) setTradeStats(analyzeTradeHistory(t)) } catch {} }
+          }
+        }
+        if (playbooksRes.ok) {
+          const { data } = await playbooksRes.json()
+          if (data && data.length > 0) {
+            setPlaybooks(data)
+            localStorage.setItem('tz-playbooks', JSON.stringify(data))
+          } else {
+            const saved = localStorage.getItem('tz-playbooks')
+            if (saved) { try { setPlaybooks(JSON.parse(saved)) } catch {} }
+          }
+        }
+      } catch {
+        const savedTrades = localStorage.getItem('tz-trades')
+        if (savedTrades) { try { const t = JSON.parse(savedTrades); setTrades(t); if (t.length) setTradeStats(analyzeTradeHistory(t)) } catch {} }
+        const savedPlaybooks = localStorage.getItem('tz-playbooks')
+        if (savedPlaybooks) { try { setPlaybooks(JSON.parse(savedPlaybooks)) } catch {} }
+      }
+    })()
 
     const savedPlan = localStorage.getItem('tz-morning-plan')
     if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
-
-    const savedPlaybooks = localStorage.getItem('tz-playbooks')
-    if (savedPlaybooks) { try { setPlaybooks(JSON.parse(savedPlaybooks)) } catch {} }
   }, [])
 
   // Save morning plan
@@ -1423,6 +1448,16 @@ export default function CockpitPage() {
   // Save trades
   useEffect(() => {
     localStorage.setItem('tz-trades', JSON.stringify(trades))
+    if (trades.length > 0) {
+      // Sync to Supabase in background (non-blocking)
+      fetch('/api/userdata?table=trades', { method: 'DELETE' }).then(() =>
+        fetch('/api/userdata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'trades_bulk', data: { trades } })
+        })
+      ).catch(() => {}) // silent fail — localStorage already saved
+    }
     if (trades.length) setTradeStats(analyzeTradeHistory(trades))
   }, [trades])
 
@@ -2098,6 +2133,16 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       const allTrades = [...trades, ...parsed.map(t => ({ ...t, id: Date.now() + Math.random(), inSystem: true }))]
       setTrades(allTrades)
       setImportStatus(`✓ Imported ${parsed.length} trades — AI now has your history`)
+      // Save to Supabase cloud
+      fetch('/api/userdata?table=trades', { method: 'DELETE' }).then(() =>
+        fetch('/api/userdata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'trades_bulk', data: { trades: allTrades } })
+        }).then(r => r.json()).then(d => {
+          if (d.success) setImportStatus(`✓ Imported ${parsed.length} trades — saved to your profile`)
+        })
+      ).catch(() => {})
     }
     reader.readAsText(file)
   }
