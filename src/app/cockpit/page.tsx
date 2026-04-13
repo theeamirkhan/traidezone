@@ -1310,9 +1310,7 @@ export default function CockpitPage() {
 
   // Voice
   const [voiceId, setVoiceId] = useState('nova')  // OpenAI voice name
-  const [voiceEngine, setVoiceEngine] = useState<'openai'|'webspeech'>(() =>
-    (localStorage.getItem('tz-voice-engine') as any) || 'openai'
-  )
+  const [voiceEngine, setVoiceEngine] = useState<'openai'|'webspeech'>('openai')
   const [speaking, setSpeaking] = useState(false)
   const [listening, setListening] = useState(false)
   const [liveTranscript, setLiveTranscript] = useState('')
@@ -1331,12 +1329,8 @@ export default function CockpitPage() {
   // Drawing state
   const [drawMode, setDrawMode] = useState<string | null>(null)
   const [drawColor, setDrawColor] = useState(C_DARK.teal)
-  const [drawnLines, setDrawnLines] = useState<any[]>(() => {
-    try { return JSON.parse(localStorage.getItem('tz-drawn-lines') || '[]') } catch { return [] }
-  })
-  const [drawnZones, setDrawnZones] = useState<any[]>(() => {
-    try { return JSON.parse(localStorage.getItem('tz-drawn-zones') || '[]') } catch { return [] }
-  })
+  const [drawnLines, setDrawnLines] = useState<any[]>([])
+  const [drawnZones, setDrawnZones] = useState<any[]>([])
   const [drawPreview, setDrawPreview] = useState<any>(null)
   const [overlayCrosshair, setOverlayCrosshair] = useState<any>(null)
   const [drawPoint1, setDrawPoint1] = useState<any>(null)
@@ -1346,6 +1340,18 @@ export default function CockpitPage() {
   useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
 
   useEffect(() => {
+    // Load voice engine preference
+    const savedEngine = localStorage.getItem('tz-voice-engine') as 'openai'|'webspeech'|null
+    if (savedEngine) setVoiceEngine(savedEngine)
+
+    // Load drawn lines/zones
+    try {
+      const dl = localStorage.getItem('tz-drawn-lines')
+      if (dl) setDrawnLines(JSON.parse(dl))
+      const dz = localStorage.getItem('tz-drawn-zones')
+      if (dz) setDrawnZones(JSON.parse(dz))
+    } catch {}
+
     const saved = localStorage.getItem('tz-dark-mode')
     if (saved !== null) setDarkMode(saved === 'true')
   }, [])
