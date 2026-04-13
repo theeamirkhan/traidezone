@@ -362,8 +362,9 @@ Respond ONLY with this JSON:
       }),
     })
     const data = await res.json()
-    if (data.error) return null
-    const text = data.content.map((i: any) => i.text || '').join('').replace(/```json|```/g, '').trim()
+    if (data.error || data?.error?.type === 'overloaded_error') return null
+    const text = (data.content || []).map((i: any) => i.text || '').join('').replace(/```json|```/g, '').trim()
+    if (!text) return null
     return JSON.parse(text)
   } catch { return null }
 }
@@ -388,6 +389,7 @@ No preamble, just the bullets.` }]
       })
     })
     const data = await res.json()
+    if (data?.error?.type === 'overloaded_error') return 'AI busy — news unavailable'
     const text = data.content?.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('').trim()
     return text || 'No market news retrieved'
   } catch { return 'News unavailable' }
@@ -1891,6 +1893,7 @@ export default function CockpitPage() {
           })
         })
         const data = await res.json()
+        if (data?.error?.type === 'overloaded_error') { setChatMessages(p => [...p, { role: 'assistant', content: `Ready to trade, ${name}. SPX ${currentPrice?.toFixed(0)}, VIX ${vixPrice?.toFixed(1)}.` }]); return }
         const greeting = data.content?.[0]?.text || `Hey ${name}, let's get to work. SPX at ${currentPrice?.toFixed(0)}, VIX at ${vixPrice?.toFixed(1)}.`
         setChatMessages(p => [...p, { role: 'assistant', content: greeting }])
         // Only speak if user has interacted with page (AudioContext requires user gesture)
@@ -2439,8 +2442,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   }
 
   // Send chat with explicit text (for voice input)
-  const sendChatWithText = async (text: string) => {
-    // keys loaded server-side, always run
+  const sendChatWithText = async (text: string, retryCount = 0) => {
     setChatLoading(true)
     const context = buildCompanionContext()
     try {
@@ -2455,23 +2457,52 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         })
       })
       const data = await res.json()
-      const reply = data.content?.[0]?.text || 'No response'
+
+      // Handle overloaded / error responses
+      if (data?.error?.type === 'overloaded_error' || data?.error === 'Rate limit exceeded') {
+        if (retryCount < 2) {
+          setChatLoading(false)
+          await new Promise(r => setTimeout(r, 2000 * (retryCount + 1)))
+          return sendChatWithText(text, retryCount + 1)
+        }
+        const errMsg = "I'm overloaded right now — try again in a few seconds."
+        setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
+        speak(errMsg)
+        setChatLoading(false)
+        return
+      }
+
+      if (!res.ok || data?.error) {
+        const errMsg = "Having trouble connecting — check your internet and try again."
+        setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
+        setChatLoading(false)
+        return
+      }
+
+      const reply = data.content?.[0]?.text
+      if (!reply) {
+        setChatLoading(false)
+        return
+      }
+
       setChatMessages(p => {
         const updated = [...p, { role: 'assistant', content: reply }]
-        // Extract session memory every 10 messages
-        if (updated.length % 10 === 0 && keys[ANTH_KEY]) {
+        if (updated.length % 10 === 0) {
           extractMemoryFromSession(keys[ANTH_KEY], updated, tradePatterns, traderProfile)
         }
         return updated
       })
       speak(reply)
-    } catch {}
+    } catch (e) {
+      const errMsg = "Connection error — make sure you're online and try again."
+      setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
+    }
     setChatLoading(false)
   }
 
   // Chat send
   const sendChat = async () => {
-    if (!chatInput.trim() || !keys[ANTH_KEY]) return
+    if (!chatInput.trim()) return
     const msg = chatInput.trim()
     setChatInput('')
     setChatMessages(p => [...p, { role: 'user', content: msg }])
