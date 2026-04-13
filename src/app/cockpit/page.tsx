@@ -703,25 +703,70 @@ function addMemory(entry: string): void {
   } catch {}
 }
 
-async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tradePatterns: any): Promise<void> {
+async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tradePatterns: any, traderProfile: any): Promise<void> {
   if (!anthKey || chatHistory.length < 3) return
   try {
-    const recentChat = chatHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')
-    const patternNote = tradePatterns?.revengePatterns > 2 ? 'User shows revenge trading patterns.' : ''
+    const recentChat = chatHistory.slice(-8).map((m: any) => `${m.role}: ${m.content}`).join('\n')
+    const patternNote = tradePatterns?.revengePatterns > 2 ? 'Note: user shows revenge trading patterns.' : ''
+    const existingWeaknesses = traderProfile?.weaknesses?.join(', ') || ''
+    const existingStrengths = traderProfile?.strengths?.join(', ') || ''
+
     const res = await fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 200,
-        messages: [{ role: 'user', content: `From this trading session chat, extract 1-2 important facts to remember about this trader for future sessions. Focus on: weaknesses they admitted, rules they tend to break, their best setups, emotional patterns. Return ONLY a JSON array of short strings (max 15 words each), or [] if nothing notable.\n\nChat:\n${recentChat}\n${patternNote}` }]
+        max_tokens: 400,
+        messages: [{ role: 'user', content: `Analyze this trading session conversation and extract insights about the trader's psychology and behavior patterns.
+
+Known weaknesses: ${existingWeaknesses || 'none yet'}
+Known strengths: ${existingStrengths || 'none yet'}
+${patternNote}
+
+Session chat:
+${recentChat}
+
+Return ONLY a JSON object with these fields (omit fields with no new data):
+{
+  "memories": ["short dated fact about trader", "another fact"],
+  "new_strengths": ["if new strength observed"],
+  "new_weaknesses": ["if new weakness observed"],
+  "new_triggers": ["emotional trigger if observed"],
+  "tone_suggestion": "direct|coaching|analytical|tough-love (only if chat reveals preference)"
+}
+Return {} if nothing notable. No markdown, no explanation.` }]
       })
     })
     const data = await res.json()
-    const text = data.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g, '').trim() || '[]'
-    const newMemories = JSON.parse(text)
-    if (Array.isArray(newMemories) && newMemories.length > 0) {
-      newMemories.forEach((m: string) => addMemory(m))
+    const raw = data.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g, '').trim() || '{}'
+    const extracted = JSON.parse(raw)
+
+    // Save memories to localStorage (backward compat)
+    if (Array.isArray(extracted.memories) && extracted.memories.length > 0) {
+      extracted.memories.forEach((m: string) => addMemory(m))
+    }
+
+    // Save richer profile data to Supabase
+    const profileUpdate: any = {}
+    if (extracted.memories?.length > 0) {
+      // PATCH appends memories to memory_log in Supabase
+      fetch('/api/trader-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memories: extracted.memories })
+      }).catch(() => {})
+    }
+    if (extracted.new_strengths?.length > 0) profileUpdate.strengths = [...(traderProfile?.strengths || []), ...extracted.new_strengths].slice(-10)
+    if (extracted.new_weaknesses?.length > 0) profileUpdate.weaknesses = [...(traderProfile?.weaknesses || []), ...extracted.new_weaknesses].slice(-10)
+    if (extracted.new_triggers?.length > 0) profileUpdate.emotional_triggers = [...(traderProfile?.emotional_triggers || []), ...extracted.new_triggers].slice(-10)
+    if (extracted.tone_suggestion) profileUpdate.companion_tone = extracted.tone_suggestion
+
+    if (Object.keys(profileUpdate).length > 0) {
+      fetch('/api/trader-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileUpdate)
+      }).catch(() => {})
     }
   } catch {}
 }
@@ -1027,6 +1072,14 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
     localStorage.setItem('tz-dark-mode', darkMode.toString())
     localStorage.setItem('tz-ai-tone', aiTone.toString())
     localStorage.setItem('tz-user-name', userName)
+    // Sync name to trader profile
+    if (userName) {
+      fetch('/api/trader-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: userName })
+      }).catch(() => {})
+    }
     localStorage.setItem('tz-welcome-message', welcomeMessage)
     onClose()
   }
@@ -1297,6 +1350,10 @@ export default function CockpitPage() {
   const [tradePatterns, setTradePatterns] = useState<any>(null)
   const [macroRegime, setMacroRegime] = useState<any>(null)
   const [sessionMemory, setSessionMemory] = useState<string>('')
+  const [traderProfile, setTraderProfile] = useState<any>(null)
+  const [proactiveAlertsSent, setProactiveAlertsSent] = useState<Set<string>>(new Set())
+  const lastPriceRef = useRef<number>(0)
+  const proactiveTimerRef = useRef<any>(null)
 
   // Trade log
   const [trades, setTrades] = useState<any[]>([])
@@ -1405,6 +1462,22 @@ export default function CockpitPage() {
     if (!accepted) setShowDisclosure(true)
 
     // Load from Supabase (cloud-first, localStorage fallback)
+    ;(async () => {
+      // Load trader profile first (informs companion personality)
+      try {
+        const profileRes = await fetch('/api/trader-profile')
+        if (profileRes.ok) {
+          const { data } = await profileRes.json()
+          if (data) {
+            setTraderProfile(data)
+            // Rebuild session memory string from profile log
+            if (data.memory_log?.length > 0) {
+              setSessionMemory(data.memory_log.slice(-20).join('\n'))
+            }
+          }
+        }
+      } catch {}
+    })()
     ;(async () => {
       try {
         const [tradesRes, playbooksRes] = await Promise.all([
@@ -1749,6 +1822,51 @@ export default function CockpitPage() {
     fetchHistory('SPY', setCandles, 'spx')
   }, [chartTf])
 
+  // Profile-aware session greeting — fires once per session when cockpit opens
+  const greetedRef = useRef(false)
+  useEffect(() => {
+    if (tab !== 'cockpit' || greetedRef.current) return
+    if (!currentPrice) return  // wait for market data
+    greetedRef.current = true
+
+    const delay = setTimeout(async () => {
+      try {
+        const name = traderProfile?.name || userName || 'trader'
+        const sessionNum = traderProfile?.session_count || 0
+        const isReturning = sessionNum > 0
+        const hour = new Date().getHours()
+        const timeOfDay = hour < 10 ? 'morning' : hour < 14 ? 'session' : 'afternoon'
+        const lastWeakness = traderProfile?.weaknesses?.slice(-1)[0] || null
+        const promptLines = [
+          `Generate a brief, natural trading companion greeting (2-3 sentences max, spoken aloud).`,
+          `Trader name: ${name}. ${isReturning ? `Session #${sessionNum + 1} together.` : 'First session.'}`,
+          `Time: ${timeOfDay}. SPX at ${currentPrice?.toFixed(2)}.`,
+          `VIX: ${vixPrice?.toFixed(1) || 'unknown'}.`,
+          lastWeakness ? `Last session note: ${lastWeakness}` : '',
+          `Be warm but direct. Get them focused. Reference real prices. No generic fluff.`,
+          `${isReturning ? 'You know this trader — reference your relationship naturally.' : 'Introduce yourself as their AI trading companion.'}`,
+        ].filter(Boolean).join(' ')
+
+        const res = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 120,
+            messages: [{ role: 'user', content: promptLines }]
+          })
+        })
+        const data = await res.json()
+        const greeting = data.content?.[0]?.text || `Hey ${name}, let's get to work. SPX at ${currentPrice?.toFixed(0)}, VIX at ${vixPrice?.toFixed(1)}.`
+        setChatMessages(p => [...p, { role: 'assistant', content: greeting }])
+        speak(greeting)
+      } catch {}
+    }, 2500) // slight delay so market data has time to load
+
+    return () => clearTimeout(delay)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, currentPrice])
+
   // Recalculate composite market score when inputs change
   useEffect(() => {
     const score = calcMarketScore({ vixPrice, marketIntel, marketTide, optionsFlow, currentPrice, levels })
@@ -1904,6 +2022,45 @@ export default function CockpitPage() {
       if (chartRef.current) { try { chartRef.current.remove() } catch {} chartRef.current = null }
     }
   }, [tab, candles.length, drawnLines.length, drawnZones.length])
+
+  // Proactive companion alerts — speak when key levels hit or market conditions change
+  useEffect(() => {
+    if (!currentPrice || drawnLines.length === 0) return
+    if (proactiveTimerRef.current) clearInterval(proactiveTimerRef.current)
+
+    proactiveTimerRef.current = setInterval(() => {
+      if (!currentPrice || !drawnLines.length) return
+      const prev = lastPriceRef.current
+      lastPriceRef.current = currentPrice
+
+      // Check each horizontal drawn level
+      drawnLines.filter((l: any) => l.type === 'horizontal' && l.price).forEach((line: any) => {
+        const price = line.price
+        const alertKey = `level-${price.toFixed(2)}`
+        if (proactiveAlertsSent.has(alertKey)) return
+
+        // Price crossed through the level (within 0.3%)
+        const proximity = Math.abs(currentPrice - price) / price
+        const crossed = prev > 0 && (
+          (prev < price && currentPrice >= price) || // crossed up
+          (prev > price && currentPrice <= price)    // crossed down
+        )
+        const nearLevel = proximity < 0.003 // within 0.3%
+
+        if (crossed || nearLevel) {
+          setProactiveAlertsSent(prev => new Set([...prev, alertKey]))
+          const direction = currentPrice > price ? 'broken above' : currentPrice < price ? 'broken below' : 'at'
+          const msg = `Hey — SPX just ${direction} your ${price.toFixed(0)} level. ${crossed ? "That's the break you were watching." : "We're right at it now."} What's your read?`
+          // Add to chat and speak
+          setChatMessages((p: any[]) => [...p, { role: 'assistant', content: msg }])
+          speak(msg)
+        }
+      })
+    }, 15000) // check every 15 seconds
+
+    return () => { if (proactiveTimerRef.current) clearInterval(proactiveTimerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPrice, drawnLines.length])
 
   // AI auto-run every 3 min — fires even pre-market to load options flow
   useEffect(() => {
@@ -2123,6 +2280,18 @@ export default function CockpitPage() {
 
 NEVER say you are text-only. Your responses ARE spoken aloud in real-time.
 
+${traderProfile ? `
+═══ WHO YOU'RE TALKING TO ═══
+${traderProfile.name ? `Name: ${traderProfile.name}` : ''}
+${traderProfile.experience_level ? `Experience: ${traderProfile.experience_level}` : ''}
+${traderProfile.trading_style ? `Style: ${traderProfile.trading_style}` : ''}
+${traderProfile.strengths?.length > 0 ? `Strengths: ${traderProfile.strengths.join(', ')}` : ''}
+${traderProfile.weaknesses?.length > 0 ? `Known weaknesses: ${traderProfile.weaknesses.join(', ')}` : ''}
+${traderProfile.emotional_triggers?.length > 0 ? `Watch for: ${traderProfile.emotional_triggers.join(', ')}` : ''}
+${traderProfile.companion_tone ? `Tone: ${traderProfile.companion_tone} — adapt your communication style accordingly` : ''}
+${traderProfile.session_count > 0 ? `You've had ${traderProfile.session_count} sessions together. This is an ongoing relationship.` : 'First session — introduce yourself warmly but get to business.'}
+` : 'First time talking — learn about this trader through the session.'}
+
 ═══ LIVE MARKET DATA ═══
 SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : '—'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : '—'}%)
 SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
@@ -2187,7 +2356,11 @@ ${multiTFData ? `\n═══ MULTI-TIMEFRAME ═══\nWeekly: ${multiTFData.we
 ${zeroDTESkew ? `\n═══ 0DTE SKEW ═══\n${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
 ${marketScore ? `\n═══ MARKET SCORE: ${marketScore.score}/100 — ${marketScore.label} ═══` : ''}
 ${tradePatterns ? `\n═══ YOUR PATTERNS ═══\nBest hour: ${tradePatterns.bestHour} | Revenge trades: ${tradePatterns.revengePatterns}${tradePatterns.cutWinnersEarly ? ' | ⚠ Cutting winners early' : ''}` : ''}
-${sessionMemory ? `\n═══ MEMORY ═══\n${sessionMemory}` : ''}
+${traderProfile?.memory_log?.length > 0 ? `
+═══ RELATIONSHIP MEMORY (${traderProfile.session_count || 0} sessions together) ═══
+${traderProfile.memory_log.slice(-15).join('\n')}` : sessionMemory ? `
+═══ MEMORY ═══
+${sessionMemory}` : ''}
 
 THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   }
@@ -2214,7 +2387,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         const updated = [...p, { role: 'assistant', content: reply }]
         // Extract session memory every 10 messages
         if (updated.length % 10 === 0 && keys[ANTH_KEY]) {
-          extractMemoryFromSession(keys[ANTH_KEY], updated, tradePatterns)
+          extractMemoryFromSession(keys[ANTH_KEY], updated, tradePatterns, traderProfile)
         }
         return updated
       })
