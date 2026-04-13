@@ -1409,6 +1409,8 @@ export default function CockpitPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null)
+  const speakLockRef = useRef<boolean>(false)   // prevents overlapping speak() calls
+  const speakQueueRef = useRef<string | null>(null)  // holds latest pending text
 
   // Drawing state
   const [drawMode, setDrawMode] = useState<string | null>(null)
@@ -2213,17 +2215,26 @@ export default function CockpitPage() {
     }).catch(() => {})
   }
 
+  const stopAudio = () => {
+    try {
+      if (audioSourceRef.current) { audioSourceRef.current.stop(); audioSourceRef.current = null }
+    } catch {}
+    window.speechSynthesis?.cancel()
+  }
+
   const speak = async (text: string) => {
     if (!text?.trim()) return
 
-    // Stop any currently playing audio
-    try {
-      if (audioSourceRef.current) { audioSourceRef.current.stop(); audioSourceRef.current = null }
-      if (audioCtxRef.current) { await audioCtxRef.current.close(); audioCtxRef.current = null }
-      window.speechSynthesis?.cancel()
-    } catch {}
+    // If already speaking, stop current and queue the new text
+    if (speakLockRef.current) {
+      stopAudio()
+      speakQueueRef.current = text
+      return
+    }
 
+    speakLockRef.current = true
     setSpeaking(true)
+
     const wasListening = listeningRef.current
     if (wasListening && recognitionRef.current) {
       recognitionRef.current.stop()
@@ -2231,10 +2242,21 @@ export default function CockpitPage() {
       setLiveTranscript('')
     }
 
+    const finish = (resume = true) => {
+      speakLockRef.current = false
+      audioSourceRef.current = null
+      setSpeaking(false)
+      if (resume && wasListening) setTimeout(() => startListening(), 300)
+      // Play queued text if any
+      const queued = speakQueueRef.current
+      if (queued) { speakQueueRef.current = null; speak(queued) }
+    }
+
     try {
-      // Web Speech API — free, browser-native
+      // ── Web Speech API (free) ──────────────────────────────────────────
       if (voiceEngine === 'webspeech') {
         await new Promise<void>((resolve) => {
+          window.speechSynthesis.cancel()
           const utter = new SpeechSynthesisUtterance(text)
           utter.rate = voiceSpeed || 1.0
           utter.pitch = 1.0
@@ -2248,60 +2270,71 @@ export default function CockpitPage() {
           utter.onerror = () => resolve()
           window.speechSynthesis.speak(utter)
         })
-        setSpeaking(false)
-        if (wasListening) startListening()
+        finish()
         return
       }
 
-      // OpenAI TTS — premium quality voice
+      // ── OpenAI TTS ────────────────────────────────────────────────────
       const res = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          engine: 'openai',
-          text,
-          voice: voiceId || 'nova',
-          speed: voiceSpeed || 1.0,
-        })
+        body: JSON.stringify({ engine: 'openai', text, voice: voiceId || 'nova', speed: voiceSpeed || 1.0 })
       })
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         console.error('TZ voice error:', res.status, errData)
-        // Fallback to Web Speech if OpenAI fails
-        setSpeaking(false)
-        if (wasListening) startListening()
-        try {
-          const utter = new SpeechSynthesisUtterance(text)
-          utter.rate = voiceSpeed || 1.0
-          window.speechSynthesis.speak(utter)
-        } catch {}
+        // Fallback to Web Speech
+        try { window.speechSynthesis.speak(new SpeechSynthesisUtterance(text)) } catch {}
+        finish(false)
+        return
+      }
+
+      // If a new speak() was queued while we were fetching, discard this response
+      if (speakQueueRef.current) {
+        finish(false)
         return
       }
 
       const arrayBuffer = await res.arrayBuffer()
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-      const audioCtx = new AudioContext()
-      audioCtxRef.current = audioCtx
+
+      // Reuse existing AudioContext or create one
+      let audioCtx = audioCtxRef.current
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        audioCtxRef.current = audioCtx
+      }
       if (audioCtx.state === 'suspended') await audioCtx.resume()
+
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
       const source = audioCtx.createBufferSource()
       audioSourceRef.current = source
       source.buffer = audioBuffer
-      source.connect(audioCtx.destination)
-      source.onended = () => {
-        audioSourceRef.current = null
-        audioCtxRef.current = null
-        setSpeaking(false)
-        if (wasListening) setTimeout(() => startListening(), 300)
+
+      // ── Stereo fix: route through a channel merger to force both speakers ──
+      const merger = audioCtx.createChannelMerger(2)
+      if (audioBuffer.numberOfChannels === 1) {
+        // Mono source — split to both L and R
+        source.connect(merger, 0, 0)
+        source.connect(merger, 0, 1)
+      } else {
+        // Already stereo — connect normally but through merger to guarantee both channels
+        source.connect(merger, 0, 0)
+        source.connect(merger, 1, 1)
       }
+
+      // Stereo panner at center (0) ensures equal L/R output
+      const panner = audioCtx.createStereoPanner()
+      panner.pan.value = 0
+      merger.connect(panner)
+      panner.connect(audioCtx.destination)
+
+      source.onended = () => finish()
       source.start(0)
+
     } catch (e) {
       console.error('TZ speak error:', e)
-      audioSourceRef.current = null
-      audioCtxRef.current = null
-      setSpeaking(false)
-      if (wasListening) startListening()
+      finish()
     }
   }
 
