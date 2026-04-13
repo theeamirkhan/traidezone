@@ -1218,6 +1218,7 @@ export default function CockpitPage() {
 
   // Tab
   const [tab, setTab] = useState<'plan' | 'cockpit' | 'deepdive' | 'log' | 'journal'>('plan')
+  const [calMonth, setCalMonth] = useState<{yr: number, mo: number}>(() => { const n = new Date(); return {yr: n.getFullYear(), mo: n.getMonth()} })
   const [darkMode, setDarkMode] = useState(() => true)
 
   const CC = darkMode ? C_DARK : {
@@ -3478,20 +3479,28 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 {/* Daily P&L Calendar */}
                 {(() => {
-                  const now2 = new Date(), yr = now2.getFullYear(), mo = now2.getMonth()
+                  const { yr, mo } = calMonth
+                  const now2 = new Date()
+                  const isCurrentMonth = yr === now2.getFullYear() && mo === now2.getMonth()
                   const dim = new Date(yr, mo + 1, 0).getDate()
                   const fdm = new Date(yr, mo, 1).getDay()
                   const mos = String(mo + 1).padStart(2, '0')
-                  const monthLabel = now2.toLocaleString('default', { month: 'long', year: 'numeric' })
+                  const monthLabel = new Date(yr, mo, 1).toLocaleString('default', { month: 'long', year: 'numeric' })
                   const byDay: Record<string, number> = {}
                   trades.forEach((t: any) => { const k = String(t.date || ''); if (k) byDay[k] = (byDay[k] || 0) + (parseFloat(t.pnl) || 0) })
+                  const prevMonth = () => setCalMonth(c => { const d = new Date(c.yr, c.mo - 1, 1); return {yr: d.getFullYear(), mo: d.getMonth()} })
+                  const nextMonth = () => setCalMonth(c => { const d = new Date(c.yr, c.mo + 1, 1); return {yr: d.getFullYear(), mo: d.getMonth()} })
                   return (
-                    <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 10, padding: 16, marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Daily P&L — {monthLabel}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
-                        {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, color: C.textMuted, fontWeight: 600 }}>{d}</div>)}
+                    <div style={{ background: '#0d1018', border: '1px solid ' + C.border, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <button onClick={prevMonth} style={{ background: 'transparent', border: '1px solid ' + C.border, borderRadius: 4, color: C.textMuted, cursor: 'pointer', fontSize: 11, padding: '2px 8px', fontFamily: font }}>‹</button>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daily P&L — {monthLabel}</div>
+                        <button onClick={nextMonth} disabled={isCurrentMonth} style={{ background: 'transparent', border: '1px solid ' + C.border, borderRadius: 4, color: isCurrentMonth ? C.border : C.textMuted, cursor: isCurrentMonth ? 'default' : 'pointer', fontSize: 11, padding: '2px 8px', fontFamily: font }}>›</button>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 3 }}>
+                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 8, color: C.textMuted, fontWeight: 600 }}>{d}</div>)}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
                         {Array.from({ length: fdm }).map((_, i) => <div key={'e' + i} />)}
                         {Array.from({ length: dim }).map((_, i) => {
                           const day = i + 1
@@ -3499,10 +3508,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           const pnl = byDay[ds]
                           const dow = (fdm + i) % 7
                           const isWe = dow === 0 || dow === 6
+                          const isToday = isCurrentMonth && day === now2.getDate()
                           return (
-                            <div key={day} style={{ aspectRatio: '1', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isWe ? 'transparent' : pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.15)' : 'rgba(204,16,64,0.12)') : '#131720', border: '1px solid ' + (pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.3)' : 'rgba(204,16,64,0.3)') : C.border) }}>
-                              <span style={{ fontSize: 8, color: C.textMuted, lineHeight: 1 }}>{day}</span>
-                              {pnl != null && <span style={{ fontSize: 8, fontWeight: 700, color: pnl >= 0 ? C.synapse : C.red, lineHeight: 1 }}>{pnl >= 0 ? '+' : ''}{Math.round(pnl)}</span>}
+                            <div key={day} style={{ height: 44, borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, background: isWe ? 'transparent' : pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.15)' : 'rgba(204,16,64,0.12)') : '#131720', border: '1px solid ' + (isToday ? C.teal : pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.35)' : 'rgba(204,16,64,0.35)') : C.border) }}>
+                              <span style={{ fontSize: 9, color: isToday ? C.teal : C.textMuted, fontWeight: isToday ? 700 : 400, lineHeight: 1 }}>{day}</span>
+                              {pnl != null && <span style={{ fontSize: 8, fontWeight: 700, color: pnl >= 0 ? C.synapse : C.red, lineHeight: 1 }}>{pnl >= 0 ? '+' : ''}${Math.abs(pnl) >= 1000 ? (pnl / 1000).toFixed(1) + 'k' : Math.round(pnl)}</span>}
                             </div>
                           )
                         })}
