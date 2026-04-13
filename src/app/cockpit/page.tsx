@@ -1067,6 +1067,41 @@ const TZ = () => (
 function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
+  const previewAudioRef = useRef<any>(null)
+
+  const testVoice = async (voiceId: string) => {
+    // Stop any playing preview
+    try { if (previewAudioRef.current) { previewAudioRef.current.stop(); previewAudioRef.current = null } } catch {}
+    setPreviewingVoice(voiceId)
+    try {
+      const samples: Record<string, string> = {
+        nova:    "Hey, SPX is approaching your key level. What's your read on the setup?",
+        shimmer: "Looks like VIX is elevated. Make sure your position size fits the risk.",
+        alloy:   "Options flow is showing unusual call activity. Worth watching closely.",
+        echo:    "You're up on the day. Stay disciplined — don't give it back chasing.",
+        fable:   "The market's telling a story today. Let's make sure we're reading it right.",
+        onyx:    "SPX broke above VWAP with conviction. Bias confirmed — stay with the trend.",
+      }
+      const text = samples[voiceId] || `This is the ${voiceId} voice. Clean, natural, built for trading.`
+      const res = await fetch('/api/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engine: 'openai', text, voice: voiceId, speed: voiceSpeed || 1.0 })
+      })
+      if (!res.ok) { setPreviewingVoice(null); return }
+      const buf = await res.arrayBuffer()
+      const ACtx = window.AudioContext || (window as any).webkitAudioContext
+      const ctx = new ACtx()
+      if (ctx.state === 'suspended') await ctx.resume()
+      const audio = await ctx.decodeAudioData(buf)
+      const src = ctx.createBufferSource()
+      previewAudioRef.current = src
+      src.buffer = audio
+      src.connect(ctx.destination)
+      src.onended = () => setPreviewingVoice(null)
+      src.start(0)
+    } catch { setPreviewingVoice(null) }
+  }
   const save = () => {
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
     localStorage.setItem('tz-dark-mode', darkMode.toString())
@@ -1084,24 +1119,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
     onClose()
   }
 
-  const testVoice = async (vId: string, name: string) => {
-    setPreviewingVoice(vId)
-    try {
-      const res = await fetch('/api/voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ engine: 'openai', voice: vId, text: `Hi, I'm ${name}. Ready to help you trade with discipline today.`, speed: voiceSpeed || 1.0 })
-      })
-      if (res.ok) {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-        const buf = await ctx.decodeAudioData(await res.arrayBuffer())
-        const src = ctx.createBufferSource()
-        src.buffer = buf; src.connect(ctx.destination)
-        src.onended = () => { setPreviewingVoice(null); ctx.close() }
-        src.start(0)
-      } else { setPreviewingVoice(null) }
-    } catch { setPreviewingVoice(null) }
-  }
+  // testVoice defined above
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -1153,10 +1171,15 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
                 ].map(v => {
                   const selected = vals[VOICE_ID] === v.id || (!vals[VOICE_ID] && v.id === 'nova')
                   return (
-                    <button key={v.id} type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{ padding: '7px 8px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const, background: selected ? C.tealDim : C.bg, border: `1px solid ${selected ? C.tealBorder : C.border2}`, transition: 'all 0.15s' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.teal : C.text }}>{v.name}</div>
-                      <div style={{ fontSize: 9, color: C.textDim }}>{v.desc}</div>
-                    </button>
+                    <div key={v.id} style={{ position: 'relative' as const }}>
+                      <button type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{ width: '100%', padding: '7px 8px', paddingRight: 28, borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const, background: selected ? C.tealDim : C.bg, border: `1px solid ${selected ? C.tealBorder : C.border2}`, transition: 'all 0.15s' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.teal : C.text }}>{v.name}</div>
+                        <div style={{ fontSize: 9, color: C.textDim }}>{v.desc}</div>
+                      </button>
+                      <button type="button" onClick={e => { e.stopPropagation(); testVoice(v.id) }} style={{ position: 'absolute' as const, top: '50%', right: 5, transform: 'translateY(-50%)', width: 18, height: 18, borderRadius: '50%', border: `1px solid ${previewingVoice === v.id ? C.teal : C.border2}`, background: previewingVoice === v.id ? C.tealDim : 'transparent', color: previewingVoice === v.id ? C.teal : C.textMuted, cursor: 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
+                        {previewingVoice === v.id ? '▶' : '▷'}
+                      </button>
+                    </div>
                   )
                 })}
               </div>
@@ -1167,8 +1190,19 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
           )}
 
           {voiceEngine === 'webspeech' && (
-            <div style={{ fontSize: 10, color: C.textDim, padding: '8px 12px', background: '#131720', borderRadius: 6, border: `1px solid ${C.border}` }}>
-              Uses your device's built-in voice engine. Quality varies by OS. Completely free — no API costs.
+            <div style={{ fontSize: 10, color: C.textDim, padding: '8px 12px', background: '#131720', borderRadius: 6, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span>Uses your device's built-in voice engine. Completely free — no API costs.</span>
+              <button type="button" onClick={() => {
+                const utter = new SpeechSynthesisUtterance("SPX is approaching your key level. What's your read?")
+                utter.rate = voiceSpeed || 1.0
+                const voices = window.speechSynthesis.getVoices()
+                const preferred = voices.find(v => v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Karen')) || voices.find(v => v.lang.startsWith('en'))
+                if (preferred) utter.voice = preferred
+                window.speechSynthesis.cancel()
+                window.speechSynthesis.speak(utter)
+              }} style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 4, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, cursor: 'pointer', fontSize: 10, fontFamily: font }}>
+                ▷ Preview
+              </button>
             </div>
           )}
         </div>
@@ -1228,14 +1262,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
   )
 }
 
-// ── VOICE SELECTOR ─────────────────────────────────────────────────────────
-const VOICES = [
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', desc: 'Calm & analytical' },
-  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', desc: 'Direct & assertive' },
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', desc: 'Deep & authoritative' },
-  { id: 'jsCqWAovK2LkecY7zXl4', name: 'Freya', desc: 'Clear & focused' },
-  { id: 'custom', name: 'Custom ID', desc: 'Enter your own voice ID' },
-]
+
 
 // ── PROB METER ─────────────────────────────────────────────────────────────
 function ProbMeter({ value, color }: { value: number; color: string }) {
