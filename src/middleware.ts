@@ -5,11 +5,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/pricing(.*)',
-  '/api/polygon(.*)',
-  '/api/flow(.*)',
-  '/api/ai(.*)',
-  '/api/voice(.*)',
-  '/api/webhooks(.*)',
+  '/api/polygon(.*)',      // Polygon proxy — key is server-side, no user data
+  '/api/webhooks(.*)',     // Stripe webhooks — verified by signature
 ])
 
 export default clerkMiddleware(async (auth, request) => {

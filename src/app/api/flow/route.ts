@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 
 // Server-side Unusual Whales proxy
 export async function GET(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const apiKey = process.env.UNUSUAL_WHALES_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'Flow service not configured' }, { status: 503 })
 
