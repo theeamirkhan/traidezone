@@ -1019,7 +1019,7 @@ const TZ = () => (
 )
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
-function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
+function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const save = () => {
@@ -1037,7 +1037,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
       const res = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voiceId: vId, text: `Hi, I'm ${name}. Ready to help you trade with discipline today.`, model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: voiceSpeed } })
+        body: JSON.stringify({ engine: 'openai', voice: vId, text: `Hi, I'm ${name}. Ready to help you trade with discipline today.`, speed: voiceSpeed || 1.0 })
       })
       if (res.ok) {
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -1070,51 +1070,56 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, darkMode, 
           </button>
         </div>
 
-        {/* Voice Selector */}
+        {/* Voice Engine Selector */}
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>AI Voice (ElevenLabs)</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 8 }}>
-            {[
-              { name: 'Rachel', id: '21m00Tcm4TlvDq8ikWAM', desc: 'Calm, professional' },
-              { name: 'Drew', id: '29vD33N1CtxCmqQRPOHJ', desc: 'Confident, direct' },
-              { name: 'Clyde', id: '2EiwWnXFnvU5JabPnv8n', desc: 'Deep, authoritative' },
-              { name: 'Paul', id: '5Q0t7uMcjvnagumLfvZi', desc: 'Focused, assertive' },
-              { name: 'Domi', id: 'AZnzlk1XvdvUeBnXmlld', desc: 'Energetic, clear' },
-              { name: 'Dave', id: 'CYw3kZ78EXmF4bPxNGZ2', desc: 'Conversational' },
-              { name: 'Fin', id: 'D38z5RcWu1voky8WS1ja', desc: 'Warm, analytical' },
-              { name: 'Sarah', id: 'EXAVITQu4vr4xnSDxMaL', desc: 'Calm, analytical' },
-              { name: 'Antoni', id: 'ErXwobaYiN019PkySvjV', desc: 'Smooth, measured' },
-              { name: 'Thomas', id: 'GBv7mTt0atIp3Br8iCZE', desc: 'Sharp, trading' },
-            ].map(v => {
-              const selected = (vals[VOICE_ID] || localStorage.getItem(VOICE_ID) || '21m00Tcm4TlvDq8ikWAM') === v.id
-              return (
-                <div key={v.id} style={{ position: 'relative' as const }}>
-                  <button type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{
-                    width: '100%', padding: '7px 10px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const,
-                    background: selected ? C.tealDim : C.bg,
-                    border: `1px solid ${selected ? C.tealBorder : C.border2}`,
-                    transition: 'all 0.15s',
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.violet : C.text }}>{v.name}</div>
-                    <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>{v.desc}</div>
-                  </button>
-                  <button type="button" onClick={e => { e.stopPropagation(); testVoice(v.id, v.name) }}
-                    style={{ position: 'absolute' as const, top: 5, right: 5, fontSize: 9, padding: '2px 6px', borderRadius: 4, border: `1px solid ${C.tealBorder}`, background: previewingVoice === v.id ? C.tealDim : 'transparent', color: C.teal, cursor: 'pointer' }}>
-                    {previewingVoice === v.id ? '▶' : '▶'}
-                  </button>
-                </div>
-              )
-            })}
+          <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Voice Engine</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
+            <button type="button" onClick={() => { setVoiceEngine('openai'); localStorage.setItem('tz-voice-engine', 'openai') }} style={{ padding: '10px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left' as const, background: voiceEngine === 'openai' ? C.tealDim : '#131720', border: `1px solid ${voiceEngine === 'openai' ? C.tealBorder : C.border}`, transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: voiceEngine === 'openai' ? C.teal : C.text, marginBottom: 2 }}>🎙 OpenAI TTS</div>
+              <div style={{ fontSize: 9, color: C.textMuted }}>Premium — natural voices</div>
+              <div style={{ fontSize: 9, color: C.synapse, marginTop: 2 }}>Pro / Elite plans</div>
+            </button>
+            <button type="button" onClick={() => { setVoiceEngine('webspeech'); localStorage.setItem('tz-voice-engine', 'webspeech') }} style={{ padding: '10px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left' as const, background: voiceEngine === 'webspeech' ? 'rgba(100,140,220,0.1)' : '#131720', border: `1px solid ${voiceEngine === 'webspeech' ? 'rgba(100,140,220,0.4)' : C.border}`, transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: voiceEngine === 'webspeech' ? '#8899ee' : C.text, marginBottom: 2 }}>🔊 Browser Voice</div>
+              <div style={{ fontSize: 9, color: C.textMuted }}>Free — device voices</div>
+              <div style={{ fontSize: 9, color: C.synapse, marginTop: 2 }}>All plans</div>
+            </button>
           </div>
-          <div style={{ marginBottom: 6, fontSize: 10, color: C.textDim }}>Or enter a custom ElevenLabs voice ID:</div>
-          <input
-            type="text"
-            value={vals[VOICE_ID] && !['21m00Tcm4TlvDq8ikWAM','29vD33N1CtxCmqQRPOHJ','2EiwWnXFnvU5JabPnv8n','5Q0t7uMcjvnagumLfvZi','AZnzlk1XvdvUeBnXmlld','CYw3kZ78EXmF4bPxNGZ2','D38z5RcWu1voky8WS1ja','EXAVITQu4vr4xnSDxMaL','ErXwobaYiN019PkySvjV','GBv7mTt0atIp3Br8iCZE'].includes(vals[VOICE_ID]) ? vals[VOICE_ID] : ''}
-            onChange={e => setVals((p: any) => ({ ...p, [VOICE_ID]: e.target.value }))}
-            placeholder="e.g. abc123xyz456..."
-            style={{ width: '100%', background: '#080a0f', border: `1px solid ${C.border2}`, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', boxSizing: 'border-box' as const }}
-          />
+
+          {voiceEngine === 'openai' && (
+            <div>
+              <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6, fontWeight: 600 }}>Select Voice</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
+                {[
+                  { id: 'nova',    name: 'Nova',    desc: 'Warm, clear' },
+                  { id: 'shimmer', name: 'Shimmer', desc: 'Soft, calm' },
+                  { id: 'alloy',   name: 'Alloy',   desc: 'Neutral, precise' },
+                  { id: 'echo',    name: 'Echo',     desc: 'Confident' },
+                  { id: 'fable',   name: 'Fable',   desc: 'Storytelling' },
+                  { id: 'onyx',    name: 'Onyx',    desc: 'Deep, authoritative' },
+                ].map(v => {
+                  const selected = vals[VOICE_ID] === v.id || (!vals[VOICE_ID] && v.id === 'nova')
+                  return (
+                    <button key={v.id} type="button" onClick={() => setVals((p: any) => ({ ...p, [VOICE_ID]: v.id }))} style={{ padding: '7px 8px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' as const, background: selected ? C.tealDim : C.bg, border: `1px solid ${selected ? C.tealBorder : C.border2}`, transition: 'all 0.15s' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: selected ? C.teal : C.text }}>{v.name}</div>
+                      <div style={{ fontSize: 9, color: C.textDim }}>{v.desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize: 9, color: C.textMuted, padding: '6px 10px', background: '#131720', borderRadius: 6, border: `1px solid ${C.border}` }}>
+                💡 OpenAI TTS — 20x cheaper than ElevenLabs, near-identical quality for trading context
+              </div>
+            </div>
+          )}
+
+          {voiceEngine === 'webspeech' && (
+            <div style={{ fontSize: 10, color: C.textDim, padding: '8px 12px', background: '#131720', borderRadius: 6, border: `1px solid ${C.border}` }}>
+              Uses your device's built-in voice engine. Quality varies by OS. Completely free — no API costs.
+            </div>
+          )}
         </div>
+
         {/* Name */}
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 6 }}>Your Name</div>
@@ -1304,7 +1309,10 @@ export default function CockpitPage() {
   const csvInputRef = useRef<HTMLInputElement>(null)
 
   // Voice
-  const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
+  const [voiceId, setVoiceId] = useState('nova')  // OpenAI voice name
+  const [voiceEngine, setVoiceEngine] = useState<'openai'|'webspeech'>(() =>
+    (localStorage.getItem('tz-voice-engine') as any) || 'openai'
+  )
   const [speaking, setSpeaking] = useState(false)
   const [listening, setListening] = useState(false)
   const [liveTranscript, setLiveTranscript] = useState('')
@@ -1476,6 +1484,8 @@ export default function CockpitPage() {
   }, [morningPlan, openPrice])
 
   // Save playbooks
+  useEffect(() => { localStorage.setItem('tz-voice-engine', voiceEngine) }, [voiceEngine])
+
   // Persist drawn lines & zones to localStorage whenever they change
   useEffect(() => { localStorage.setItem('tz-drawn-lines', JSON.stringify(drawnLines)) }, [drawnLines])
   useEffect(() => { localStorage.setItem('tz-drawn-zones', JSON.stringify(drawnZones)) }, [drawnZones])
@@ -2011,18 +2021,16 @@ export default function CockpitPage() {
   }
 
   const speak = async (text: string) => {
-    const elKey = keys[EL_KEY] || 'server'
+    if (!text?.trim()) return
 
-    // Stop any currently playing audio immediately
+    // Stop any currently playing audio
     try {
       if (audioSourceRef.current) { audioSourceRef.current.stop(); audioSourceRef.current = null }
       if (audioCtxRef.current) { await audioCtxRef.current.close(); audioCtxRef.current = null }
+      window.speechSynthesis?.cancel()
     } catch {}
-    audioRef.current = null
 
     setSpeaking(true)
-
-    // Pause mic so AI can't hear itself
     const wasListening = listeningRef.current
     if (wasListening && recognitionRef.current) {
       recognitionRef.current.stop()
@@ -2031,25 +2039,46 @@ export default function CockpitPage() {
     }
 
     try {
-      const vid = (voiceId === 'custom' || !voiceId) ? (customVoiceId || '21m00Tcm4TlvDq8ikWAM') : voiceId
-      console.log('TZ speak: voice', vid)
+      // Web Speech API — free, browser-native
+      if (voiceEngine === 'webspeech') {
+        await new Promise<void>((resolve) => {
+          const utter = new SpeechSynthesisUtterance(text)
+          utter.rate = voiceSpeed || 1.0
+          utter.pitch = 1.0
+          const voices = window.speechSynthesis.getVoices()
+          const preferred = voices.find(v =>
+            v.name.includes('Google') || v.name.includes('Samantha') ||
+            v.name.includes('Karen') || v.name.includes('Daniel')
+          ) || voices.find(v => v.lang.startsWith('en')) || voices[0]
+          if (preferred) utter.voice = preferred
+          utter.onend = () => resolve()
+          utter.onerror = () => resolve()
+          window.speechSynthesis.speak(utter)
+        })
+        setSpeaking(false)
+        if (wasListening) startListening()
+        return
+      }
+
+      // OpenAI TTS — premium quality voice
       const res = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          voiceId: vid, text,
-          model_id: 'eleven_turbo_v2_5',
-          voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: voiceSpeed }
+          engine: 'openai',
+          text,
+          voice: voiceId || 'nova',
+          speed: voiceSpeed || 1.0,
         })
       })
+
       if (!res.ok) {
-        const errText = await res.text()
-        console.error('TZ ElevenLabs error:', res.status, errText)
+        console.error('TZ voice error:', res.status, await res.text())
         setSpeaking(false)
-        if (res.status === 404) fetchAndSetFirstVoice(elKey)
         if (wasListening) startListening()
         return
       }
+
       const arrayBuffer = await res.arrayBuffer()
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext
       const audioCtx = new AudioContext()
@@ -2060,16 +2089,15 @@ export default function CockpitPage() {
       audioSourceRef.current = source
       source.buffer = audioBuffer
       source.connect(audioCtx.destination)
-      source.start(0)
       source.onended = () => {
         audioSourceRef.current = null
         audioCtxRef.current = null
         setSpeaking(false)
-        audioCtx.close()
-        if (wasListening) setTimeout(() => startListening(), 600)
+        if (wasListening) setTimeout(() => startListening(), 300)
       }
-    } catch (e) { 
-      console.error('TZ speak exception:', e)
+      source.start(0)
+    } catch (e) {
+      console.error('TZ speak error:', e)
       audioSourceRef.current = null
       audioCtxRef.current = null
       setSpeaking(false)
@@ -2077,23 +2105,6 @@ export default function CockpitPage() {
     }
   }
 
-  // Auto-fetch first available voice from user's ElevenLabs account
-  const fetchAndSetFirstVoice = async (elKey: string) => {
-    try {
-      const res = await fetch('https://api.elevenlabs.io/v1/voices', {
-        headers: { 'xi-api-key': elKey }
-      })
-      if (!res.ok) return
-      const data = await res.json()
-      const voices = data.voices || []
-      if (voices.length > 0) {
-        const firstId = voices[0].voice_id
-        console.log('TZ: Auto-switching to voice:', voices[0].name, firstId)
-        setVoiceId(firstId)
-        localStorage.setItem(VOICE_ID, firstId)
-      }
-    } catch (e) { console.error('TZ fetchVoices error:', e) }
-  }
 
   // Build full context string for AI companion
   const buildCompanionContext = () => {
@@ -2104,7 +2115,7 @@ export default function CockpitPage() {
 
     return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
 
-NEVER say you are text-only. Your responses ARE spoken aloud via ElevenLabs.
+NEVER say you are text-only. Your responses ARE spoken aloud in real-time.
 
 ═══ LIVE MARKET DATA ═══
 SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : '—'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : '—'}%)
@@ -2291,7 +2302,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         input, textarea { font-family: '${font}' !important; }
       `}</style>
 
-      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
+      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} voiceEngine={voiceEngine} setVoiceEngine={setVoiceEngine} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
 
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
@@ -2971,7 +2982,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {/* Read It button */}
-                    {aiResult && keys[EL_KEY] && (
+                    {aiResult && (
                       <button onClick={() => {
                         const narrative = [
                           aiResult.signal ? `Signal: ${aiResult.signal} at ${aiResult.confidence}% confidence.` : '',
