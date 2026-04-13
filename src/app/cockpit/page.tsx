@@ -1458,7 +1458,8 @@ export default function CockpitPage() {
       if (v) loadedKeys[k] = v
     })
     setKeys(loadedKeys)
-    if (!loadedKeys[POLY_KEY] && !loadedKeys[ANTH_KEY]) setShowSettings(true)
+    // Keys are server-side — don't auto-open settings when localStorage keys missing
+    // setShowSettings only if user explicitly opens it via ⚙ button
 
     const savedVoice = localStorage.getItem(VOICE_ID)
     if (savedVoice) setVoiceId(savedVoice)
@@ -3508,7 +3509,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div ref={chartContainerRef} style={{ position: 'absolute', inset: 0 }}>
                     {candles.length === 0 && (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12 }}>
-                        {keys[POLY_KEY] ? (
+                        {candles.length === 0 ? (
                           <><div style={{ width: 24, height: 24, border: `2px solid ${C.border}`, borderTopColor: C.teal, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /><div style={{ fontSize: 12, color: C.textDim }}>Loading SPX data...</div></>
                         ) : (
                           <div style={{ textAlign: 'center' }}><div style={{ fontSize: 12, color: C.textDim, marginBottom: 8 }}>Loading market data...</div><button onClick={() => setShowSettings(true)} style={{ background: '#00d4a0', color: '#080a0f', border: 'none', borderRadius: 4, padding: '6px 12px', fontFamily: font, fontSize: 10, cursor: 'pointer' }}>Open Settings</button></div>
