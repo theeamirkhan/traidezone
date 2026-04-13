@@ -796,7 +796,7 @@ async function fetchMarketIntel(polyKey: string) {
         }
       }
     })
-    const vixRes = await proxy(`/v2/aggs/ticker/I:VIX1D/range/1/day/${fmt2(weekAgo)}/${today}?adjusted=true&sort=asc&limit=10`)
+    const vixRes = await proxy(`/v2/aggs/ticker/I:VIX/range/1/day/${fmt2(weekAgo)}/${today}?adjusted=true&sort=asc&limit=10`)
     const vix: any = {}
     if (vixRes?.results?.length >= 2) {
       const vr = vixRes.results
@@ -1811,7 +1811,9 @@ export default function CockpitPage() {
           const spyEmas = calcEMA(mapped, 200)
           const rawSpy200 = spyEmas[spyEmas.length - 1]
           setLevels((p: any) => {
-            const spxLive = p.currentSpxPrice || p.dayOpen
+            // SPX/SPY ratio for scaling VWAP/EMA from SPY to SPX equivalent
+            // Use actual live SPX price from state (set by I:SPX fetch)
+            const spxLive = p.dayOpen  // dayOpen is set from I:SPX data
             const ratio = spxLive && last.c > 0 ? spxLive / last.c : 10.0
             return {
               ...p,
@@ -1832,14 +1834,14 @@ export default function CockpitPage() {
 
   useEffect(() => {
     // keys handled server-side
-    fetchHistory('SPY', setCandles, 'spx')
+    fetchHistory('I:SPX', setCandles, 'spx')
     fetchHistory('SPY', setSpyCandles, 'spy')
-    fetchHistory('I:VIX1D', setVixCandles, 'vix')
+    fetchHistory('I:VIX', setVixCandles, 'vix')
     setConnected(true)
     const interval = setInterval(() => {
-      fetchHistory('SPY', setCandles, 'spx')
+      fetchHistory('I:SPX', setCandles, 'spx')
       fetchHistory('SPY', setSpyCandles, 'spy')
-      fetchHistory('I:VIX1D', setVixCandles, 'vix')
+      fetchHistory('I:VIX', setVixCandles, 'vix')
     }, 60000)
     return () => clearInterval(interval)
   }, [keys, fetchHistory])
@@ -1848,7 +1850,7 @@ export default function CockpitPage() {
   useEffect(() => {
     // keys handled server-side
     setCandles([])
-    fetchHistory('SPY', setCandles, 'spx')
+    fetchHistory('I:SPX', setCandles, 'spx')
   }, [chartTf])
 
   // Profile-aware session greeting — fires once per session when cockpit opens
