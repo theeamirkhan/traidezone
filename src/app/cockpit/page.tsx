@@ -1300,6 +1300,7 @@ export default function CockpitPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const journalImportRef = useRef<HTMLInputElement>(null)
+  const csvInputRef = useRef<HTMLInputElement>(null)
 
   // Voice
   const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
@@ -2141,6 +2142,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: darkMode ? '#080a0f' : '#f0f4f8', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
+      {/* Always-mounted CSV import input — available on all tabs */}
+      <input ref={csvInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
         * { box-sizing: border-box; }
@@ -3358,7 +3361,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 6 }}>Import from Broker</div>
                 <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10, lineHeight: 1.5 }}>Upload a CSV export from ThinkorSwim, Tradovate, Webull, or any broker. Your trade history will feed the AI to improve its analysis.</div>
                 <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
-                <button onClick={() => fileInputRef.current?.click()} style={{ width: '100%', background: '#131720', border: `1px dashed ${C.border2}`, borderRadius: 6, padding: '10px 0', color: C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
+                <button onClick={() => csvInputRef.current?.click()} style={{ width: '100%', background: '#131720', border: `1px dashed ${C.border2}`, borderRadius: 6, padding: '10px 0', color: C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
                   📁 Upload CSV
                 </button>
                 {importStatus && (
@@ -3416,13 +3419,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* TAB 4 — JOURNAL / ANALYTICS */}
         {tab === 'journal' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: 20, background: '#050609' }}>
-            <input ref={journalImportRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
-
             {/* Header row with title + import button */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, color: C.text }}>Performance Analytics</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <button onClick={() => journalImportRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 6, padding: '6px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600 }}>
+                                <button onClick={() => csvInputRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 6, padding: '6px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600 }}>
                   📂 Import CSV
                 </button>
                 {importStatus && <span style={{ fontSize: 10, color: importStatus.startsWith('✓') ? C.synapse : C.yellow }}>{importStatus}</span>}
@@ -3468,7 +3469,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
                 <div style={{ fontSize: 14, color: C.textDim, marginBottom: 8 }}>No trade data yet</div>
                 <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>Import a TOS CSV or add trades in the LOG TRADE tab</div>
-                <button onClick={() => journalImportRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 8, padding: '10px 20px', color: C.teal, cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
+                <button onClick={() => csvInputRef.current?.click()} style={{ background: C.tealDim, border: '1px solid ' + C.tealBorder, borderRadius: 8, padding: '10px 20px', color: C.teal, cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
                   📂 Import Trades CSV
                 </button>
               </div>
