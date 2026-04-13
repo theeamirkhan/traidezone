@@ -1323,8 +1323,12 @@ export default function CockpitPage() {
   // Drawing state
   const [drawMode, setDrawMode] = useState<string | null>(null)
   const [drawColor, setDrawColor] = useState(C_DARK.teal)
-  const [drawnLines, setDrawnLines] = useState<any[]>([])
-  const [drawnZones, setDrawnZones] = useState<any[]>([])
+  const [drawnLines, setDrawnLines] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('tz-drawn-lines') || '[]') } catch { return [] }
+  })
+  const [drawnZones, setDrawnZones] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('tz-drawn-zones') || '[]') } catch { return [] }
+  })
   const [drawPreview, setDrawPreview] = useState<any>(null)
   const [overlayCrosshair, setOverlayCrosshair] = useState<any>(null)
   const [drawPoint1, setDrawPoint1] = useState<any>(null)
@@ -1423,13 +1427,44 @@ export default function CockpitPage() {
       }
     })()
 
-    const savedPlan = localStorage.getItem('tz-morning-plan')
-    if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
+    // Load morning plan from Supabase
+    ;(async () => {
+      try {
+        const planRes = await fetch('/api/userdata?table=morning_plan')
+        if (planRes.ok) {
+          const { data } = await planRes.json()
+          if (data) {
+            const plan = {
+              bias: data.bias || 'neutral',
+              gapDirection: data.gap_direction || 'flat',
+              gapSize: data.gap_size || '',
+              impliedMove: data.implied_move || '',
+              keyLevels: data.key_levels || '',
+              notes: data.notes || '',
+            }
+            setMorningPlan(plan)
+            localStorage.setItem('tz-morning-plan', JSON.stringify(plan))
+          } else {
+            const savedPlan = localStorage.getItem('tz-morning-plan')
+            if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
+          }
+        }
+      } catch {
+        const savedPlan = localStorage.getItem('tz-morning-plan')
+        if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
+      }
+    })()
   }, [])
 
   // Save morning plan
   useEffect(() => {
     localStorage.setItem('tz-morning-plan', JSON.stringify(morningPlan))
+    // Sync to Supabase
+    fetch('/api/userdata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'morning_plan', data: morningPlan })
+    }).catch(() => {})
     if (openPrice) {
       const im = parseFloat(morningPlan.impliedMove) || 0
       setLevels((p: any) => ({
@@ -1441,6 +1476,10 @@ export default function CockpitPage() {
   }, [morningPlan, openPrice])
 
   // Save playbooks
+  // Persist drawn lines & zones to localStorage whenever they change
+  useEffect(() => { localStorage.setItem('tz-drawn-lines', JSON.stringify(drawnLines)) }, [drawnLines])
+  useEffect(() => { localStorage.setItem('tz-drawn-zones', JSON.stringify(drawnZones)) }, [drawnZones])
+
   useEffect(() => {
     localStorage.setItem('tz-playbooks', JSON.stringify(playbooks))
   }, [playbooks])
@@ -1521,13 +1560,34 @@ export default function CockpitPage() {
     const x = (e.clientX - rect.left) / rect.width
     const y = (e.clientY - rect.top) / rect.height
     if (drawMode === 'horizontal') {
-      setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'horizontal', y, color: drawColor, label: '' }])
+      const prices = candles.map((c: any) => [c.h, c.l]).flat().filter(Boolean)
+      const chartLow = prices.length ? Math.min(...prices) : 0
+      const chartHigh = prices.length ? Math.max(...prices) : 0
+      const padding = (chartHigh - chartLow) * 0.05
+      const priceAtY = chartHigh + padding - y * (chartHigh - chartLow + padding * 2)
+      setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'horizontal', y, color: drawColor, label: '', price: parseFloat(priceAtY.toFixed(2)) }])
       setDrawMode(null); setDrawPreview(null)
     } else if (drawMode === 'trendline' || drawMode === 'zone') {
       if (!drawPoint1) { setDrawPoint1({ x, y }) }
       else {
-        if (drawMode === 'trendline') setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'trendline', p1: drawPoint1, p2: { x, y }, color: drawColor }])
-        else setDrawnZones((p: any[]) => [...p, { id: Date.now(), y1: drawPoint1.y, y2: y, color: drawColor }])
+        if (drawMode === 'trendline') {
+          const prices2 = candles.map((c: any) => [c.h, c.l]).flat().filter(Boolean)
+          const cLow = prices2.length ? Math.min(...prices2) : 0
+          const cHigh = prices2.length ? Math.max(...prices2) : 0
+          const pad = (cHigh - cLow) * 0.05
+          const p2y = parseFloat((cHigh + pad - y * (cHigh - cLow + pad * 2)).toFixed(2))
+          const p1y = parseFloat((cHigh + pad - drawPoint1.y * (cHigh - cLow + pad * 2)).toFixed(2))
+          setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'trendline', p1: drawPoint1, p2: { x, y }, color: drawColor, price1: p1y, price2: p2y }])
+        }
+        else {
+          const prices3 = candles.map((c: any) => [c.h, c.l]).flat().filter(Boolean)
+          const zLow = prices3.length ? Math.min(...prices3) : 0
+          const zHigh = prices3.length ? Math.max(...prices3) : 0
+          const zPad = (zHigh - zLow) * 0.05
+          const yPriceFn = (yv: number) => parseFloat((zHigh + zPad - yv * (zHigh - zLow + zPad * 2)).toFixed(2))
+          const y1v = Math.min(drawPoint1.y, y), y2v = Math.max(drawPoint1.y, y)
+          setDrawnZones((p: any[]) => [...p, { id: Date.now(), y1: drawPoint1.y, y2: y, color: drawColor, priceLow: yPriceFn(y2v), priceHigh: yPriceFn(y1v) }])
+        }
         setDrawPoint1(null); setDrawMode(null); setDrawPreview(null)
       }
     }
@@ -1547,8 +1607,7 @@ export default function CockpitPage() {
 
   // Fetch market data — timeframe-aware with correct lookback windows
   const fetchHistory = useCallback(async (ticker: string, setter: any, key: string) => {
-    const polyKey = keys[POLY_KEY]
-    if (!polyKey) return
+    const polyKey = keys[POLY_KEY] || 'env'  // fall through to server-side key
     try {
       const est = getEST()
       const today = est.toISOString().split('T')[0]
@@ -1717,7 +1776,7 @@ export default function CockpitPage() {
       const chart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
         height: chartContainerRef.current.clientHeight,
-        layout: { background: { color: '#ffffff' }, textColor: '#4a5880' },
+        layout: { background: { color: darkMode ? '#0d1018' : '#ffffff' }, textColor: darkMode ? '#8899bb' : '#4a5880' },
         grid: { vertLines: { color: 'rgba(100,140,220,0.08)' }, horzLines: { color: 'rgba(100,140,220,0.08)' } },
         crosshair: { mode: 1 },
         rightPriceScale: { borderColor: 'rgba(100,140,220,0.15)' },
@@ -1779,6 +1838,37 @@ export default function CockpitPage() {
           )
         }
 
+        // Draw saved horizontal lines and zones on the chart as price lines
+        if (candles.length > 0) {
+          drawnLines.filter((l: any) => l.type === 'horizontal' && l.price).forEach((line: any) => {
+            try {
+              const pl = chart.addSeries(LineSeries, {
+                color: line.color || '#00e5ff',
+                lineWidth: 1,
+                lineStyle: 2, // dashed
+                title: line.label || `${line.price}`,
+                crosshairMarkerVisible: false,
+                lastValueVisible: true,
+                priceLineVisible: false,
+              })
+              const firstTime = chartData[0]?.time
+              const lastTime = chartData[chartData.length - 1]?.time
+              if (firstTime && lastTime) pl.setData([{ time: firstTime, value: line.price }, { time: lastTime, value: line.price }])
+            } catch {}
+          })
+          drawnZones.filter((z: any) => z.priceHigh && z.priceLow).forEach((zone: any) => {
+            try {
+              const zHigh = chart.addSeries(LineSeries, { color: zone.color + '99' || '#ff990099', lineWidth: 1, lineStyle: 3, lastValueVisible: false, priceLineVisible: false })
+              const zLow = chart.addSeries(LineSeries, { color: zone.color + '99' || '#ff990099', lineWidth: 1, lineStyle: 3, lastValueVisible: false, priceLineVisible: false })
+              const ft = chartData[0]?.time, lt = chartData[chartData.length - 1]?.time
+              if (ft && lt) {
+                zHigh.setData([{ time: ft, value: zone.priceHigh }, { time: lt, value: zone.priceHigh }])
+                zLow.setData([{ time: ft, value: zone.priceLow }, { time: lt, value: zone.priceLow }])
+              }
+            } catch {}
+          })
+        }
+
         // Fit to just the loaded data — critical for daily not looking spread out
         chart.timeScale().fitContent()
 
@@ -1797,7 +1887,7 @@ export default function CockpitPage() {
       if (ro) ro.disconnect()
       if (chartRef.current) { try { chartRef.current.remove() } catch {} chartRef.current = null }
     }
-  }, [tab, candles.length])
+  }, [tab, candles.length, drawnLines.length, drawnZones.length])
 
   // AI auto-run every 3 min — fires even pre-market to load options flow
   useEffect(() => {
@@ -2064,9 +2154,14 @@ UNMET:\n${unmetChecks || 'All conditions met!'}
 P&L: ${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)} | Trades today: ${trades.filter(t => t.date === new Date().toISOString().split('T')[0]).length}
 ${tradeStats ? `All-time: ${tradeStats.winRate}% win rate | ${tradeStats.totalTrades} trades | Profit factor: ${tradeStats.profitFactor}x` : 'No trade history yet'}
 
-═══ DRAWN LEVELS ON CHART ═══
-${drawnLines.length > 0 ? drawnLines.map((l: any) => `${l.type === 'horizontal' ? 'Horizontal line' : 'Trend line'} at Y=${(l.y * 100).toFixed(0)}% of chart`).join('\n') : 'No drawn levels'}
-${drawnZones.length > 0 ? drawnZones.map((z: any) => `S&D Zone: Y ${(z.y1 * 100).toFixed(0)}%–${(z.y2 * 100).toFixed(0)}%`).join('\n') : ''}
+═══ DRAWN LEVELS & S&D ZONES ═══
+${drawnLines.length > 0 ? drawnLines.map((l: any) => {
+  if (l.type === 'horizontal' && l.price) return `Horizontal level: $${l.price.toFixed(2)} (${l.label || 'key level'})`
+  if (l.type === 'horizontal') return `Horizontal line at chart position ${(l.y * 100).toFixed(0)}%`
+  if (l.type === 'trendline' && l.price1 && l.price2) return `Trendline: $${l.price1.toFixed(2)} → $${l.price2.toFixed(2)}`
+  return `Trendline drawn on chart`
+}).join('\n') : 'No drawn levels'}
+${drawnZones.length > 0 ? drawnZones.map((z: any) => z.priceHigh && z.priceLow ? `S&D Zone: $${z.priceLow.toFixed(2)}–$${z.priceHigh.toFixed(2)} (${z.priceLow < (currentPrice||0) && z.priceHigh > (currentPrice||0) ? 'PRICE IN ZONE' : z.priceHigh < (currentPrice||0) ? 'support below' : 'resistance above'})` : `S&D Zone at chart ${(z.y1*100).toFixed(0)}%–${(z.y2*100).toFixed(0)}%`).join('\n') : ''}
 
 ${macroRegime ? `\n═══ MACRO REGIME ═══\nFed: ${macroRegime.fedStance} (${macroRegime.rateLevel}) | ${macroRegime.regime}\n${macroRegime.regimeSummary}` : ''}
 ${marketNews ? `\n═══ TODAY'S NEWS ═══\n${marketNews}` : ''}
