@@ -880,109 +880,118 @@ async function fetchTiingoContext(tiingoKey: string, gapDirection: string, gapSi
   } catch (e) { return null }
 }
 function parseBrokerCSV(text: string): any[] {
+  // Detect delimiter: TOS Account Statement uses tabs, generic CSVs use commas
+  const firstDataLine = text.split('\n').find(l => l.trim() && !l.startsWith(' ') && l.includes('\t'))
+  const delim = firstDataLine ? '\t' : ','
+
   const rawLines = text.split('\n')
 
-  // Find the header row — first line where first cell doesn't start with comma/empty
+  // Find the header row — look for DATE/TIME/TYPE or similar columns
   let headerIdx = -1
   for (let i = 0; i < rawLines.length; i++) {
-    const l = rawLines[i].trim()
-    if (!l || l.startsWith(',')) continue
-    // Must have at least 3 comma-separated values and look like a header
-    const parts = l.split(',')
-    if (parts.length >= 3 && (
-      l.toLowerCase().includes('symbol') || l.toLowerCase().includes('date') ||
-      l.toLowerCase().includes('exec') || l.toLowerCase().includes('side') ||
-      l.toLowerCase().includes('p/l') || l.toLowerCase().includes('pnl')
-    )) { headerIdx = i; break }
+    const l = rawLines[i]
+    const cols = l.split(delim).map(c => c.trim().toLowerCase())
+    if (cols.includes('date') || cols.includes('exec time') || cols.includes('exec_time')) {
+      headerIdx = i
+      break
+    }
   }
   if (headerIdx === -1) return []
 
-  const headers = rawLines[headerIdx].split(',').map(h => h.trim().replace(/^"|"$/g,'').toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/__+/g,'_'))
+  const headers = rawLines[headerIdx].split(delim).map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/__+/g, '_').replace(/^_|_$/g, ''))
   const dataLines = rawLines.slice(headerIdx + 1)
-  const rows: any[] = []
+
+  const trades: any[] = []
+  // Group by date for consolidating multi-leg fills into single trade P&L
+  const byDate: Record<string, number> = {}
+  const byDateDesc: Record<string, string> = {}
 
   for (const line of dataLines) {
     const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith(',,,') ) continue
-    // Handle quoted fields with commas inside
-    const cols: string[] = []
-    let cur = '', inQ = false
-    for (const ch of trimmed + ',') {
-      if (ch === '"') { inQ = !inQ }
-      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = '' }
-      else cur += ch
-    }
-    if (cols.length < 3) continue
+    if (!trimmed) continue
+    const cols = trimmed.split(delim)
     const row: any = {}
-    headers.forEach((h, i) => { row[h] = (cols[i] || '').trim() })
-    rows.push(row)
-  }
+    headers.forEach((h, i) => { row[h] = (cols[i] || '').trim().replace(/^"|"$/g, '') })
 
-  // TOS Account Trade History: pair BUY+OPEN with SELL+CLOSE for same symbol
-  // Check if this looks like a TOS exec history (has side/pos_effect columns, no pnl)
-  const hasPnl = headers.some(h => h.includes('p_l') || h.includes('pnl') || h.includes('realized'))
-  const hasSide = headers.some(h => h === 'side' || h === 'buy_sell')
-  const hasPosEffect = headers.some(h => h.includes('pos_effect') || h.includes('position_effect'))
+    // TOS Account Statement format: has DATE, TIME, TYPE, DESCRIPTION, AMOUNT columns
+    const type = (row.type || '').trim().toUpperCase()
 
-  if (!hasPnl && hasSide && hasPosEffect) {
-    // TOS mode: match opens to closes by symbol
-    const trades: any[] = []
-    const opens: any[] = []
-    for (const row of rows) {
-      const rawDate = row.exec_time || row.date || row.time || ''
-      // Normalize date from M/D/YY or MM/DD/YYYY to YYYY-MM-DD
-      let date = rawDate.split(' ')[0]
-      const dm = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
-      if (dm) {
-        const yr = dm[3].length === 2 ? '20' + dm[3] : dm[3]
-        date = yr + '-' + dm[1].padStart(2,'0') + '-' + dm[2].padStart(2,'0')
-      }
-      const time = rawDate.split(' ')[1] || ''
-      const symbol = (row.symbol || row.instrument || '').trim()
-      const side = (row.side || '').toLowerCase()
-      const posEffect = (row.pos_effect || row.position_effect || '').toLowerCase()
-      const qty = parseFloat(row.qty || row.quantity || '1')
-      const price = parseFloat(row.net_price || row.price || '0')
-      const isOpen = posEffect.includes('open') || side === 'buy'
-      const isClose = posEffect.includes('close') || (side === 'sell' && !posEffect.includes('open'))
-      if (!symbol || !price) continue
-      if (isOpen) {
-        opens.push({ date, time, symbol, qty, price, side })
-      } else if (isClose) {
-        // Find matching open for same symbol
-        const openIdx = opens.findIndex(o => o.symbol === symbol)
-        if (openIdx >= 0) {
-          const open = opens.splice(openIdx, 1)[0]
-          const multiplier = symbol.toUpperCase().includes('SPX') || symbol.toUpperCase().includes('SPY') ? 100 : 1
-          const pnl = (side === 'sell' ? (price - open.price) : (open.price - price)) * qty * multiplier
-          trades.push({ date, time: time || open.time, symbol: symbol.split(' ')[0], direction: open.side === 'buy' ? 'call' : 'put', pnl: parseFloat(pnl.toFixed(2)), price, notes: symbol })
-        } else {
-          // No matching open — record as standalone with 0 pnl
-          trades.push({ date, time, symbol: symbol.split(' ')[0], pnl: 0, price, notes: symbol })
-        }
-      }
+    // Only process TRD (trade) rows, skip BAL, RAD, DOI, WIN, JRN, CDB, EXP etc
+    if (type && type !== 'TRD') continue
+
+    // Parse date — normalize M/D/YY or M/D/YYYY to YYYY-MM-DD
+    const rawDate = (row.date || row.exec_time || row.time || row.trade_date || '').split(' ')[0]
+    const time = row.time || (row.exec_time || '').split(' ')[1] || ''
+    let date = rawDate
+    const dm = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+    if (dm) {
+      const yr = dm[3].length === 2 ? '20' + dm[3] : dm[3]
+      date = yr + '-' + dm[1].padStart(2, '0') + '-' + dm[2].padStart(2, '0')
     }
-    return trades
+    if (!date) continue
+
+    // Get AMOUNT — this is the actual dollar P&L for this execution line
+    const amountStr = (row.amount || row.net_amount || row.p_l || row.pnl || '').replace(/,/g, '')
+    const amount = parseFloat(amountStr)
+    if (isNaN(amount) || amount === 0) continue
+
+    // Parse description to get symbol and direction
+    const desc = row.description || ''
+    // TOS desc format: "SOLD -1 SPX 100 (Weeklys) 17 MAR 25 5700 CALL @4.00 CBOE"
+    //                  "BOT +6 NVDA 100 21 MAR 25 120 PUT @3.95"
+    const descUpper = desc.toUpperCase()
+    const isSold = descUpper.startsWith('SOLD')
+    const isBot = descUpper.startsWith('BOT')
+    const isCall = descUpper.includes(' CALL')
+    const isPut = descUpper.includes(' PUT')
+
+    // Extract symbol (first word after BOT/SOLD +/-N)
+    const symbolMatch = desc.match(/(?:BOT|SOLD)\s+[+-]?\d+\s+(\w+)/i)
+    const symbol = symbolMatch ? symbolMatch[1].toUpperCase() : (row.symbol || row.ticker || '')
+    if (!symbol) continue
+
+    // For TOS: each SOLD adds to account (credit), each BOT subtracts (debit)
+    // AMOUNT already reflects this — positive = received cash (could be sell-to-open OR sell-to-close)
+    // We want P&L per round-trip. Since we have AMOUNT directly, accumulate by date+symbol+expiry
+    const expMatch = desc.match(/(\d{1,2}\s+\w{3}\s+\d{2}|\d{1,2}\/\d{1,2}\/\d{4})/i)
+    const exp = expMatch ? expMatch[0].replace(/\s+/g, '-') : ''
+    const strikeMatch = desc.match(/(\d{4,5}(?:\.\d+)?)\s+(CALL|PUT)/i)
+    const strike = strikeMatch ? strikeMatch[1] : ''
+    const optType = strikeMatch ? strikeMatch[2].toUpperCase() : ''
+
+    // Key = date + symbol + exp + strike + type to group related fills
+    const tradeKey = date + '|' + symbol + '|' + exp + '|' + strike + '|' + optType
+
+    if (!byDate[tradeKey]) {
+      byDate[tradeKey] = 0
+      byDateDesc[tradeKey] = symbol + (optType ? ' ' + strike + optType[0] : '') + ' ' + date
+    }
+    byDate[tradeKey] += amount
   }
 
-  // Generic mode: direct P&L column
-  const trades: any[] = []
-  for (const row of rows) {
-    const rawDate = row.date || row.exec_time || row.time || row.trade_date || ''
-    let date = rawDate.split(' ')[0]
-    const dm = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
-    if (dm) { const yr = dm[3].length === 2 ? '20' + dm[3] : dm[3]; date = yr + '-' + dm[1].padStart(2,'0') + '-' + dm[2].padStart(2,'0') }
-    const symbol = (row.symbol || row.ticker || row.instrument || '').split(' ')[0]
-    const pnl = parseFloat(row.p_l || row.pnl || row.realized_pnl || row.net_amount || row.net_p_l || '0')
-    const price = parseFloat(row.price || row.net_price || row.exec_price || '0')
-    const playbook = row.strategy || row.setup || row.playbook || ''
-    if (symbol && !isNaN(pnl)) {
-      trades.push({ date, symbol, pnl, price, playbook, notes: row.notes || '' })
-    }
+  // Convert aggregated P&L to trade records
+  for (const [key, pnl] of Object.entries(byDate)) {
+    const parts = key.split('|')
+    const date = parts[0]
+    const symbol = parts[1]
+    const optType = parts[4]
+    const direction = optType === 'CALL' ? 'call' : optType === 'PUT' ? 'put' : 'other'
+    const desc = byDateDesc[key]
+    // Only include if there's a net P&L (completed round-trip or partial)
+    trades.push({
+      date,
+      symbol,
+      direction,
+      pnl: parseFloat(pnl.toFixed(2)),
+      notes: desc,
+      playbook: '',
+    })
   }
+
+  // Sort by date
+  trades.sort((a, b) => a.date.localeCompare(b.date))
   return trades
 }
-
 function analyzeTradeHistory(trades: any[]) {
   if (!trades.length) return null
   const winners = trades.filter(t => t.pnl > 0)
