@@ -1449,6 +1449,7 @@ export default function CockpitPage() {
   }, [darkMode])
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<any>(null)
+  const candleSeriesRef = useRef<any>(null)  // exposes coordinateToPrice()
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const aiIntervalRef = useRef<any>(null)
 
@@ -1634,13 +1635,8 @@ export default function CockpitPage() {
     ctx.clearRect(0, 0, W, H)
     const f = "'JetBrains Mono', monospace"
 
-    drawnLines.filter((l: any) => l.type === 'horizontal').forEach((line: any) => {
-      const y = line.y * H
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y)
-      ctx.strokeStyle = line.color; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke()
-      ctx.fillStyle = line.color; ctx.font = `bold 10px ${f}`
-      ctx.fillText(line.label || '', W - 70, y - 4)
-    })
+    // Horizontal lines are rendered via lightweight-charts PriceLine (price-accurate)
+    // Only draw trendlines on canvas since they need two-point coordinates
     drawnLines.filter((l: any) => l.type === 'trendline' && l.p2).forEach((line: any) => {
       ctx.beginPath(); ctx.moveTo(line.p1.x * W, line.p1.y * H); ctx.lineTo(line.p2.x * W, line.p2.y * H)
       ctx.strokeStyle = line.color; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke()
@@ -1681,33 +1677,71 @@ export default function CockpitPage() {
     const x = (e.clientX - rect.left) / rect.width
     const y = (e.clientY - rect.top) / rect.height
     if (drawMode === 'horizontal') {
-      const prices = candles.map((c: any) => [c.h, c.l]).flat().filter(Boolean)
-      const chartLow = prices.length ? Math.min(...prices) : 0
-      const chartHigh = prices.length ? Math.max(...prices) : 0
-      const padding = (chartHigh - chartLow) * 0.05
-      const priceAtY = chartHigh + padding - y * (chartHigh - chartLow + padding * 2)
-      setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'horizontal', y, color: drawColor, label: '', price: parseFloat(priceAtY.toFixed(2)) }])
+      // Use lightweight-charts coordinateToPrice for exact price at this pixel Y
+      let priceAtY = 0
+      try {
+        if (candleSeriesRef.current && overlayCanvasRef.current) {
+          const canvasH = overlayCanvasRef.current.height
+          const pixelY = y * canvasH
+          const exactPrice = candleSeriesRef.current.coordinateToPrice(pixelY)
+          if (exactPrice != null && !isNaN(exactPrice)) {
+            priceAtY = parseFloat(exactPrice.toFixed(2))
+          }
+        }
+      } catch {}
+      // Fallback if coordinateToPrice fails
+      if (!priceAtY) {
+        const prices2 = candles.slice(-150).map((c: any) => [c.h, c.l]).flat().filter(Boolean)
+        const cLow = prices2.length ? Math.min(...prices2) : 0
+        const cHigh = prices2.length ? Math.max(...prices2) : 0
+        const pad = (cHigh - cLow) * 0.08
+        priceAtY = parseFloat((cHigh + pad - y * (cHigh - cLow + pad * 2)).toFixed(2))
+      }
+      setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'horizontal', y, color: drawColor, label: '', price: priceAtY }])
       setDrawMode(null); setDrawPreview(null)
     } else if (drawMode === 'trendline' || drawMode === 'zone') {
       if (!drawPoint1) { setDrawPoint1({ x, y }) }
       else {
         if (drawMode === 'trendline') {
-          const prices2 = candles.map((c: any) => [c.h, c.l]).flat().filter(Boolean)
-          const cLow = prices2.length ? Math.min(...prices2) : 0
-          const cHigh = prices2.length ? Math.max(...prices2) : 0
-          const pad = (cHigh - cLow) * 0.05
-          const p2y = parseFloat((cHigh + pad - y * (cHigh - cLow + pad * 2)).toFixed(2))
-          const p1y = parseFloat((cHigh + pad - drawPoint1.y * (cHigh - cLow + pad * 2)).toFixed(2))
+          let p2y = 0, p1y = 0
+          try {
+            if (candleSeriesRef.current && overlayCanvasRef.current) {
+              const H2 = overlayCanvasRef.current.height
+              p2y = parseFloat((candleSeriesRef.current.coordinateToPrice(y * H2) || 0).toFixed(2))
+              p1y = parseFloat((candleSeriesRef.current.coordinateToPrice(drawPoint1.y * H2) || 0).toFixed(2))
+            }
+          } catch {}
+          if (!p2y) {
+            const prices2 = candles.slice(-150).map((c: any) => [c.h, c.l]).flat().filter(Boolean)
+            const cHigh2 = prices2.length ? Math.max(...prices2) : 0
+            const cLow2 = prices2.length ? Math.min(...prices2) : 0
+            const pad2 = (cHigh2 - cLow2) * 0.05
+            p2y = parseFloat((cHigh2 + pad2 - y * (cHigh2 - cLow2 + pad2 * 2)).toFixed(2))
+            p1y = parseFloat((cHigh2 + pad2 - drawPoint1.y * (cHigh2 - cLow2 + pad2 * 2)).toFixed(2))
+          }
           setDrawnLines((p: any[]) => [...p, { id: Date.now(), type: 'trendline', p1: drawPoint1, p2: { x, y }, color: drawColor, price1: p1y, price2: p2y }])
         }
         else {
-          const prices3 = candles.map((c: any) => [c.h, c.l]).flat().filter(Boolean)
-          const zLow = prices3.length ? Math.min(...prices3) : 0
-          const zHigh = prices3.length ? Math.max(...prices3) : 0
-          const zPad = (zHigh - zLow) * 0.05
-          const yPriceFn = (yv: number) => parseFloat((zHigh + zPad - yv * (zHigh - zLow + zPad * 2)).toFixed(2))
-          const y1v = Math.min(drawPoint1.y, y), y2v = Math.max(drawPoint1.y, y)
-          setDrawnZones((p: any[]) => [...p, { id: Date.now(), y1: drawPoint1.y, y2: y, color: drawColor, priceLow: yPriceFn(y2v), priceHigh: yPriceFn(y1v) }])
+          let zPriceLow = 0, zPriceHigh = 0
+          try {
+            if (candleSeriesRef.current && overlayCanvasRef.current) {
+              const H3 = overlayCanvasRef.current.height
+              const topY = Math.min(drawPoint1.y, y)
+              const botY = Math.max(drawPoint1.y, y)
+              zPriceHigh = parseFloat((candleSeriesRef.current.coordinateToPrice(topY * H3) || 0).toFixed(2))
+              zPriceLow = parseFloat((candleSeriesRef.current.coordinateToPrice(botY * H3) || 0).toFixed(2))
+            }
+          } catch {}
+          if (!zPriceHigh) {
+            const prices3 = candles.slice(-150).map((c: any) => [c.h, c.l]).flat().filter(Boolean)
+            const zH = prices3.length ? Math.max(...prices3) : 0
+            const zL = prices3.length ? Math.min(...prices3) : 0
+            const zP = (zH - zL) * 0.05
+            const yPriceFn = (yv: number) => parseFloat((zH + zP - yv * (zH - zL + zP * 2)).toFixed(2))
+            zPriceHigh = yPriceFn(Math.min(drawPoint1.y, y))
+            zPriceLow = yPriceFn(Math.max(drawPoint1.y, y))
+          }
+          setDrawnZones((p: any[]) => [...p, { id: Date.now(), y1: drawPoint1.y, y2: y, color: drawColor, priceLow: zPriceLow, priceHigh: zPriceHigh }])
         }
         setDrawPoint1(null); setDrawMode(null); setDrawPreview(null)
       }
@@ -1987,6 +2021,7 @@ export default function CockpitPage() {
         chartData.forEach(b => seen.set(String(b.time), b))
         chartData = Array.from(seen.values()).sort((a, b) => String(a.time) > String(b.time) ? 1 : -1)
 
+        candleSeriesRef.current = candleSeries  // expose for coordinateToPrice
         candleSeries.setData(chartData)
 
         // VWAP — intraday only, not meaningful on daily
@@ -2010,33 +2045,26 @@ export default function CockpitPage() {
           )
         }
 
-        // Draw saved horizontal lines and zones on the chart as price lines
+        // Draw saved horizontal lines using PriceLine API (always price-accurate, never drifts)
         if (candles.length > 0) {
           drawnLines.filter((l: any) => l.type === 'horizontal' && l.price).forEach((line: any) => {
             try {
-              const pl = chart.addSeries(LineSeries, {
+              candleSeries.createPriceLine({
+                price: line.price,
                 color: line.color || '#00e5ff',
                 lineWidth: 1,
                 lineStyle: 2, // dashed
-                title: line.label || `${line.price}`,
-                crosshairMarkerVisible: false,
-                lastValueVisible: true,
-                priceLineVisible: false,
+                axisLabelVisible: true,
+                title: line.label || `$${line.price.toFixed(2)}`,
               })
-              const firstTime = chartData[0]?.time
-              const lastTime = chartData[chartData.length - 1]?.time
-              if (firstTime && lastTime) pl.setData([{ time: firstTime, value: line.price }, { time: lastTime, value: line.price }])
             } catch {}
           })
+          // Draw zone boundaries as price lines
           drawnZones.filter((z: any) => z.priceHigh && z.priceLow).forEach((zone: any) => {
             try {
-              const zHigh = chart.addSeries(LineSeries, { color: zone.color + '99' || '#ff990099', lineWidth: 1, lineStyle: 3, lastValueVisible: false, priceLineVisible: false })
-              const zLow = chart.addSeries(LineSeries, { color: zone.color + '99' || '#ff990099', lineWidth: 1, lineStyle: 3, lastValueVisible: false, priceLineVisible: false })
-              const ft = chartData[0]?.time, lt = chartData[chartData.length - 1]?.time
-              if (ft && lt) {
-                zHigh.setData([{ time: ft, value: zone.priceHigh }, { time: lt, value: zone.priceHigh }])
-                zLow.setData([{ time: ft, value: zone.priceLow }, { time: lt, value: zone.priceLow }])
-              }
+              const col = zone.color || '#ff9900'
+              candleSeries.createPriceLine({ price: zone.priceHigh, color: col + 'cc', lineWidth: 1, lineStyle: 3, axisLabelVisible: true, title: `Zone top $${zone.priceHigh.toFixed(0)}` })
+              candleSeries.createPriceLine({ price: zone.priceLow, color: col + 'cc', lineWidth: 1, lineStyle: 3, axisLabelVisible: true, title: `Zone btm $${zone.priceLow.toFixed(0)}` })
             } catch {}
           })
         }
