@@ -2142,15 +2142,15 @@ export default function CockpitPage() {
     const run = async () => {
       setAiLoading(true)
       const [intel, flow, tide, tiingo, news, calendar, mtf, macro, skew] = await Promise.all([
-        fetchMarketIntel(keys[POLY_KEY] || ''),
-        fetchOptionsFlow(keys[UW_KEY] || ''),
-        fetchMarketTide(keys[UW_KEY] || ''),
-        fetchTiingoContext(keys[TIINGO_KEY] || '', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
+        fetchMarketIntel(keys[POLY_KEY] || 'server'),
+        fetchOptionsFlow(keys[UW_KEY] || 'server'),
+        fetchMarketTide(keys[UW_KEY] || 'server'),
+        fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
         fetchMarketNews(keys[ANTH_KEY] || 'server'),
         fetchEconomicCalendar(keys[ANTH_KEY] || 'server'),
-        keys[POLY_KEY] ? fetchMultiTFConfluence(keys[POLY_KEY], 'SPY') : Promise.resolve(null),
+        true ? fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY') : Promise.resolve(null),
         fetchMacroRegime(keys[ANTH_KEY] || 'server'),
-        keys[UW_KEY] ? fetchZeroDTESkew(keys[UW_KEY]) : Promise.resolve(null),
+        true ? fetchZeroDTESkew(keys[UW_KEY] || 'server') : Promise.resolve(null),
       ])
       setMarketIntel(intel)
       setOptionsFlow(flow)
@@ -3656,7 +3656,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                   <button onClick={async () => {
                     setAiLoading(true)
-                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY] || ''), fetchOptionsFlow(keys[UW_KEY] || ''), fetchMarketTide(keys[UW_KEY] || ''), fetchTiingoContext(keys[TIINGO_KEY] || '', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY] || 'server'), fetchOptionsFlow(keys[UW_KEY] || 'server'), fetchMarketTide(keys[UW_KEY] || 'server'), fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
