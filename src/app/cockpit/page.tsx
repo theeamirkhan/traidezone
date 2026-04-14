@@ -2172,13 +2172,36 @@ export default function CockpitPage() {
       if (result) {
         setAiResult(result)
         setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+        setAiLoading(false)
+      } else {
+        // runAI returned null (overloaded or error) — retry once after 5s
+        setTimeout(async () => {
+          const retry = await runAI({
+            candles, levels, currentPrice,
+            impliedMove: morningPlan.impliedMove,
+            anthKey: keys[ANTH_KEY] || 'server',
+            morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
+            tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo
+          })
+          if (retry) {
+            setAiResult(retry)
+            setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+          }
+          setAiLoading(false)
+        }, 5000)
       }
-      setAiLoading(false)
     }
     // Small delay to let candles load before first run
-    const initialTimer = setTimeout(run, 3000)
+    // Safety: if still loading after 20s, stop the spinner so Retry button shows
+    let safetyTimer: any = null
+    const runWithSafety = async () => {
+      safetyTimer = setTimeout(() => setAiLoading(false), 20000)
+      await run()
+      clearTimeout(safetyTimer)
+    }
+    const initialTimer = setTimeout(runWithSafety, 3000)
     aiIntervalRef.current = setInterval(run, 180000)
-    return () => { clearTimeout(initialTimer); clearInterval(aiIntervalRef.current) }
+    return () => { clearTimeout(initialTimer); clearTimeout(safetyTimer); clearInterval(aiIntervalRef.current) }
   }, [keys[ANTH_KEY], activePlaybookId])
 
   // Auto-scroll chat
@@ -3329,8 +3352,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                 ) : (
                   <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
-                    <div style={{ background: '#1a1f2e', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: C.textMuted }}>{'Loading AI analysis...'}</div>
+                    <div style={{ background: '#1a1f2e', borderRadius: 8, padding: '12px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexDirection: 'column' }}>
+                      {aiLoading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 10, height: 10, border: `1.5px solid rgba(100,140,220,0.2)`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                          <div style={{ fontSize: 11, color: C.textMuted }}>Analyzing market...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>AI analysis unavailable — Anthropic may be busy</div>
+                          <button onClick={() => {
+                            setAiLoading(true)
+                            runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null, tradeStats }).then(r => { if (r) { setAiResult(r); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) } setAiLoading(false) })
+                          }} style={{ fontSize: 10, padding: '4px 12px', borderRadius: 4, border: `1px solid ${C.tealBorder}`, background: C.tealDim, color: C.teal, cursor: 'pointer', fontFamily: font, fontWeight: 600 }}>
+                            ↻ Retry
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
