@@ -372,7 +372,7 @@ Respond ONLY with this JSON:
 
 // ── #1 REAL-TIME NEWS ──────────────────────────────────────────────────────
 async function fetchMarketNews(anthKey: string): Promise<string> {
-  if (!anthKey) return 'No news available'
+  if (!anthKey) anthKey = 'server'
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
@@ -397,7 +397,7 @@ No preamble, just the bullets.` }]
 
 // ── #2 ECONOMIC CALENDAR ───────────────────────────────────────────────────
 async function fetchEconomicCalendar(anthKey: string): Promise<string> {
-  if (!anthKey) return 'No calendar data'
+  if (!anthKey) anthKey = 'server'
   try {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     const res = await fetch('/api/ai', {
@@ -642,7 +642,7 @@ function analyzeTradePatterns(trades: any[]): any {
 
 // ── #7 MACRO REGIME ────────────────────────────────────────────────────────
 async function fetchMacroRegime(anthKey: string): Promise<any> {
-  if (!anthKey) return null
+  if (!anthKey) anthKey = 'server'
   // Only refresh once per day — cache in localStorage
   const cacheKey = 'tz-macro-regime'
   const cached = localStorage.getItem(cacheKey)
@@ -1455,12 +1455,20 @@ export default function CockpitPage() {
 
   // Load keys & saved data
   useEffect(() => {
-    const loadedKeys: any = {}
+    // Start with server-side defaults — keys are now all server-side
+    const serverDefaults: any = {
+      [POLY_KEY]: 'server',
+      [ANTH_KEY]: 'server',
+      [UW_KEY]: 'server',
+      [EL_KEY]: 'server',
+      [TIINGO_KEY]: 'server',
+    }
+    // Merge any user-provided localStorage keys on top (for users who self-host)
     ;[POLY_KEY, ANTH_KEY, UW_KEY, EL_KEY, TIINGO_KEY].forEach(k => {
       const v = localStorage.getItem(k)
-      if (v) loadedKeys[k] = v
+      if (v) serverDefaults[k] = v
     })
-    setKeys(loadedKeys)
+    setKeys(serverDefaults)
     // Keys are server-side — don't auto-open settings when localStorage keys missing
     // setShowSettings only if user explicitly opens it via ⚙ button
 
@@ -2138,10 +2146,10 @@ export default function CockpitPage() {
         fetchOptionsFlow(keys[UW_KEY] || ''),
         fetchMarketTide(keys[UW_KEY] || ''),
         fetchTiingoContext(keys[TIINGO_KEY] || '', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
-        keys[ANTH_KEY] ? fetchMarketNews(keys[ANTH_KEY]) : Promise.resolve(''),
-        keys[ANTH_KEY] ? fetchEconomicCalendar(keys[ANTH_KEY]) : Promise.resolve(''),
+        fetchMarketNews(keys[ANTH_KEY] || 'server'),
+        fetchEconomicCalendar(keys[ANTH_KEY] || 'server'),
         keys[POLY_KEY] ? fetchMultiTFConfluence(keys[POLY_KEY], 'SPY') : Promise.resolve(null),
-        keys[ANTH_KEY] ? fetchMacroRegime(keys[ANTH_KEY]) : Promise.resolve(null),
+        fetchMacroRegime(keys[ANTH_KEY] || 'server'),
         keys[UW_KEY] ? fetchZeroDTESkew(keys[UW_KEY]) : Promise.resolve(null),
       ])
       setMarketIntel(intel)
@@ -2157,7 +2165,7 @@ export default function CockpitPage() {
       const result = await runAI({
         candles, levels, currentPrice,
         impliedMove: morningPlan.impliedMove,
-        anthKey: keys[ANTH_KEY],
+        anthKey: keys[ANTH_KEY] || 'server',
         morningPlan, activePlaybook, tradeStats,
         optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo
       })
@@ -2516,7 +2524,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       setChatMessages(p => {
         const updated = [...p, { role: 'assistant', content: reply }]
         if (updated.length % 10 === 0) {
-          extractMemoryFromSession(keys[ANTH_KEY], updated, tradePatterns, traderProfile)
+          extractMemoryFromSession(keys[ANTH_KEY] || 'server', updated, tradePatterns, traderProfile)
         }
         return updated
       })
@@ -3401,7 +3409,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||''), fetchOptionsFlow(keys[UW_KEY]||''), fetchMarketTide(keys[UW_KEY]||''), fetchTiingoContext(keys[TIINGO_KEY]||'', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory})
+                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory})
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{
@@ -3650,7 +3658,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY] || ''), fetchOptionsFlow(keys[UW_KEY] || ''), fetchMarketTide(keys[UW_KEY] || ''), fetchTiingoContext(keys[TIINGO_KEY] || '', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY], morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
