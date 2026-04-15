@@ -2695,7 +2695,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'rgba(13,17,23,0.98)', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 16, padding: 32, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'rgba(6,8,16,0.99)', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 16, padding: 32, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.yellow }} />
               <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 800, color: C.text }}>Important Disclosure</div>
@@ -2885,7 +2885,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(0,212,160,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 1 }}>
                   <div>
-                    <div style={{ fontFamily: fontDisplay, fontSize: 44, fontWeight: 900, color: signalColor, letterSpacing: '3px', textShadow: `0 0 20px ${signalColor}30` }}>{aiResult?.signal || 'LOADING'}</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 48, fontWeight: 900, color: signalColor, letterSpacing: '6px', textShadow: `0 0 30px ${signalColor}bb, 0 0 60px ${signalColor}44` }}>{aiResult?.signal || 'LOADING'}</div>
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>{aiResult?.marketConditions?.split('.')[0] || 'Analyzing market conditions...'}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -3069,7 +3069,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 8 }}>🧠 YOUR PATTERNS</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
                     {[{label:'Best hour',value:tradePatterns.bestHour,color:C.synapse},{label:'Worst hour',value:tradePatterns.worstHour,color:C.red},{label:'Avg winner',value:`$${tradePatterns.avgWinnerSize}`,color:C.synapse},{label:'Avg loser',value:`$${tradePatterns.avgLoserSize}`,color:C.red}].map(({label,value,color}) => (
-                      <div key={label} style={{ background: '#1a1f2e', borderRadius: 5, padding: '5px 8px' }}>
+                      <div key={label} style={{ background: 'rgba(20,26,40,0.95)', borderRadius: 5, padding: '5px 8px' }}>
                         <div style={{ fontSize: 9, color: C.textMuted }}>{label}</div>
                         <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
                       </div>
@@ -3100,7 +3100,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.15)`, animation: 'brainRing 4s linear infinite' }} />
                   </div>
                   <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.teal }}>AI COMPANION</div>
-                  <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(204,16,64,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
+                  <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(255,26,74,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
                     {listening ? '✏ LISTENING' : speaking ? '↗ SPEAKING' : chatLoading ? '⏳ THINKING' : '✓ READY'}
                   </div>
                   {aiResult && (
@@ -3179,13 +3179,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 )}
 
                 {/* Input area */}
-                <div style={{ padding: '10px 12px', background: 'rgba(13,17,23,0.98)', borderTop: `1px solid rgba(100,140,220,0.1)`, flexShrink: 0 }}>
+                <div style={{ padding: '10px 12px', background: 'rgba(6,8,16,0.99)', borderTop: `1px solid rgba(100,140,220,0.1)`, flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
                     <button onClick={listening ? stopListening : startListening} style={{ width: 40, height: 40, borderRadius: '50%', border: `1.5px solid ${listening ? 'rgba(204,16,64,0.4)' : 'rgba(204,16,64,0.25)'}`, background: listening ? 'rgba(204,16,64,0.1)' : 'rgba(204,16,64,0.05)', color: C.red, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? `0 0 0 5px rgba(204,16,64,0.08)` : 'none', animation: listening ? 'none' : 'micGlow 2s infinite', transition: 'all 0.2s', flexShrink: 0 }}>
                       {listening ? '↹' : '🎙️'}
                     </button>
                     <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ↹ to stop)' : 'Ask your AI companion...'}
-                      style={{ flex: 1, background: '#1a1f2e', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
+                      style={{ flex: 1, background: 'rgba(20,26,40,0.95)', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
                     <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
                   </div>
                   {/* Voice switcher */}
@@ -3223,21 +3223,21 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Implied Move (±PTS)</div>
                 <input value={morningPlan.impliedMove} onChange={e => setMorningPlan(p => ({ ...p, impliedMove: e.target.value }))}
-                  placeholder="e.g. 50" style={{ width: '100%', background: '#1a1f2e', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
+                  placeholder="e.g. 50" style={{ width: '100%', background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
 
               {/* Key Levels */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Key Levels</div>
                 <input value={morningPlan.keyLevels} onChange={e => setMorningPlan(p => ({ ...p, keyLevels: e.target.value }))}
-                  placeholder="e.g. 5840, 5820, 5800" style={{ width: '100%', background: '#1a1f2e', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
+                  placeholder="e.g. 5840, 5820, 5800" style={{ width: '100%', background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
 
               {/* Gap Size */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Gap Size (PTS)</div>
                 <input value={morningPlan.gapSize} onChange={e => setMorningPlan(p => ({ ...p, gapSize: e.target.value }))}
-                  placeholder="e.g. 60" style={{ width: '100%', background: '#1a1f2e', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
+                  placeholder="e.g. 60" style={{ width: '100%', background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
 
               {/* Directional Bias */}
@@ -3399,7 +3399,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                 ) : (
                   <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
-                    <div style={{ background: '#1a1f2e', borderRadius: 8, padding: '12px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexDirection: 'column' }}>
+                    <div style={{ background: 'rgba(20,26,40,0.95)', borderRadius: 8, padding: '12px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexDirection: 'column' }}>
                       {aiLoading ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ width: 10, height: 10, border: `1.5px solid rgba(100,140,220,0.2)`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -3425,7 +3425,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div>
                     {aiResult.marketConditions && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>📊 Market Conditions</div>
+                        <div style={{ fontSize: 9, color: '#00e5ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{display:'inline-block',width:2,height:8,background:'#00e5ff',borderRadius:1,boxShadow:'0 0 6px #00e5ff'}} />📊 Market Conditions</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.marketConditions}</div>
                       </div>
                     )}
@@ -3545,7 +3545,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <input value={newCheckItem} onChange={e => setNewCheckItem(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && newCheckItem.trim()) { setCustomChecklist((p: any[]) => [...p, { id: Date.now().toString(), category: 'SYSTEM', label: newCheckItem.trim() }]); setNewCheckItem('') }}}
                       placeholder="Add new item, press Enter..."
-                      style={{ flex: 1, background: '#1a1f2e', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 5, padding: '6px 10px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
+                      style={{ flex: 1, background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 5, padding: '6px 10px', color: C.text, fontSize: 11, outline: 'none', fontFamily: font }} />
                   </div>
                   <button onClick={() => setCustomChecklist(CHECKLIST)} style={{ marginTop: 8, fontSize: 10, color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: font, padding: 0 }}>↺ Reset to defaults</button>
                 </div>
@@ -3649,7 +3649,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 {/* Timeframe bar */}
                 <div style={{ height: 34, background: 'rgba(12,15,26,0.98)', borderBottom: '1px solid rgba(0,229,255,0.1)', display: 'flex', alignItems: 'center', gap: 2, padding: '0 10px', flexShrink: 0 }}>
                   {(['1', '5', '15', '60', '1D'] as const).map(tf => (
-                    <button key={tf} onClick={() => setChartTf(tf)} style={{ padding: '3px 10px', borderRadius: 3, border: `1px solid ${chartTf === tf ? C.teal : C.border}`, background: chartTf === tf ? C.tealDim : 'transparent', color: chartTf === tf ? C.teal : C.textDim, cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: chartTf === tf ? 700 : 400, transition: 'all 0.15s' }}>{tf === '60' ? '1H' : tf === '1D' ? '1D' : tf + 'm'}</button>
+                    <button key={tf} onClick={() => setChartTf(tf)} style={{ padding: '3px 10px', borderRadius: 3, border: `1px solid ${chartTf === tf ? 'rgba(0,229,255,0.45)' : 'rgba(0,229,255,0.08)'}`, background: chartTf === tf ? 'rgba(0,229,255,0.12)' : 'transparent', color: chartTf === tf ? '#00e5ff' : '#6b7a9a', cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: chartTf === tf ? 700 : 500, textShadow: chartTf === tf ? '0 0 10px rgba(0,229,255,0.5)' : 'none', transition: 'all 0.15s' }}>{tf === '60' ? '1H' : tf === '1D' ? '1D' : tf + 'm'}</button>
                   ))}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
                     {currentPrice && <span style={{ fontFamily: fontDisplay, fontSize: 11, color: C.text, fontWeight: 700 }}>{fmt(currentPrice)}</span>}
@@ -3684,7 +3684,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                   {aiResult ? (
                     <div style={{ background: signalColor + '15', border: `1.5px solid ${signalColor}40`, borderRadius: 4, padding: '8px 10px', textAlign: 'center' }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 26, fontWeight: 900, color: signalColor, letterSpacing: '2px' }}>{aiResult.signal}</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 28, fontWeight: 900, color: signalColor, letterSpacing: '4px', textShadow: `0 0 24px ${signalColor}aa, 0 0 48px ${signalColor}44` }}>{aiResult.signal}</div>
                       <ProbMeter value={aiResult.confidence || 0} color={signalColor} />
                     </div>
                   ) : <div style={{ fontSize: 10, color: C.textDim, textAlign: 'center', padding: '6px 0' }}>Analyzing...</div>}
@@ -4065,7 +4065,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           const isWe = dow === 0 || dow === 6
                           const isToday = isCurrentMonth && day === now2.getDate()
                           return (
-                            <div key={day} style={{ height: 44, borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, background: isWe ? 'transparent' : pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.15)' : 'rgba(204,16,64,0.12)') : 'rgba(10,14,24,0.95)', border: '1px solid ' + (isToday ? C.teal : pnl != null ? (pnl >= 0 ? 'rgba(0,170,85,0.35)' : 'rgba(204,16,64,0.35)') : C.border) }}>
+                            <div key={day} style={{ height: 44, borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, background: isWe ? 'transparent' : pnl != null ? (pnl >= 0 ? 'rgba(0,255,136,0.10)' : 'rgba(255,26,74,0.10)') : 'rgba(10,14,24,0.95)', border: '1px solid ' + (isToday ? C.teal : pnl != null ? (pnl >= 0 ? 'rgba(0,255,136,0.30)' : 'rgba(255,26,74,0.35)') : C.border) }}>
                               <span style={{ fontSize: 9, color: isToday ? C.teal : C.textMuted, fontWeight: isToday ? 700 : 400, lineHeight: 1 }}>{day}</span>
                               {pnl != null && <span style={{ fontSize: 8, fontWeight: 700, color: pnl >= 0 ? C.synapse : C.red, lineHeight: 1 }}>{pnl >= 0 ? '+' : ''}${Math.abs(pnl) >= 1000 ? (pnl / 1000).toFixed(1) + 'k' : Math.round(pnl)}</span>}
                             </div>
@@ -4154,7 +4154,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                                 <span>{pb.tot} trades</span>
                                 <span style={{ color: wr >= 60 ? C.synapse : wr >= 50 ? C.yellow : C.red }}>{wr}% win</span>
                               </div>
-                              <div style={{ height: 3, borderRadius: 2, background: '#1a1f2e' }}>
+                              <div style={{ height: 3, borderRadius: 2, background: 'rgba(20,26,40,0.95)' }}>
                                 <div style={{ height: '100%', width: wr + '%', background: wr >= 60 ? C.synapse : wr >= 50 ? C.yellow : C.red, borderRadius: 2 }} />
                               </div>
                             </div>
@@ -4225,7 +4225,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           <div style={{
             position: 'absolute', bottom: 0, right: 0,
             width: 420, height: 580,
-            background: 'rgba(13,17,23,0.98)',
+            background: 'rgba(6,8,16,0.99)',
             border: `1px solid rgba(0,212,160,0.2)`,
             borderRadius: '16px 0 0 0',
             display: 'flex', flexDirection: 'column',
