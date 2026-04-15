@@ -1894,12 +1894,14 @@ export default function CockpitPage() {
         if (key === 'spy') {
           setSpyPrice(last.c)
           setChanges((p: any) => ({ ...p, spy: last.c - mapped[0].o }))
-          // VWAP from SPY today's candles only
-          const todayCandles = mapped.filter((c: any) => {
+          // VWAP from RTH session only (9:30 AM ET) — matches TOS/standard platform behavior
+          const rthCandles = mapped.filter((c: any) => {
             const d = new Date(c.t)
-            return d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+            const estTime = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+            const h = estTime.getHours(), m = estTime.getMinutes()
+            return h > 9 || (h === 9 && m >= 30)
           })
-          const vwapCandles = todayCandles.length >= 5 ? todayCandles : mapped.slice(-78)
+          const vwapCandles = rthCandles.length >= 3 ? rthCandles : mapped.slice(-40)
           const spyVwaps = calcVWAP(vwapCandles)
           const rawSpyVwap = spyVwaps[spyVwaps.length - 1]
           const spyEmas = calcEMA(mapped, 200)
@@ -2082,14 +2084,22 @@ export default function CockpitPage() {
         candleSeriesRef.current = candleSeries  // expose for coordinateToPrice
         candleSeries.setData(chartData)
 
-        // VWAP — intraday only, not meaningful on daily
-        if (isIntraday && levels.spyVwapRaw && spyCandles.length >= 5) {
+        // VWAP — intraday only, RTH session (9:30 AM) to match TOS
+        if (isIntraday && levels.spyVwapRaw && spyCandles.length >= 3) {
           const spyVwapLine = chart.addSeries(LineSeries, { color: '#e05000', lineWidth: 1, lineStyle: 1, title: 'VWAP' })
-          const vwaps = calcVWAP(spyCandles)
+          // Filter to RTH only for chart display
+          const rthSpy = spyCandles.filter((c: any) => {
+            const d = new Date(c.t)
+            const est = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+            const h = est.getHours(), m = est.getMinutes()
+            return h > 9 || (h === 9 && m >= 30)
+          })
+          const vwapsRTH = calcVWAP(rthSpy.length >= 3 ? rthSpy : spyCandles)
           const ratio = currentPrice && spyPrice && spyPrice > 0 ? currentPrice / spyPrice : 10
+          const rthSource = rthSpy.length >= 3 ? rthSpy : spyCandles
           spyVwapLine.setData(
-            spyCandles
-              .map((c: any, i: number) => ({ time: Math.floor(c.t / 1000) as any, value: vwaps[i] * ratio }))
+            rthSource
+              .map((c: any, i: number) => ({ time: Math.floor(c.t / 1000) as any, value: vwapsRTH[i] * ratio }))
               .filter((d: any) => d.value)
           )
         }
