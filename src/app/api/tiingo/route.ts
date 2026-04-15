@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
-// Server-side Tiingo proxy — key never exposed to client
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -15,25 +14,30 @@ export async function GET(req: NextRequest) {
 
   try {
     let url: string
+
     if (endpoint === 'iex') {
-      // Real-time quote with last price — free tier
+      // Real-time last quote
       url = `https://api.tiingo.com/iex/?tickers=${ticker}&token=${tiingoKey}`
     } else if (endpoint === 'intraday') {
-      // 1-minute bars today — requires IEX subscription
+      // Real-time 5-min intraday bars — Tiingo IEX prices endpoint
+      // Includes volume on IEX plan; OHLC on free plan
       const today = new Date().toISOString().split('T')[0]
-      url = `https://api.tiingo.com/iex/${ticker}/prices?startDate=${today}&resampleFreq=5min&token=${tiingoKey}`
+      url = `https://api.tiingo.com/iex/${ticker}/prices?startDate=${today}&resampleFreq=5min&columns=open,high,low,close,volume&token=${tiingoKey}`
     } else {
-      url = `https://api.tiingo.com/tiingo/daily/${ticker}/prices?token=${tiingoKey}`
+      // Historical daily
+      const today = new Date().toISOString().split('T')[0]
+      const oneYearAgo = new Date(Date.now() - 365*24*60*60*1000).toISOString().split('T')[0]
+      url = `https://api.tiingo.com/tiingo/daily/${ticker}/prices?startDate=${oneYearAgo}&endDate=${today}&token=${tiingoKey}`
     }
 
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${tiingoKey}` },
       cache: 'no-store'
     })
 
     if (!res.ok) {
       const err = await res.text()
-      return NextResponse.json({ error: 'Tiingo error', detail: err.substring(0, 200) }, { status: res.status })
+      return NextResponse.json({ error: 'Tiingo error', status: res.status, detail: err.substring(0, 200) }, { status: res.status })
     }
 
     const data = await res.json()
