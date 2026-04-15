@@ -1901,19 +1901,15 @@ export default function CockpitPage() {
         if (key === 'spy') {
           setSpyPrice(last.c)
           setChanges((p: any) => ({ ...p, spy: last.c - mapped[0].o }))
-          // Derive live SPX price from SPY when I:SPX data is delayed
-          // Use stored ratio from yesterday's closes (pdh/pdl period) or last known ratio
-          setCurrentPrice(prev => {
-            // Only override if we have a valid prior SPX price to compute ratio from
-            if (!prev || !levels.spyCurrentPrice) return prev
-            const ratio = prev / levels.spyCurrentPrice
-            if (ratio > 9 && ratio < 11) {
-              const derived = last.c * ratio
-              currentPriceRef.current = derived
-              return derived
+          // Update currentPriceRef with SPY-derived SPX price for use in ratio calculation
+          // This handles the case where I:SPX data is delayed
+          if (currentPriceRef.current) {
+            const impliedRatio = currentPriceRef.current / last.c
+            if (impliedRatio > 9.5 && impliedRatio < 10.5) {
+              // Good ratio — keep currentPriceRef updated with SPY-derived SPX
+              currentPriceRef.current = last.c * impliedRatio
             }
-            return prev
-          })
+          }
           // VWAP from RTH session only (9:30 AM ET) — matches TOS/standard platform behavior
           const rthCandles = mapped.filter((c: any) => {
             const d = new Date(c.t)
@@ -1927,17 +1923,19 @@ export default function CockpitPage() {
           const spyEmas = calcEMA(mapped, 200)
           const rawSpy200 = spyEmas[spyEmas.length - 1]
           setLevels((p: any) => {
-            // SPX/SPY ratio for scaling VWAP/EMA from SPY to SPX equivalent
-            // currentPriceRef always has the latest I:SPX price even if state hasn't propagated
+            // SPX/SPY ratio — use the most reliable source available
+            // currentPriceRef is updated from I:SPX; last.c is the live SPY price
             const spxLive = currentPriceRef.current || p.currentSpxPrice || p.dayOpen
-            const ratio = spxLive && last.c > 0 ? spxLive / last.c : 10.0
+            // Sanity check: ratio should be between 9.5-10.5 for SPX/SPY
+            const rawRatio = spxLive && last.c > 0 ? spxLive / last.c : 0
+            const ratio = (rawRatio > 9.5 && rawRatio < 10.5) ? rawRatio : 10.05
             return {
               ...p,
               spyVwapRaw: rawSpyVwap,
               spyCurrentPrice: last.c,
               spyVwap: rawSpyVwap * ratio,
               spy200EMA: rawSpy200 ? rawSpy200 * ratio : null,
-              spy200EMAraw: rawSpy200,  // store raw for ratio recalculation
+              spy200EMAraw: rawSpy200,
             }
           })
         }
@@ -2032,18 +2030,21 @@ export default function CockpitPage() {
 
   // Update SPX levels when price updates
   useEffect(() => {
-    if (!currentPrice) return
+    if (!currentPrice || !spyPrice) return
     setLevels((p: any) => {
-      if (!p.spyCurrentPrice) return p
-      const ratio = currentPrice && p.spyCurrentPrice > 0 ? currentPrice / p.spyCurrentPrice : 10.0
+      if (!p.spyVwapRaw) return p
+      // Always use live SPY price for the ratio — spyCurrentPrice can be stale
+      const ratio = spyPrice > 0 ? currentPrice / spyPrice : 10.05
+      // Sanity check ratio
+      if (ratio < 9.5 || ratio > 10.5) return p
       return {
         ...p,
         currentSpxPrice: currentPrice,
-        spyVwap: p.spyVwapRaw ? p.spyVwapRaw * ratio : p.spyVwap,
+        spyVwap: p.spyVwapRaw * ratio,
         spy200EMA: p.spy200EMAraw ? p.spy200EMAraw * ratio : p.spy200EMA,
       }
     })
-  }, [currentPrice])
+  }, [currentPrice, spyPrice])
 
   // Lightweight charts
   useEffect(() => {
