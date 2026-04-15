@@ -1363,6 +1363,7 @@ export default function CockpitPage() {
   const [spyCandles, setSpyCandles] = useState<any[]>([])
   const [vixCandles, setVixCandles] = useState<any[]>([])
   const [currentPrice, setCurrentPrice] = useState<number | null>(null)
+  const currentPriceRef = useRef<number | null>(null)
   const [spyPrice, setSpyPrice] = useState<number | null>(null)
   const [vixPrice, setVixPrice] = useState<number | null>(null)
   const [openPrice, setOpenPrice] = useState<number | null>(null)
@@ -1462,6 +1463,7 @@ export default function CockpitPage() {
   const chartTfRef = useRef<string>('5')
   // Keep ref in sync so fetchHistory always reads latest TF without stale closure
   useEffect(() => { chartTfRef.current = chartTf }, [chartTf])
+  useEffect(() => { currentPriceRef.current = currentPrice }, [currentPrice])
 
   useEffect(() => {
     // Load voice engine preference
@@ -1880,26 +1882,12 @@ export default function CockpitPage() {
           const pdh = ydayData.results?.[0]?.h
           const pdl = ydayData.results?.[0]?.l
           const prevClose = ydayData.results?.[0]?.c
-          // Calculate VWAP directly from I:SPX intraday candles — most accurate
-          const todaySPX = mapped.filter((c: any) => {
-            const d = new Date(c.t)
-            return d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
-          })
-          const spxVwapCandles = todaySPX.length >= 5 ? todaySPX : mapped.slice(-78)
-          const spxVwaps = calcVWAP(spxVwapCandles)
-          const spxVwapVal = spxVwaps[spxVwaps.length - 1] || null
-          // Calculate 200 EMA directly on SPX
-          const spxEma200 = emas[emas.length - 1]
           setLevels((p: any) => ({
             ...p,
-            ema200: spxEma200,
+            ema200: emas[emas.length - 1],
             pdh, pdl, prevClose,
             dayOpen: mapped[0].o,
             currentSpxPrice: last.c,
-            // Store SPX VWAP directly — no ratio needed
-            spyVwap: spxVwapVal || p.spyVwap,
-            spyVwapRaw: spxVwapVal || p.spyVwapRaw,
-            spy200EMA: spxEma200 || p.spy200EMA,
           }))
           setChanges((p: any) => ({ ...p, spx: last.c - mapped[0].o }))
         }
@@ -1918,8 +1906,8 @@ export default function CockpitPage() {
           const rawSpy200 = spyEmas[spyEmas.length - 1]
           setLevels((p: any) => {
             // SPX/SPY ratio for scaling VWAP/EMA from SPY to SPX equivalent
-            // Prefer live SPX price, fall back to day open, then ~10x approximation
-            const spxLive = p.currentSpxPrice || p.dayOpen
+            // currentPriceRef always has the latest I:SPX price even if state hasn't propagated
+            const spxLive = currentPriceRef.current || p.currentSpxPrice || p.dayOpen
             const ratio = spxLive && last.c > 0 ? spxLive / last.c : 10.0
             return {
               ...p,
@@ -2025,7 +2013,7 @@ export default function CockpitPage() {
     if (!currentPrice) return
     setLevels((p: any) => {
       if (!p.spyCurrentPrice) return p
-      const ratio = currentPrice / p.spyCurrentPrice
+      const ratio = currentPrice && p.spyCurrentPrice > 0 ? currentPrice / p.spyCurrentPrice : 10.0
       return {
         ...p,
         currentSpxPrice: currentPrice,
