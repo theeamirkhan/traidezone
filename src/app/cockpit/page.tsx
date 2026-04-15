@@ -1911,25 +1911,35 @@ export default function CockpitPage() {
             }
           }
           // VWAP from RTH session only (9:30 AM ET) — matches TOS/standard platform behavior
+          // Filter to today's RTH bars (Polygon may be delayed — filters to whatever is available)
           const rthCandles = mapped.filter((c: any) => {
             const d = new Date(c.t)
             const estTime = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
             const h = estTime.getHours(), m = estTime.getMinutes()
-            return h > 9 || (h === 9 && m >= 30)
+            // Must be 9:30 AM or later AND from today
+            const isToday = d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+            return isToday && (h > 9 || (h === 9 && m >= 30))
           })
-          const vwapCandles = rthCandles.length >= 3 ? rthCandles : mapped.slice(-40)
-          const spyVwaps = calcVWAP(vwapCandles)
-          const rawSpyVwap = spyVwaps[spyVwaps.length - 1]
+          
+          let rawSpyVwap: number
+          if (rthCandles.length >= 3) {
+            // Have real intraday bars — compute proper VWAP
+            const vwapCandles = rthCandles
+            const spyVwaps = calcVWAP(vwapCandles)
+            rawSpyVwap = spyVwaps[spyVwaps.length - 1]
+          } else {
+            // No intraday bars yet (delayed data) — estimate VWAP from today's daily bar
+            // Fetch today's SPY daily OHLC and use (H+L+C)/3 as VWAP approximation
+            // ydayData already has yesterday's close — use that as anchor
+            // Best estimate: use live price as VWAP proxy since we're in a trending session
+            // This will be updated when real intraday data becomes available
+            const todayDailyRes = await proxyFetch(`/v2/aggs/ticker/SPY/range/1/day/${today}/${today}?adjusted=true&sort=asc&limit=1`)
+              .then(r => r.json()).catch(() => null)
+            const todayBar = todayDailyRes?.results?.[0]
+            rawSpyVwap = todayBar ? (todayBar.h + todayBar.l + todayBar.c) / 3 : last.c
+          }
           const spyEmas = calcEMA(mapped, 200)
           const rawSpy200 = spyEmas[spyEmas.length - 1]
-          console.log('TZ VWAP DEBUG:', {
-            rthBars: rthCandles.length,
-            vwapBars: vwapCandles.length,
-            rawSpyVwap: rawSpyVwap?.toFixed(4),
-            lastSpyBar: last.c?.toFixed(2),
-            currentPriceRef: currentPriceRef.current?.toFixed(2),
-            timestamp: new Date().toLocaleTimeString()
-          })
           setLevels((p: any) => {
             // SPX/SPY ratio — prioritize sources from most to least reliable:
             // 1. currentPriceRef (live SPX from I:SPX if not stale)
