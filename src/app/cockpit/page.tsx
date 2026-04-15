@@ -2751,7 +2751,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ color: C.text, fontWeight: 900 }}>de Zone</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? C.synapse : C.red, boxShadow: connected ? `0 0 8px ${C.synapse}` : 'none', animation: connected ? 'pulse 2s infinite' : 'none' }} />
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? '#00ff88' : '#ff1a4a', boxShadow: connected ? '0 0 10px rgba(0,255,136,0.8)' : '0 0 10px rgba(255,26,74,0.6)', animation: connected ? 'pulse 2s infinite' : 'none' }} />
             <span style={{ fontSize: 7, color: connected ? '#00ff88' : '#ff1a4a', fontWeight: 700, letterSpacing: 3, textShadow: connected ? '0 0 8px rgba(0,255,136,0.8)' : '0 0 8px rgba(255,26,74,0.8)' }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
           </div>
         </div>
@@ -3431,19 +3431,19 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     )}
                     {aiResult.todaysEdge && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>⚡ Today's Edge</div>
+                        <div style={{ fontSize: 9, color: '#00ff88', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(0,255,136,0.5)' }}>⚡ Today's Edge</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.todaysEdge}</div>
                       </div>
                     )}
                     {aiResult.accountability && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>🎯 Accountability</div>
+                        <div style={{ fontSize: 9, color: '#ff6b00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(255,107,0,0.5)' }}>🎯 Accountability</div>
                         <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.accountability}</div>
                       </div>
                     )}
                     {aiResult.riskFlag && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(204,16,64,0.1)', background: 'rgba(204,16,64,0.03)' }}>
-                        <div style={{ fontSize: 9, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>⚠ Risk Flag</div>
+                        <div style={{ fontSize: 9, color: '#ff1a4a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(255,26,74,0.5)' }}>⚠ Risk Flag</div>
                         <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7 }}>{aiResult.riskFlag}</div>
                       </div>
                     )}
@@ -3708,9 +3708,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
                   {aiResult?.marketConditions && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>📊 Market Conditions</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.marketConditions}</div></div>}
-                  {aiResult?.todaysEdge && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: C.synapse, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>⚡ Today's Edge</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div></div>}
-                  {aiResult?.accountability && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: C.fire, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>🎯 Accountability</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.accountability}</div></div>}
-                  {aiResult?.riskFlag && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: C.red, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>⚠ Risk Flag</div><div style={{ fontSize: 10, color: C.red, lineHeight: 1.6 }}>{aiResult.riskFlag}</div></div>}
+                  {aiResult?.todaysEdge && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: '#00ff88', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 4 }}>⚡ Today's Edge</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div></div>}
+                  {aiResult?.accountability && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: '#ff6b00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 4 }}>🎯 Accountability</div><div style={{ fontSize: 10, color: C.text, lineHeight: 1.6 }}>{aiResult.accountability}</div></div>}
+                  {aiResult?.riskFlag && <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,229,255,0.1)' }}><div style={{ fontSize: 8, color: '#ff1a4a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 4 }}>⚠ Risk Flag</div><div style={{ fontSize: 10, color: C.red, lineHeight: 1.6 }}>{aiResult.riskFlag}</div></div>}
 
                   {/* Positioning */}
                   {aiResult && (
