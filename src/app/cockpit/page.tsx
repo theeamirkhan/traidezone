@@ -1923,12 +1923,18 @@ export default function CockpitPage() {
           const spyEmas = calcEMA(mapped, 200)
           const rawSpy200 = spyEmas[spyEmas.length - 1]
           setLevels((p: any) => {
-            // SPX/SPY ratio — use the most reliable source available
-            // currentPriceRef is updated from I:SPX; last.c is the live SPY price
+            // SPX/SPY ratio — prioritize sources from most to least reliable:
+            // 1. currentPriceRef (live SPX from I:SPX if not stale)
+            // 2. p.currentSpxPrice (last known SPX price in state)
+            // 3. p.dayOpen (SPX day open — stable anchor)
+            // 4. 10.025 (yesterday's actual close ratio, hard-coded as safe fallback)
             const spxLive = currentPriceRef.current || p.currentSpxPrice || p.dayOpen
-            // Sanity check: ratio should be between 9.5-10.5 for SPX/SPY
             const rawRatio = spxLive && last.c > 0 ? spxLive / last.c : 0
-            const ratio = (rawRatio > 9.5 && rawRatio < 10.5) ? rawRatio : 10.05
+            // Use stored good ratio if current one looks wrong
+            const storedRatio = p.lastGoodRatio
+            const ratio = (rawRatio > 9.5 && rawRatio < 10.5) ? rawRatio
+                        : (storedRatio > 9.5 && storedRatio < 10.5) ? storedRatio
+                        : 10.025
             return {
               ...p,
               spyVwapRaw: rawSpyVwap,
@@ -1936,6 +1942,7 @@ export default function CockpitPage() {
               spyVwap: rawSpyVwap * ratio,
               spy200EMA: rawSpy200 ? rawSpy200 * ratio : null,
               spy200EMAraw: rawSpy200,
+              lastGoodRatio: (rawRatio > 9.5 && rawRatio < 10.5) ? rawRatio : (storedRatio || p.lastGoodRatio),
             }
           })
         }
@@ -1949,12 +1956,15 @@ export default function CockpitPage() {
 
   useEffect(() => {
     // keys handled server-side
-    fetchHistory('I:SPX', setCandles, 'spx')
-    fetchHistory('SPY', setSpyCandles, 'spy')
-    fetchHistory('I:VIX', setVixCandles, 'vix')
+    // Sequential load: SPX first so currentPriceRef is populated before SPY VWAP ratio
+    ;(async () => {
+      await fetchHistory('I:SPX', setCandles, 'spx')
+      fetchHistory('SPY', setSpyCandles, 'spy')
+      fetchHistory('I:VIX', setVixCandles, 'vix')
+    })()
     setConnected(true)
-    const interval = setInterval(() => {
-      fetchHistory('I:SPX', setCandles, 'spx')
+    const interval = setInterval(async () => {
+      await fetchHistory('I:SPX', setCandles, 'spx')
       fetchHistory('SPY', setSpyCandles, 'spy')
       fetchHistory('I:VIX', setVixCandles, 'vix')
     }, 60000)
@@ -2034,9 +2044,12 @@ export default function CockpitPage() {
     setLevels((p: any) => {
       if (!p.spyVwapRaw) return p
       // Always use live SPY price for the ratio — spyCurrentPrice can be stale
-      const ratio = spyPrice > 0 ? currentPrice / spyPrice : 10.05
-      // Sanity check ratio
-      if (ratio < 9.5 || ratio > 10.5) return p
+      const rawRatio = spyPrice > 0 ? currentPrice / spyPrice : 0
+      // If current ratio looks wrong, use last stored good ratio
+      const ratio = (rawRatio > 9.5 && rawRatio < 10.5) ? rawRatio
+                  : (p.lastGoodRatio > 9.5 && p.lastGoodRatio < 10.5) ? p.lastGoodRatio
+                  : 10.025
+      if (!p.spyVwapRaw) return p
       return {
         ...p,
         currentSpxPrice: currentPrice,
