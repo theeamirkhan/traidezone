@@ -1910,33 +1910,53 @@ export default function CockpitPage() {
               currentPriceRef.current = last.c * impliedRatio
             }
           }
-          // VWAP from RTH session only (9:30 AM ET) — matches TOS/standard platform behavior
-          // Filter to today's RTH bars (Polygon may be delayed — filters to whatever is available)
-          const rthCandles = mapped.filter((c: any) => {
-            const d = new Date(c.t)
-            const estTime = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-            const h = estTime.getHours(), m = estTime.getMinutes()
-            // Must be 9:30 AM or later AND from today
-            const isToday = d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
-            return isToday && (h > 9 || (h === 9 && m >= 30))
-          })
-          
-          let rawSpyVwap: number
-          if (rthCandles.length >= 3) {
-            // Have real intraday bars — compute proper VWAP
-            const vwapCandles = rthCandles
-            const spyVwaps = calcVWAP(vwapCandles)
-            rawSpyVwap = spyVwaps[spyVwaps.length - 1]
-          } else {
-            // No intraday bars yet (delayed data) — estimate VWAP from today's daily bar
-            // Fetch today's SPY daily OHLC and use (H+L+C)/3 as VWAP approximation
-            // ydayData already has yesterday's close — use that as anchor
-            // Best estimate: use live price as VWAP proxy since we're in a trending session
-            // This will be updated when real intraday data becomes available
-            const todayDailyRes = await proxyFetch(`/v2/aggs/ticker/SPY/range/1/day/${today}/${today}?adjusted=true&sort=asc&limit=1`)
-              .then(r => r.json()).catch(() => null)
-            const todayBar = todayDailyRes?.results?.[0]
-            rawSpyVwap = todayBar ? (todayBar.h + todayBar.l + todayBar.c) / 3 : last.c
+          // ── VWAP: Try Tiingo IEX for real-time intraday, fall back to Polygon/daily ──
+          let rawSpyVwap: number = 0
+          try {
+            // Tiingo IEX gives real-time 5-min bars even on free plan
+            const tiingoRes = await fetch('/api/tiingo?ticker=SPY&endpoint=intraday')
+            if (tiingoRes.ok) {
+              const tiingoBars = await tiingoRes.json()
+              if (Array.isArray(tiingoBars) && tiingoBars.length >= 3) {
+                // Filter to RTH (9:30+ ET) today only
+                const rthTiingo = tiingoBars.filter((b: any) => {
+                  const d = new Date(b.date || b.timestamp)
+                  const estT = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+                  return estT.getHours() > 9 || (estT.getHours() === 9 && estT.getMinutes() >= 30)
+                })
+                if (rthTiingo.length >= 3) {
+                  // Compute VWAP from Tiingo bars (open=o, high=h, low=l, close=c, volume=v)
+                  let cTPV = 0, cV = 0
+                  rthTiingo.forEach((b: any) => {
+                    const tp = ((b.high || b.h) + (b.low || b.l) + (b.close || b.c)) / 3
+                    const vol = b.volume || b.v || 1
+                    cTPV += tp * vol; cV += vol
+                  })
+                  rawSpyVwap = cTPV / cV
+                }
+              }
+            }
+          } catch {}
+
+          if (!rawSpyVwap) {
+            // Tiingo unavailable — try Polygon RTH bars (may be delayed)
+            const rthCandles = mapped.filter((c: any) => {
+              const d = new Date(c.t)
+              const estTime = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+              const h = estTime.getHours(), m = estTime.getMinutes()
+              const isToday = d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+              return isToday && (h > 9 || (h === 9 && m >= 30))
+            })
+            if (rthCandles.length >= 3) {
+              const spyVwaps = calcVWAP(rthCandles)
+              rawSpyVwap = spyVwaps[spyVwaps.length - 1]
+            } else {
+              // Last resort: today's daily bar (H+L+C)/3
+              const todayDailyRes = await proxyFetch(`/v2/aggs/ticker/SPY/range/1/day/${today}/${today}?adjusted=true&sort=asc&limit=1`)
+                .then(r => r.json()).catch(() => null)
+              const todayBar = todayDailyRes?.results?.[0]
+              rawSpyVwap = todayBar ? (todayBar.h + todayBar.l + todayBar.c) / 3 : last.c
+            }
           }
           const spyEmas = calcEMA(mapped, 200)
           const rawSpy200 = spyEmas[spyEmas.length - 1]
