@@ -1922,6 +1922,14 @@ export default function CockpitPage() {
           const rawSpyVwap = spyVwaps[spyVwaps.length - 1]
           const spyEmas = calcEMA(mapped, 200)
           const rawSpy200 = spyEmas[spyEmas.length - 1]
+          console.log('TZ VWAP DEBUG:', {
+            rthBars: rthCandles.length,
+            vwapBars: vwapCandles.length,
+            rawSpyVwap: rawSpyVwap?.toFixed(4),
+            lastSpyBar: last.c?.toFixed(2),
+            currentPriceRef: currentPriceRef.current?.toFixed(2),
+            timestamp: new Date().toLocaleTimeString()
+          })
           setLevels((p: any) => {
             // SPX/SPY ratio — prioritize sources from most to least reliable:
             // 1. currentPriceRef (live SPX from I:SPX if not stale)
