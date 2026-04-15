@@ -1867,7 +1867,14 @@ export default function CockpitPage() {
 
         if (key === 'spx') {
           const prevP = currentPrice
-          setCurrentPrice(last.c)
+          // I:SPX intraday data may be delayed on some Polygon plans
+          // Only use if the bar is from today (within 12 hours)
+          const barAge = Date.now() - last.t
+          const barIsToday = barAge < 12 * 60 * 60 * 1000
+          if (barIsToday) {
+            setCurrentPrice(last.c)
+          }
+          // currentPrice will also be updated from SPY derivation when SPY loads
           if (prevP && last.c !== prevP) {
             const el = document.getElementById('tz-spx-price')
             if (el) {
@@ -1894,6 +1901,19 @@ export default function CockpitPage() {
         if (key === 'spy') {
           setSpyPrice(last.c)
           setChanges((p: any) => ({ ...p, spy: last.c - mapped[0].o }))
+          // Derive live SPX price from SPY when I:SPX data is delayed
+          // Use stored ratio from yesterday's closes (pdh/pdl period) or last known ratio
+          setCurrentPrice(prev => {
+            // Only override if we have a valid prior SPX price to compute ratio from
+            if (!prev || !levels.spyCurrentPrice) return prev
+            const ratio = prev / levels.spyCurrentPrice
+            if (ratio > 9 && ratio < 11) {
+              const derived = last.c * ratio
+              currentPriceRef.current = derived
+              return derived
+            }
+            return prev
+          })
           // VWAP from RTH session only (9:30 AM ET) — matches TOS/standard platform behavior
           const rthCandles = mapped.filter((c: any) => {
             const d = new Date(c.t)
