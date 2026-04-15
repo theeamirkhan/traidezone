@@ -1880,11 +1880,26 @@ export default function CockpitPage() {
           const pdh = ydayData.results?.[0]?.h
           const pdl = ydayData.results?.[0]?.l
           const prevClose = ydayData.results?.[0]?.c
+          // Calculate VWAP directly from I:SPX intraday candles — most accurate
+          const todaySPX = mapped.filter((c: any) => {
+            const d = new Date(c.t)
+            return d.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+          })
+          const spxVwapCandles = todaySPX.length >= 5 ? todaySPX : mapped.slice(-78)
+          const spxVwaps = calcVWAP(spxVwapCandles)
+          const spxVwapVal = spxVwaps[spxVwaps.length - 1] || null
+          // Calculate 200 EMA directly on SPX
+          const spxEma200 = emas[emas.length - 1]
           setLevels((p: any) => ({
             ...p,
-            ema200: emas[emas.length - 1],
+            ema200: spxEma200,
             pdh, pdl, prevClose,
             dayOpen: mapped[0].o,
+            currentSpxPrice: last.c,
+            // Store SPX VWAP directly — no ratio needed
+            spyVwap: spxVwapVal || p.spyVwap,
+            spyVwapRaw: spxVwapVal || p.spyVwapRaw,
+            spy200EMA: spxEma200 || p.spy200EMA,
           }))
           setChanges((p: any) => ({ ...p, spx: last.c - mapped[0].o }))
         }
@@ -1903,8 +1918,8 @@ export default function CockpitPage() {
           const rawSpy200 = spyEmas[spyEmas.length - 1]
           setLevels((p: any) => {
             // SPX/SPY ratio for scaling VWAP/EMA from SPY to SPX equivalent
-            // Use actual live SPX price from state (set by I:SPX fetch)
-            const spxLive = p.dayOpen  // dayOpen is set from I:SPX data
+            // Prefer live SPX price, fall back to day open, then ~10x approximation
+            const spxLive = p.currentSpxPrice || p.dayOpen
             const ratio = spxLive && last.c > 0 ? spxLive / last.c : 10.0
             return {
               ...p,
@@ -1912,6 +1927,7 @@ export default function CockpitPage() {
               spyCurrentPrice: last.c,
               spyVwap: rawSpyVwap * ratio,
               spy200EMA: rawSpy200 ? rawSpy200 * ratio : null,
+              spy200EMAraw: rawSpy200,  // store raw for ratio recalculation
             }
           })
         }
@@ -2082,7 +2098,7 @@ export default function CockpitPage() {
         if (isIntraday && levels.spyVwapRaw && spyCandles.length >= 5) {
           const spyVwapLine = chart.addSeries(LineSeries, { color: '#e05000', lineWidth: 1, lineStyle: 1, title: 'VWAP' })
           const vwaps = calcVWAP(spyCandles)
-          const ratio = currentPrice && spyPrice ? currentPrice / spyPrice : 10
+          const ratio = currentPrice && spyPrice && spyPrice > 0 ? currentPrice / spyPrice : 10
           spyVwapLine.setData(
             spyCandles
               .map((c: any, i: number) => ({ time: Math.floor(c.t / 1000) as any, value: vwaps[i] * ratio }))
