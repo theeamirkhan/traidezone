@@ -2286,8 +2286,16 @@ export default function CockpitPage() {
     }
     recognition.onerror = () => { setListening(false); listeningRef.current = false; setLiveTranscript('') }
     recognition.onend = () => {
-      // Only restart if user hasn't manually stopped AND we're not speaking
-      if (recognitionRef.current === recognition && listeningRef.current) recognition.start()
+      // Only restart if user hasn't manually stopped AND we're not currently speaking
+      // speakLockRef prevents mic from restarting mid-speech (fixes hearing-itself bug)
+      if (recognitionRef.current === recognition && listeningRef.current && !speakLockRef.current) {
+        setTimeout(() => {
+          // Double-check still not speaking after brief delay
+          if (listeningRef.current && !speakLockRef.current) {
+            try { recognition.start() } catch {}
+          }
+        }, 200)
+      }
     }
     recognitionRef.current = recognition
     recognition.start()
@@ -2347,17 +2355,26 @@ export default function CockpitPage() {
     setSpeaking(true)
 
     const wasListening = listeningRef.current
-    if (wasListening && recognitionRef.current) {
-      recognitionRef.current.stop()
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort() } catch {}  // abort() is more immediate than stop()
+      recognitionRef.current = null
       setListening(false)
       setLiveTranscript('')
+      listeningRef.current = false  // prevent onend from restarting
     }
 
     const finish = (resume = true) => {
       speakLockRef.current = false
       audioSourceRef.current = null
       setSpeaking(false)
-      if (resume && wasListening) setTimeout(() => startListening(), 300)
+      // Only restart mic after a clean delay to ensure audio output has fully stopped
+      // This prevents feedback loop where mic picks up speaker output
+      if (resume && wasListening) {
+        setTimeout(() => {
+          listeningRef.current = true  // re-enable before starting
+          startListening()
+        }, 600)  // 600ms buffer after audio ends before mic opens
+      }
       // Play queued text if any
       const queued = speakQueueRef.current
       if (queued) { speakQueueRef.current = null; speak(queued) }
@@ -2385,7 +2402,7 @@ export default function CockpitPage() {
         return
       }
 
-      // ── OpenAI TTS ────────────────────────────────────────────────────
+      // ── OpenAI TTS — fetch full audio then play ─────────────────────
       const res = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2395,53 +2412,74 @@ export default function CockpitPage() {
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         console.error('TZ voice error:', res.status, errData)
-        // Fallback to Web Speech
         try { window.speechSynthesis.speak(new SpeechSynthesisUtterance(text)) } catch {}
         finish(false)
         return
       }
 
-      // If a new speak() was queued while we were fetching, discard this response
-      if (speakQueueRef.current) {
-        finish(false)
-        return
-      }
+      // Discard if something newer is queued
+      if (speakQueueRef.current) { finish(false); return }
 
-      const arrayBuffer = await res.arrayBuffer()
-
-      // Reuse existing AudioContext or create one
+      // ── Create/reuse AudioContext immediately so it's ready ────────────
       let audioCtx = audioCtxRef.current
       if (!audioCtx || audioCtx.state === 'closed') {
-        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 })
         audioCtxRef.current = audioCtx
       }
       if (audioCtx.state === 'suspended') await audioCtx.resume()
 
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
-      const source = audioCtx.createBufferSource()
-      audioSourceRef.current = source
-      source.buffer = audioBuffer
+      // ── Stream chunks and play as they arrive ─────────────────────────
+      const reader = res.body!.getReader()
+      const chunks: Uint8Array[] = []
+      let startedPlaying = false
+      let totalBytes = 0
 
-      // ── Stereo fix: route through a channel merger to force both speakers ──
-      const merger = audioCtx.createChannelMerger(2)
-      if (audioBuffer.numberOfChannels === 1) {
-        // Mono source — split to both L and R
-        source.connect(merger, 0, 0)
-        source.connect(merger, 0, 1)
-      } else {
-        // Already stereo — connect normally but through merger to guarantee both channels
-        source.connect(merger, 0, 0)
-        source.connect(merger, 1, 1)
+      const playChunks = async () => {
+        const combined = new Uint8Array(totalBytes)
+        let offset = 0
+        for (const c of chunks) { combined.set(c, offset); offset += c.length }
+        try {
+          const audioBuffer = await audioCtx!.decodeAudioData(combined.buffer.slice(0))
+          // Stop any previous source
+          if (audioSourceRef.current) { try { audioSourceRef.current.stop() } catch {} }
+
+          const source = audioCtx!.createBufferSource()
+          audioSourceRef.current = source
+          source.buffer = audioBuffer
+          // Stereo routing
+          const merger = audioCtx!.createChannelMerger(2)
+          if (audioBuffer.numberOfChannels === 1) {
+            source.connect(merger, 0, 0); source.connect(merger, 0, 1)
+          } else {
+            source.connect(merger, 0, 0); source.connect(merger, 1, 1)
+          }
+          const panner = audioCtx!.createStereoPanner()
+          panner.pan.value = 0
+          merger.connect(panner)
+          panner.connect(audioCtx!.destination)
+          source.onended = () => finish()
+          source.start(0)
+          startedPlaying = true
+        } catch {}  // incomplete chunk — wait for more data
       }
 
-      // Stereo panner at center (0) ensures equal L/R output
-      const panner = audioCtx.createStereoPanner()
-      panner.pan.value = 0
-      merger.connect(panner)
-      panner.connect(audioCtx.destination)
+      // Read all chunks
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (speakQueueRef.current) { finish(false); return }
+        chunks.push(value)
+        totalBytes += value.length
+        // Start playing once we have ~32KB (enough for first ~1s of audio)
+        if (!startedPlaying && totalBytes >= 32768) {
+          await playChunks()
+        }
+      }
 
-      source.onended = () => finish()
-      source.start(0)
+      // If we never started (short response < 32KB), play it all now
+      if (!startedPlaying && totalBytes > 0) {
+        await playChunks()
+      }
 
     } catch (e) {
       console.error('TZ speak error:', e)
