@@ -25,7 +25,15 @@ export async function GET(req: NextRequest) {
         .eq('user_id', userId)
         .eq('date', today)
         .single()
-      if (error && error.code !== 'PGRST116') throw error
+      // PGRST116 = no rows found (ok), uuid type error = schema mismatch (return null gracefully)
+      if (error && error.code !== 'PGRST116') {
+        if (error.message?.includes('uuid')) {
+          // morning_plans.user_id is uuid type — need schema fix
+          // Return null so client falls back to localStorage
+          return NextResponse.json({ data: null, schemaError: true })
+        }
+        throw error
+      }
       return NextResponse.json({ data: data || null })
     }
 
@@ -101,7 +109,15 @@ export async function POST(req: NextRequest) {
           gap_size: data.gapSize,
           notes: data.notes,
         }, { onConflict: 'user_id,date' })
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('uuid')) {
+          // Schema mismatch — morning_plans.user_id is uuid type, Clerk IDs are strings
+          // Data saved to localStorage as fallback — log for debugging
+          console.error('TZ: morning_plans uuid schema error — run: ALTER TABLE morning_plans ALTER COLUMN user_id TYPE text USING user_id::text;')
+          return NextResponse.json({ success: false, schemaError: true, sql: 'ALTER TABLE morning_plans ALTER COLUMN user_id TYPE text USING user_id::text;' })
+        }
+        throw error
+      }
       return NextResponse.json({ success: true })
     }
 

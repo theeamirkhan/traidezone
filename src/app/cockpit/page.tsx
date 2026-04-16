@@ -1445,6 +1445,7 @@ export default function CockpitPage() {
   const [elVoices, setElVoices] = useState<any[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
+  const morningPlanLoadedRef = useRef(false)  // prevent saving empty plan before load
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null)
@@ -1593,7 +1594,9 @@ export default function CockpitPage() {
       }
     })()
 
-    // Load morning plan from Supabase
+    // Load morning plan from Supabase (localStorage first for instant UX)
+    const lsQuick = localStorage.getItem('tz-morning-plan')
+    if (lsQuick) { try { setMorningPlan(JSON.parse(lsQuick)); morningPlanLoadedRef.current = true } catch {} }
     ;(async () => {
       try {
         const planRes = await fetch('/api/userdata?table=morning_plan')
@@ -1619,11 +1622,13 @@ export default function CockpitPage() {
         const savedPlan = localStorage.getItem('tz-morning-plan')
         if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
       }
+      morningPlanLoadedRef.current = true
     })()
   }, [])
 
-  // Save morning plan
+  // Save morning plan — only after initial load to avoid wiping saved data
   useEffect(() => {
+    if (!morningPlanLoadedRef.current) return  // don't save empty initial state
     localStorage.setItem('tz-morning-plan', JSON.stringify(morningPlan))
     // Sync to Supabase
     fetch('/api/userdata', {
