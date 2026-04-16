@@ -3107,7 +3107,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {aiResult?.todaysEdge && (
                 <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, padding: 12, boxShadow: '0 0 0 1px rgba(255,107,0,0.08) inset', borderLeft: '2px solid #ff6b00' }}>
                   <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6, fontFamily: fontDisplay }}>⚡ Today's Edge</div>
-                  <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{aiResult.todaysEdge}</div>
+                  <div style={{ fontSize: 11, color: '#f0f4ff', lineHeight: 1.6 }}>{aiResult.todaysEdge}</div>
                   {aiResult.riskFlag && <div style={{ marginTop: 8, fontSize: 10, color: C.red, padding: '5px 8px', background: C.redDim, borderRadius: 4, border: `1px solid ${C.redBorder}` }}>⚠ {aiResult.riskFlag}</div>}
                 </div>
               )}
@@ -3119,7 +3119,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '1px' }}>MARKET SCORE</div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 900, color: marketScore.color }}>{marketScore.score}<span style={{ fontSize: 11, opacity: 0.6 }}>/100</span></div>
                   </div>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: marketScore.color, marginBottom: 6 }}>{marketScore.label}</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: marketScore.color, marginBottom: 6 }}>{marketScore.label}</div>
                   <div style={{ height: 5, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${marketScore.score}%`, background: marketScore.color, borderRadius: 3, transition: 'width 0.5s' }} />
                   </div>
@@ -3132,13 +3132,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {marketNews && (
                     <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, padding: '10px 12px', borderLeft: '2px solid #00e5ff' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>📁° TODAY'S NEWS</div>
-                      <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{marketNews}</div>
+                      <div style={{ fontSize: 11, color: '#f0f4ff', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{marketNews}</div>
                     </div>
                   )}
                   {economicCalendar && (
                     <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, padding: '10px 12px', borderLeft: '2px solid #ff6b00' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.fire, letterSpacing: '1px', marginBottom: 6 }}>📅 ECONOMIC CALENDAR</div>
-                      <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{economicCalendar}</div>
+                      <div style={{ fontSize: 11, color: '#f0f4ff', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{economicCalendar}</div>
                     </div>
                   )}
                 </div>
@@ -3174,12 +3174,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {zeroDTESkew && (
                 <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, padding: '10px 14px', borderLeft: '2px solid #00e5ff' }}>
                   <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: '1px', marginBottom: 6 }}>⚡ SPX 0DTE SKEW</div>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: zeroDTESkew.callPct>55?C.synapse:zeroDTESkew.callPct<45?C.red:C.fire, marginBottom: 8 }}>{zeroDTESkew.skewLabel}</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: zeroDTESkew.callPct>55?C.synapse:zeroDTESkew.callPct<45?C.red:C.fire, marginBottom: 8 }}>{zeroDTESkew.skewLabel}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[{label:'CALLS',value:`${zeroDTESkew.callPct}%`,sub:zeroDTESkew.callPremium,color:C.synapse},{label:'PUTS',value:`${zeroDTESkew.putPct}%`,sub:zeroDTESkew.putPremium,color:C.red},{label:'P/C',value:zeroDTESkew.pcRatio,sub:'ratio',color:C.textDim}].map(({label,value,sub,color}) => (
                       <div key={label} style={{ flex: 1, background: color+'0a', border: `1px solid ${color}20`, borderRadius: 5, padding: '5px 7px', textAlign: 'center' as const }}>
-                        <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase' as const, marginBottom: 2 }}>{label}</div>
-                        <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                        <div style={{ fontSize: 7, color: '#6b7a9a', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 as const, marginBottom: 2 }}>{label}</div>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color }}>{value}</div>
                         <div style={{ fontSize: 9, color: C.textMuted }}>{sub}</div>
                       </div>
                     ))}
@@ -3195,7 +3195,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     {[{label:'Best hour',value:tradePatterns.bestHour,color:C.synapse},{label:'Worst hour',value:tradePatterns.worstHour,color:C.red},{label:'Avg winner',value:`$${tradePatterns.avgWinnerSize}`,color:C.synapse},{label:'Avg loser',value:`$${tradePatterns.avgLoserSize}`,color:C.red}].map(({label,value,color}) => (
                       <div key={label} style={{ background: 'rgba(20,26,40,0.95)', borderRadius: 5, padding: '5px 8px' }}>
                         <div style={{ fontSize: 9, color: C.textMuted }}>{label}</div>
-                        <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color }}>{value}</div>
                       </div>
                     ))}
                   </div>
@@ -3223,7 +3223,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     🧠
                     <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.15)`, animation: 'brainRing 4s linear infinite' }} />
                   </div>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: C.teal }}>AI COMPANION</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, letterSpacing: '2px', color: '#00e5ff', textShadow: '0 0 12px rgba(0,229,255,0.5)' }}>AI COMPANION</div>
                   <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, padding: '2px 7px', border: `1px solid ${listening ? 'rgba(255,26,74,0.35)' : speaking ? 'rgba(0,212,160,0.3)' : 'rgba(0,153,204,0.25)'}`, color: listening ? C.red : speaking ? C.violet : C.teal, background: listening ? 'rgba(204,16,64,0.06)' : 'transparent', animation: listening ? 'listeningPulse 1s infinite' : 'none' }}>
                     {listening ? '✏ LISTENING' : speaking ? '↗ SPEAKING' : chatLoading ? '⏳ THINKING' : '✓ READY'}
                   </div>
@@ -3248,21 +3248,21 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     { label: 'PLAN', value: activePlaybook ? activePlaybook.name.split(' ')[0] : 'None', color: activePlaybook ? C.teal : C.textMuted },
                   ].map(({ label, value, color }, i) => (
                     <div key={label} style={{ flex: 1, textAlign: 'center', padding: '4px 0', borderRight: i < 5 ? `1px solid rgba(100,140,220,0.06)` : 'none' }}>
-                      <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase' }}>{label}</div>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                      <div style={{ fontSize: 7, color: '#6b7a9a', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>{label}</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color }}>{value}</div>
                     </div>
                   ))}
                 </div>
 
                 {/* Messages */}
-                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(10,14,24,0.95)' }}>
+                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(8,11,20,0.98)' }}>
                   {chatMessages.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '24px 16px' }}>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>🎙️</div>
-                      <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>Your AI companion is watching charts, options flow, and your plan. Ask anything or tap the mic.</div>
+                      <div style={{ fontSize: 13, color: '#8899bb', lineHeight: 1.7 }}>Your AI companion is watching charts, options flow, and your plan. Ask anything or tap the mic.</div>
                       <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
                         {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
-                          <button key={q} onClick={() => setChatInput(q)} style={{ background: 'rgba(0,212,160,0.06)', border: `1px solid rgba(0,212,160,0.15)`, borderRadius: 20, padding: '4px 12px', color: C.teal, cursor: 'pointer', fontSize: 11, fontFamily: font }}>
+                          <button key={q} onClick={() => setChatInput(q)} style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)', borderRadius: 20, padding: '6px 14px', color: '#00e5ff', cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 500 }}>
                             {q}
                           </button>
                         ))}
@@ -3271,8 +3271,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   )}
                   {chatMessages.map((m, i) => (
                     <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
-                      {m.role === 'assistant' && <div style={{ fontSize: 7, color: C.teal, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 3, letterSpacing: 1 }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.teal, display: 'inline-block' }} />AI COMPANION</div>}
-                      <div style={{ padding: '9px 12px', fontSize: 12, lineHeight: 1.6, color: C.text, background: m.role === 'user' ? 'rgba(0,153,204,0.06)' : 'rgba(0,212,160,0.05)', border: `1px solid ${m.role === 'user' ? 'rgba(0,153,204,0.15)' : 'rgba(0,212,160,0.12)'}`, borderLeft: m.role === 'assistant' ? `2px solid ${C.violet}` : 'none', borderRight: m.role === 'user' ? `2px solid ${C.teal}` : 'none', borderRadius: m.role === 'user' ? '6px 2px 2px 6px' : '2px 6px 6px 2px' }}>
+                      {m.role === 'assistant' && <div style={{ fontSize: 8, color: '#00d4a0', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, letterSpacing: '1.5px' }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.teal, display: 'inline-block' }} />AI COMPANION</div>}
+                      <div style={{ padding: '10px 14px', fontSize: 13, lineHeight: 1.7, color: '#f0f4ff', background: m.role === 'user' ? 'rgba(0,229,255,0.06)' : 'rgba(0,212,160,0.06)', border: `1px solid ${m.role === 'user' ? 'rgba(0,229,255,0.18)' : 'rgba(0,212,160,0.15)'}`, borderLeft: m.role === 'assistant' ? '2px solid #00d4a0' : 'none', borderRight: m.role === 'user' ? '2px solid #00e5ff' : 'none', borderRadius: m.role === 'user' ? '8px 2px 2px 8px' : '2px 8px 8px 2px' }}>
                         {m.content}
                       </div>
                     </div>
@@ -3303,19 +3303,19 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 )}
 
                 {/* Input area */}
-                <div style={{ padding: '10px 12px', background: 'rgba(6,8,16,0.99)', borderTop: `1px solid rgba(100,140,220,0.1)`, flexShrink: 0 }}>
+                <div style={{ padding: '12px 14px', background: 'rgba(4,6,14,0.99)', borderTop: '1px solid rgba(0,229,255,0.12)', flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
-                    <button onClick={listening ? stopListening : startListening} style={{ width: 40, height: 40, borderRadius: '50%', border: `1.5px solid ${listening ? 'rgba(204,16,64,0.4)' : 'rgba(204,16,64,0.25)'}`, background: listening ? 'rgba(204,16,64,0.1)' : 'rgba(204,16,64,0.05)', color: C.red, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? `0 0 0 5px rgba(204,16,64,0.08)` : 'none', animation: listening ? 'none' : 'micGlow 2s infinite', transition: 'all 0.2s', flexShrink: 0 }}>
+                    <button onClick={listening ? stopListening : startListening} style={{ width: 44, height: 44, borderRadius: '50%', border: `2px solid ${listening ? 'rgba(255,26,74,0.7)' : 'rgba(255,26,74,0.35)'}`, background: listening ? 'rgba(255,26,74,0.15)' : 'rgba(255,26,74,0.07)', color: '#ff1a4a', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 6px rgba(255,26,74,0.1), 0 0 16px rgba(255,26,74,0.3)' : '0 0 12px rgba(255,26,74,0.1)', animation: listening ? 'micGlow 0.8s infinite' : 'none', transition: 'all 0.2s', flexShrink: 0 }}>
                       {listening ? '↹' : '🎙️'}
                     </button>
                     <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ↹ to stop)' : 'Ask your AI companion...'}
-                      style={{ flex: 1, background: 'rgba(20,26,40,0.95)', border: `1px solid ${listening ? 'rgba(204,16,64,0.25)' : 'rgba(100,140,220,0.15)'}`, borderRadius: 3, padding: '8px 11px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }} />
-                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{ width: 34, height: 34, background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textMuted, cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
+                      style={{ flex: 1, background: 'rgba(10,14,24,0.95)', border: `1px solid ${listening ? 'rgba(255,26,74,0.4)' : 'rgba(0,229,255,0.2)'}`, borderRadius: 4, padding: '9px 12px', color: '#f0f4ff', fontFamily: font, fontSize: 13, outline: 'none', transition: 'border-color 0.2s' }} />
+                    <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading} style={{ width: 34, height: 34, background: chatInput.trim() ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() ? C.violet : C.textMuted, cursor: chatInput.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
                   </div>
                   {/* Voice switcher */}
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                     {[{name:'Rachel',id:'21m00Tcm4TlvDq8ikWAM'},{name:'Drew',id:'29vD33N1CtxCmqQRPOHJ'},{name:'Clyde',id:'2EiwWnXFnvU5JabPnv8n'},{name:'Paul',id:'5Q0t7uMcjvnagumLfvZi'},{name:'Domi',id:'AZnzlk1XvdvUeBnXmlld'},{name:'Sarah',id:'EXAVITQu4vr4xnSDxMaL'},{name:'Thomas',id:'GBv7mTt0atIp3Br8iCZE'}].map(v => (
-                      <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '2px 7px', borderRadius: 2, background: voiceId === v.id ? 'rgba(0,212,160,0.08)' : 'transparent', border: `1px solid ${voiceId === v.id ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, color: voiceId === v.id ? C.violet : C.textMuted, fontSize: 11, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s' }}>{v.name}</button>
+                      <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '3px 9px', borderRadius: 3, background: voiceId === v.id ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${voiceId === v.id ? 'rgba(0,212,160,0.35)' : 'rgba(0,229,255,0.10)'}`, color: voiceId === v.id ? '#00d4a0' : '#6b7a9a', fontSize: 11, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s', fontWeight: voiceId === v.id ? 700 : 400 }}>{v.name}</button>
                     ))}
                   </div>
                 </div>
@@ -3450,7 +3450,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 return (
                   <div style={{ background: 'rgba(12,15,26,0.98)', margin: '14px 14px 0', borderRadius: 6, padding: '14px 16px', borderTop: `2px solid ${probs.hasData ? probs.dominantColor : 'rgba(0,229,255,0.2)'}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Probability Breakdown</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.text }}>Probability Breakdown</div>
                       {probs.hasData && (
                         <div style={{ background: probs.dominantColor + '15', border: `1px solid ${probs.dominantColor}40`, borderRadius: 4, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, fontWeight: 800, color: probs.dominantColor, fontFamily: fontDisplay }}>{probs.dominant}</span>
@@ -3490,7 +3490,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,212,160,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.teal, animation: aiLoading ? 'pulse 0.6s infinite' : 'pulse 3s infinite' }} />
-                    <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: '#00e5ff', textShadow: '0 0 12px rgba(0,229,255,0.5)' }}>AI Morning Brief</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: '#00e5ff', textShadow: '0 0 12px rgba(0,229,255,0.5)' }}>AI Morning Brief</div>
                     {lastAITime && <span style={{ fontSize: 9, color: C.textMuted }}>{lastAITime}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -3550,19 +3550,19 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     {aiResult.marketConditions && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
                         <div style={{ fontSize: 9, color: '#00e5ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{display:'inline-block',width:2,height:8,background:'#00e5ff',borderRadius:1,boxShadow:'0 0 6px #00e5ff'}} />📊 Market Conditions</div>
-                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.marketConditions}</div>
+                        <div style={{ fontSize: 13, color: '#f0f4ff', lineHeight: 1.8 }}>{aiResult.marketConditions}</div>
                       </div>
                     )}
                     {aiResult.todaysEdge && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
                         <div style={{ fontSize: 9, color: '#00ff88', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(0,255,136,0.5)' }}>⚡ Today's Edge</div>
-                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.todaysEdge}</div>
+                        <div style={{ fontSize: 13, color: '#f0f4ff', lineHeight: 1.8 }}>{aiResult.todaysEdge}</div>
                       </div>
                     )}
                     {aiResult.accountability && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
                         <div style={{ fontSize: 9, color: '#ff6b00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(255,107,0,0.5)' }}>🎯 Accountability</div>
-                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7 }}>{aiResult.accountability}</div>
+                        <div style={{ fontSize: 13, color: '#f0f4ff', lineHeight: 1.8 }}>{aiResult.accountability}</div>
                       </div>
                     )}
                     {aiResult.riskFlag && (
@@ -3582,7 +3582,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                             {label:'Target 2', value: fmt(aiResult.target2), color: C.synapse},
                           ].map(({label, value, color}) => (
                             <div key={label} style={{ background: color + '0a', border: `1px solid ${color}25`, borderRadius: 6, padding: '7px 10px' }}>
-                              <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{label}</div>
+                              <div style={{ fontSize: 7, color: '#6b7a9a', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700, marginBottom: 3 }}>{label}</div>
                               <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color }}>{value}</div>
                             </div>
                           ))}
@@ -3634,7 +3634,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             {/* RIGHT — Checklist */}
             <div style={{ width: 280, background: 'rgba(12,15,26,0.98)', borderLeft: `1px solid rgba(0,212,160,0.1)`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: C.text }}>Pre-Trade Check</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color: C.text }}>Pre-Trade Check</div>
                 <div style={{ background: gradeColor + '15', border: `1px solid ${gradeColor}35`, borderRadius: 6, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 800, color: gradeColor }}>{grade}</span>
                   <span style={{ fontSize: 9, color: C.textMuted }}>{score}/13</span>
@@ -3776,7 +3776,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <button key={tf} onClick={() => setChartTf(tf)} style={{ padding: '3px 10px', borderRadius: 3, border: `1px solid ${chartTf === tf ? 'rgba(0,229,255,0.45)' : 'rgba(0,229,255,0.08)'}`, background: chartTf === tf ? 'rgba(0,229,255,0.12)' : 'transparent', color: chartTf === tf ? '#00e5ff' : '#6b7a9a', cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: chartTf === tf ? 700 : 500, textShadow: chartTf === tf ? '0 0 10px rgba(0,229,255,0.5)' : 'none', transition: 'all 0.15s' }}>{tf === '60' ? '1H' : tf === '1D' ? '1D' : tf + 'm'}</button>
                   ))}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-                    {currentPrice && <span style={{ fontFamily: fontDisplay, fontSize: 11, color: C.text, fontWeight: 700 }}>{fmt(currentPrice)}</span>}
+                    {currentPrice && <span style={{ fontFamily: fontDisplay, fontSize: 11, color: '#f0f4ff', fontWeight: 700 }}>{fmt(currentPrice)}</span>}
                     {levels.spyVwap && <span style={{ fontSize: 9, color: C.fire }}>VWAP {fmt(levels.spyVwap)}</span>}
                     {levels.ema200 && <span style={{ fontSize: 9, color: C.teal }}>200E {fmt(levels.ema200)}</span>}
                   </div>
@@ -3826,7 +3826,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       ].map(({ label, value, color }) => (
                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 7px', borderRadius: 3, marginBottom: 2, background: color + '08' }}>
                           <span style={{ fontSize: 9, color: C.textDim }}>{label}</span>
-                          <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</span>
+                          <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color }}>{value}</span>
                         </div>
                       ))}
                     </div>
@@ -3954,7 +3954,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   ].map(({ label, value, sub, color }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid rgba(0,229,255,0.1)' }}>
                       <div><span style={{ fontSize: 11, color: C.textDim }}>{label}</span>{sub && <span style={{ fontSize: 7, color: C.textMuted, marginLeft: 4 }}>{sub}</span>}</div>
-                      <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</span>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color }}>{value}</span>
                     </div>
                   ))}
                 </div>
@@ -4271,7 +4271,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           return (
                             <div key={name} style={{ marginBottom: 10 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                                <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>{name}</span>
+                                <span style={{ fontSize: 11, color: '#f0f4ff', fontWeight: 600 }}>{name}</span>
                                 <span style={{ fontSize: 11, fontWeight: 700, color: pb.pnl >= 0 ? C.synapse : C.red }}>{pb.pnl >= 0 ? '+' : ''}${Math.round(pb.pnl)}</span>
                               </div>
                               <div style={{ display: 'flex', gap: 8, fontSize: 9, color: C.textMuted, marginBottom: 3 }}>
@@ -4404,8 +4404,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 { label: 'BOOK', value: activePlaybook ? activePlaybook.name.split(' ')[0] : 'None', color: activePlaybook ? C.teal : C.textMuted },
               ].map(({ label, value, color }, i) => (
                 <div key={label} style={{ flex: 1, textAlign: 'center', borderRight: i < 5 ? `1px solid rgba(100,140,220,0.06)` : 'none' }}>
-                  <div style={{ fontSize: 8, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color }}>{value}</div>
+                  <div style={{ fontSize: 7, color: '#6b7a9a', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>{label}</div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 700, color }}>{value}</div>
                 </div>
               ))}
             </div>
@@ -4529,11 +4529,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   }}
                 />
 
-                <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading || !keys[ANTH_KEY]} style={{
+                <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading} style={{
                   width: 36, height: 36, borderRadius: 2, border: `1px solid ${chatInput.trim() && keys[ANTH_KEY] ? C.tealBorder : 'rgba(0,229,255,0.08)'}`,
                   background: chatInput.trim() && keys[ANTH_KEY] ? 'rgba(124,58,237,0.18)' : 'transparent',
                   color: chatInput.trim() && keys[ANTH_KEY] ? C.violet : C.textDim,
-                  cursor: chatInput.trim() && keys[ANTH_KEY] ? 'pointer' : 'not-allowed',
+                  cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
                   fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0,
                 }}>↑</button>
               </div>
