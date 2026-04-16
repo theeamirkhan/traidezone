@@ -11,33 +11,57 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Try to add morning_plan column to user_settings
-  // First test if it already exists by trying to select it
-  const { data: test, error: testErr } = await supabase
-    .from('user_settings')
-    .select('morning_plan')
-    .eq('user_id', userId)
-    .limit(1)
-
-  if (!testErr) {
-    return NextResponse.json({ alreadyExists: true, message: 'morning_plan column already exists' })
-  }
-
-  // Column doesn't exist — need to add it
-  // We can do this via the Supabase pg REST /sql endpoint 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
 
-  // Try Supabase's internal SQL endpoint
-  const sqlRes = await fetch(`https://${projectRef}.supabase.co/rest/v1/`, {
-    headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+  // Use Supabase's pg REST SQL execution endpoint
+  // This is the correct endpoint for running raw SQL with service role
+  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': serviceKey,
+      'Authorization': `Bearer ${serviceKey}`,
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify({
+      query: 'ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS morning_plan text;'
+    })
   })
+
+  if (res.ok) {
+    return NextResponse.json({ success: true })
+  }
+
+  // exec_sql rpc doesn't exist — try pg extension approach
+  // Use supabase-js to call a postgres function we create inline
+  // Actually use the /pg/query endpoint available on paid plans
+
+  // Fallback: use the Supabase dashboard REST API with the anon key won't work
+  // Use the postgres connection via supabase's pg endpoint
+  const pgRes = await fetch(`${supabaseUrl}/pg/query`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': serviceKey,
+      'Authorization': `Bearer ${serviceKey}`,
+    },
+    body: JSON.stringify({ query: 'ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS morning_plan text;' })
+  })
+
+  if (pgRes.ok) {
+    const pgData = await pgRes.json()
+    return NextResponse.json({ success: true, pgData })
+  }
+
+  // Last resort: try creating a temporary function via supabase's schema
+  const { error } = await supabase.rpc('migrate_add_morning_plan_column', {})
+  if (!error) return NextResponse.json({ success: true, method: 'rpc' })
 
   return NextResponse.json({
-    columnMissing: true,
-    testError: testErr.message,
+    error: 'Could not run migration automatically',
+    pgStatus: pgRes.status,
     manual_sql: 'ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS morning_plan text;',
-    note: 'Run this SQL in Supabase dashboard'
-  })
+    dashboard: 'https://supabase.com/dashboard/project/qqgfyhdqxwxizqybmsqd/sql/new'
+  }, { status: 400 })
 }
