@@ -1372,8 +1372,21 @@ export default function CockpitPage() {
   const [connected, setConnected] = useState(false)
 
   // Morning plan
-  const [morningPlan, setMorningPlan] = useState({
-    bias: '', impliedMove: '', keyLevels: '', gapDirection: 'flat', gapSize: '', notes: ''
+  const [morningPlan, setMorningPlan] = useState(() => {
+    // Initialize directly from localStorage — runs once, synchronously
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('tz-morning-plan')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          // Only use if it has actual content (not all empty)
+          if (parsed && (parsed.bias || parsed.keyLevels || parsed.notes || parsed.impliedMove)) {
+            return parsed
+          }
+        }
+      } catch {}
+    }
+    return { bias: '', impliedMove: '', keyLevels: '', gapDirection: 'flat', gapSize: '', notes: '' }
   })
 
   // Playbooks
@@ -1445,7 +1458,7 @@ export default function CockpitPage() {
   const [elVoices, setElVoices] = useState<any[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
-  const morningPlanLoadedRef = useRef(false)  // prevent saving empty plan before load
+  const morningPlanLoadedRef = useRef(true)  // true = ok to save (initialized from localStorage)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null)
@@ -1594,9 +1607,7 @@ export default function CockpitPage() {
       }
     })()
 
-    // Load morning plan from Supabase (localStorage first for instant UX)
-    const lsQuick = localStorage.getItem('tz-morning-plan')
-    if (lsQuick) { try { setMorningPlan(JSON.parse(lsQuick)); morningPlanLoadedRef.current = true } catch {} }
+    // Load morning plan from Supabase (localStorage already loaded in useState)
     ;(async () => {
       try {
         const planRes = await fetch('/api/userdata?table=morning_plan')
@@ -1622,7 +1633,6 @@ export default function CockpitPage() {
         const savedPlan = localStorage.getItem('tz-morning-plan')
         if (savedPlan) { try { setMorningPlan(JSON.parse(savedPlan)) } catch {} }
       }
-      morningPlanLoadedRef.current = true
     })()
   }, [])
 
