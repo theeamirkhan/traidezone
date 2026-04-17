@@ -903,13 +903,15 @@ async function fetchMarketTide(uwKey: string) {
     const tide = (data.data || [])
     if (!tide.length) return null
     const latest = tide[tide.length - 1]
-    const callP = parseFloat(latest.call_premium || 0)
-    const putP = parseFloat(latest.put_premium || 0)
+    const callP = parseFloat(latest.net_call_premium || latest.call_premium || 0)
+    const putP = parseFloat(latest.net_put_premium || latest.put_premium || 0)
     const ratio = callP > 0 ? (putP / callP).toFixed(2) : null
     return {
       callPremium: (callP / 1e6).toFixed(1) + 'M',
       putPremium: (putP / 1e6).toFixed(1) + 'M',
       putCallRatio: ratio,
+      callPremiumM: (callP / 1e6).toFixed(1),
+      putPremiumM: (putP / 1e6).toFixed(1),
       bias: ratio && parseFloat(ratio) > 1.2 ? 'PUT HEAVY (bearish)' : ratio && parseFloat(ratio) < 0.8 ? 'CALL HEAVY (bullish)' : 'BALANCED',
     }
   } catch { return null }
@@ -1475,6 +1477,8 @@ export default function CockpitPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [systemCheck, setSystemCheck] = useState<any>(null)
+  const [systemCheckRunning, setSystemCheckRunning] = useState(false)
   const [customVoiceId, setCustomVoiceId] = useState('')
   const [elVoices, setElVoices] = useState<any[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -2463,6 +2467,66 @@ export default function CockpitPage() {
     window.speechSynthesis?.cancel()
   }
 
+  const runSystemCheck = async () => {
+    setSystemCheckRunning(true)
+    const today = new Date().toISOString().split('T')[0]
+    const yest = new Date(Date.now()-86400000).toISOString().split('T')[0]
+    const R: Record<string, any> = {}
+    const chk = async (name: string, fn: () => Promise<any>) => {
+      try { const t = Date.now(); R[name] = { ...(await fn()), ms: Date.now()-t } }
+      catch(e: any) { R[name] = { status: '❌ ERROR', error: e.message } }
+    }
+    await chk('SPX Price', async () => {
+      const d = await (await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${today}/${today}?adjusted=true&sort=asc&limit=5`)}`)).json()
+      const b = d.results || []; return { status: b.length>0?'✅ OK':'⚠️ DELAYED', bars: b.length, last: b[b.length-1]?.c?.toFixed(0), note: d.status==='DELAYED'?'Polygon delayed - using SPY ratio':'Live' }
+    })
+    await chk('VIX', async () => {
+      const d = await (await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/1/day/${today}/${today}?adjusted=true&sort=asc&limit=1`)}`)).json()
+      return { status: d.results?.length>0?'✅ OK':'❌ NO DATA', value: d.results?.[0]?.c?.toFixed(2) }
+    })
+    await chk('PDH / PDL', async () => {
+      const d = await (await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/1/day/${yest}/${yest}?adjusted=true&sort=asc&limit=1`)}`)).json()
+      return { status: d.results?.length>0?'✅ OK':'❌ NO DATA', pdh: d.results?.[0]?.h?.toFixed(0), pdl: d.results?.[0]?.l?.toFixed(0) }
+    })
+    await chk('VWAP (Tiingo)', async () => {
+      const d = await (await fetch('/api/tiingo?ticker=SPY&endpoint=intraday')).json()
+      const b = Array.isArray(d)?d:[]; return { status: b.length>0?'✅ OK':'❌ NO DATA', bars: b.length, last: b[b.length-1]?.close?.toFixed(2), note: 'TWAP (no volume on free plan)' }
+    })
+    await chk('Options Flow', async () => {
+      const d = await (await fetch('/api/flow?path=/api/option-trades/flow-alerts?limit=50')).json()
+      const all = d.data||[]; all.sort((a: any,b: any)=>parseFloat(b.total_premium||0)-parseFloat(a.total_premium||0))
+      const top = all[0]; return { status: all.length>0?'✅ OK':'❌ NO DATA', count: all.length, top: top?`${top.ticker} ${top.type} $${top.strike} $${Math.round(top.total_premium/1000)}K`:null }
+    })
+    await chk('Market Tide P/C', async () => {
+      const d = await (await fetch('/api/flow?path=/api/market/market-tide')).json()
+      const t = d.data||[], l = t[t.length-1]
+      const callP = parseFloat(l?.net_call_premium||l?.call_premium||0)
+      const putP = parseFloat(l?.net_put_premium||l?.put_premium||0)
+      const ratio = callP>0?(putP/callP).toFixed(2):null
+      return { status: t.length>0?'✅ OK':'❌ NO DATA', ratio, call: callP>0?'$'+(callP/1e6).toFixed(1)+'M':null, put: putP>0?'$'+(putP/1e6).toFixed(1)+'M':null, bias: ratio&&parseFloat(ratio)>1.2?'PUT HEAVY':ratio&&parseFloat(ratio)<0.8?'CALL HEAVY':'BALANCED' }
+    })
+    await chk('AI Engine', async () => {
+      const d = await (await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:10,messages:[{role:'user',content:'OK'}]})})).json()
+      return { status: d.content?.[0]?.text?'✅ OK':'❌ FAIL', error: d.error?.message?.substring(0,60) }
+    })
+    await chk('Voice (OpenAI)', async () => {
+      const r = await fetch('/api/voice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engine:'openai',text:'check',voice:'nova',speed:1})})
+      const buf = r.ok ? await r.arrayBuffer() : null
+      return { status: r.ok?'✅ OK':'❌ FAIL', bytes: buf?.byteLength, note: r.ok?'Audio generating':'Check OPENAI_API_KEY' }
+    })
+    await chk('Market News Feed', async () => {
+      const d = await (await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:60,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:'Top market news today in 1 sentence.'}]})})).json()
+      const txt = (d.content||[]).map((i: any)=>i.text||'').join('').substring(0,80)
+      return { status: txt?'✅ OK':'❌ FAIL', preview: txt||null }
+    })
+    await chk('Morning Plan (DB)', async () => {
+      const d = await (await fetch('/api/userdata?table=morning_plan')).json()
+      return { status: '✅ OK', saved: !!d.data, bias: d.data?.bias||'not set', levels: d.data?.keyLevels?.substring(0,25)||'not set' }
+    })
+    setSystemCheck(R)
+    setSystemCheckRunning(false)
+  }
+
   const speak = async (text: string) => {
     if (!text?.trim()) return
 
@@ -2849,6 +2913,42 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         input, textarea { font-family: '${font}' !important; }
       `}</style>
 
+      {/* ── SYSTEM CHECK OVERLAY ── */}
+      {systemCheck && !showSettings && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,6,14,0.92)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }} onClick={() => setSystemCheck(null)}>
+          <div style={{ background: '#0c0f1a', border: '1px solid rgba(0,229,255,0.2)', borderRadius: 8, padding: 24, minWidth: 480, maxWidth: 600, boxShadow: '0 0 40px rgba(0,229,255,0.08)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <span style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 700, color: '#00e5ff', letterSpacing: 2 }}>SYSTEM CHECK</span>
+              <span style={{ fontSize: 9, color: '#8899bb' }}>{new Date().toLocaleTimeString()}</span>
+              <button onClick={() => setSystemCheck(null)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#8899bb', cursor: 'pointer', fontSize: 18 }}>×</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {Object.entries(systemCheck).map(([name, data]: any) => (
+                <div key={name} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 10px', borderRadius: 4, background: data.status?.includes('✅') ? 'rgba(0,255,136,0.04)' : data.status?.includes('⚠') ? 'rgba(255,183,0,0.06)' : 'rgba(255,26,74,0.06)', border: `1px solid ${data.status?.includes('✅') ? 'rgba(0,255,136,0.12)' : data.status?.includes('⚠') ? 'rgba(255,183,0,0.2)' : 'rgba(255,26,74,0.15)'}` }}>
+                  <span style={{ fontSize: 12, minWidth: 20 }}>{data.status?.includes('✅') ? '✅' : data.status?.includes('⚠') ? '⚠️' : '❌'}</span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#f0f4ff', fontFamily: font }}>{name}</span>
+                    <span style={{ fontSize: 9, color: '#8899bb', marginLeft: 8 }}>{data.ms}ms</span>
+                    <div style={{ fontSize: 10, color: '#8899bb', marginTop: 2 }}>
+                      {Object.entries(data)
+                        .filter(([k]) => !['status','ms'].includes(k))
+                        .map(([k,v]) => v ? `${k}: ${v}` : null)
+                        .filter(Boolean)
+                        .join(' · ')
+                        .substring(0, 80)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setSystemCheck(null); runSystemCheck() }} style={{ padding: '6px 16px', borderRadius: 4, background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)', color: '#00e5ff', cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: 600 }}>↻ Re-run</button>
+              <button onClick={() => setSystemCheck(null)} style={{ padding: '6px 16px', borderRadius: 4, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#8899bb', cursor: 'pointer', fontFamily: font, fontSize: 11 }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} voiceEngine={voiceEngine} setVoiceEngine={setVoiceEngine} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
 
       {/* ── DISCLOSURE MODAL ── */}
@@ -2985,6 +3085,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </span>
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: '4px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: '#6b7280', cursor: 'pointer', marginRight: 6 }}>Sign Out</button>
+          <button onClick={() => { setSystemCheck(null); runSystemCheck(); setShowSettings(false) }} title="System Check — verify all data feeds" style={{ background: systemCheckRunning ? 'rgba(255,183,0,0.1)' : 'rgba(0,229,255,0.04)', border: `1px solid ${systemCheckRunning ? 'rgba(255,183,0,0.3)' : 'rgba(0,229,255,0.15)'}`, borderRadius: 4, padding: '4px 8px', color: systemCheckRunning ? C.yellow : C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font, transition: 'all 0.2s' }}>{systemCheckRunning ? '⟳' : '✓'}</button>
           <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 4, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
         </div>
       </div>
