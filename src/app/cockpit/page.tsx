@@ -1940,7 +1940,7 @@ export default function CockpitPage() {
               setTimeout(() => el.classList.remove('price-up', 'price-down'), 1200)
             }
           }
-          setOpenPrice(mapped[0].o)
+          setOpenPrice(ydayData.results?.[0]?.c || mapped[0].o)  // prev close for % change baseline
           const emas = calcEMA(mapped, 200)
           const pdh = ydayData.results?.[0]?.h
           const pdl = ydayData.results?.[0]?.l
@@ -1952,11 +1952,21 @@ export default function CockpitPage() {
             dayOpen: mapped[0].o,
             currentSpxPrice: last.c,
           }))
-          setChanges((p: any) => ({ ...p, spx: last.c - mapped[0].o }))
+          setChanges((p: any) => ({ ...p, spx: last.c - (prevClose || mapped[0].o) }))  // from prev close
         }
         if (key === 'spy') {
           setSpyPrice(last.c)
-          setChanges((p: any) => ({ ...p, spy: last.c - mapped[0].o }))
+          // Use yesterday's SPY close for % change (not week-old first bar)
+          ;(async () => {
+            try {
+              const yest2 = new Date(Date.now()-86400000).toISOString().split('T')[0]
+              const spyYd = await proxyFetch(`/v2/aggs/ticker/SPY/range/1/day/${yest2}/${yest2}?adjusted=true&sort=asc&limit=1`).then(r => r.json())
+              const spyPrevClose = spyYd.results?.[0]?.c
+              setChanges((p: any) => ({ ...p, spy: last.c - (spyPrevClose || mapped[0].o) }))
+            } catch {
+              setChanges((p: any) => ({ ...p, spy: last.c - mapped[0].o }))
+            }
+          })()
           // Update currentPriceRef with SPY-derived SPX price for use in ratio calculation
           // This handles the case where I:SPX data is delayed
           if (currentPriceRef.current) {
@@ -2042,7 +2052,16 @@ export default function CockpitPage() {
         }
         if (key === 'vix') {
           setVixPrice(last.c)
-          setChanges((p: any) => ({ ...p, vix: last.c - mapped[0].o }))
+          ;(async () => {
+            try {
+              const yest3 = new Date(Date.now()-86400000).toISOString().split('T')[0]
+              const vixYd = await proxyFetch(`/v2/aggs/ticker/I:VIX/range/1/day/${yest3}/${yest3}?adjusted=true&sort=asc&limit=1`).then(r => r.json())
+              const vixPrevClose = vixYd.results?.[0]?.c
+              setChanges((p: any) => ({ ...p, vix: last.c - (vixPrevClose || mapped[0].o) }))
+            } catch {
+              setChanges((p: any) => ({ ...p, vix: last.c - mapped[0].o }))
+            }
+          })()
         }
       }
     } catch (e) { console.error(key, e) }
