@@ -2348,17 +2348,27 @@ export default function CockpitPage() {
     // keys loaded server-side, always run
     const run = async () => {
       setAiLoading(true)
-      const [intel, flow, tide, tiingo, news, calendar, mtf, macro, skew] = await Promise.all([
+      // Free/fast sources refresh every 3 min
+      const [intel, flow, tide, tiingo, skew] = await Promise.all([
         fetchMarketIntel(keys[POLY_KEY] || 'server'),
         fetchOptionsFlow(keys[UW_KEY] || 'server'),
         fetchMarketTide(keys[UW_KEY] || 'server'),
         fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
-        fetchMarketNews(keys[ANTH_KEY] || 'server'),
-        fetchEconomicCalendar(keys[ANTH_KEY] || 'server'),
-        true ? fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY') : Promise.resolve(null),
-        fetchMacroRegime(keys[ANTH_KEY] || 'server'),
-        true ? fetchZeroDTESkew(keys[UW_KEY] || 'server') : Promise.resolve(null),
+        fetchZeroDTESkew(keys[UW_KEY] || 'server'),
       ])
+
+      // Expensive AI calls (web search) — fetch ONCE per day, cache in state
+      const todayKey = new Date().toISOString().split('T')[0]
+      let news = marketNews, calendar = economicCalendar, macro = macroRegime, mtf = multiTFData
+      if (!marketNews || !localStorage.getItem('tz-news-date') || localStorage.getItem('tz-news-date') !== todayKey) {
+        ;[news, calendar, macro, mtf] = await Promise.all([
+          fetchMarketNews(keys[ANTH_KEY] || 'server'),
+          fetchEconomicCalendar(keys[ANTH_KEY] || 'server'),
+          fetchMacroRegime(keys[ANTH_KEY] || 'server'),
+          fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY'),
+        ])
+        localStorage.setItem('tz-news-date', todayKey)
+      }
       setMarketIntel(intel)
       setOptionsFlow(flow)
       setMarketTide(tide)
