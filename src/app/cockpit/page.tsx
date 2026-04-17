@@ -312,8 +312,8 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
     : 'No trade history uploaded yet'
 
   const flowSection = optionsFlow?.length
-    ? optionsFlow.slice(0, 5).map((f: any) =>
-        `${f.ticker} ${f.type} ${f.strike} — ${f.sentiment}${f.unusual ? ' ⚡' : ''}`
+    ? optionsFlow.slice(0, 8).map((f: any) =>
+        `${f.ticker} ${(f.type||'').toUpperCase()} $${f.strike} ${f.expiry} — ${f.sentiment} ${f.premium}${f.unusual ? ' ⚡SWEEP' : ''}`
       ).join('\n')
     : 'No options flow data'
 
@@ -861,14 +861,35 @@ async function fetchOptionsFlow(uwKey: string) {
     const res = await fetch('/api/flow?path=/api/option-trades/flow-alerts?limit=50')
     if (!res.ok) return []
     const data = await res.json()
-    return (data.data || [])
-      .filter((a: any) => ['SPX', 'SPXW', 'SPY', 'QQQ'].includes((a.ticker || '').toUpperCase()))
-      .slice(0, 10)
-      .map((a: any) => ({
-        ticker: a.ticker, type: a.type || a.put_call,
-        strike: a.strike, sentiment: a.bullish_at_ask_perc > 60 ? 'BULLISH' : a.bullish_at_ask_perc < 40 ? 'BEARISH' : 'NEUTRAL',
-        unusual: a.unusual_trade,
-      }))
+    const all = data.data || []
+
+    // Sort by total premium — biggest money first
+    all.sort((a: any, b: any) => parseFloat(b.total_premium || 0) - parseFloat(a.total_premium || 0))
+
+    return all
+      .slice(0, 15)
+      .map((a: any) => {
+        const askPrem = parseFloat(a.total_ask_side_prem || 0)
+        const bidPrem = parseFloat(a.total_bid_side_prem || 0)
+        const total = parseFloat(a.total_premium || 0)
+        // Ask-side = aggressive buyer (bullish for calls, bearish for puts)
+        // Bid-side = aggressive seller
+        const askPct = total > 0 ? askPrem / total : 0.5
+        const isBullish = a.type === 'call' ? askPct > 0.6 : askPct < 0.4
+        const isBearish = a.type === 'call' ? askPct < 0.4 : askPct > 0.6
+        const sentiment = isBullish ? 'BULLISH' : isBearish ? 'BEARISH' : 'NEUTRAL'
+        const premK = Math.round(total / 1000)
+        return {
+          ticker: a.ticker,
+          type: a.type || a.put_call,
+          strike: a.strike,
+          expiry: a.expiry ? a.expiry.substring(5) : '',  // MM-DD
+          sentiment,
+          premium: premK + 'K',
+          unusual: a.has_sweep || a.alert_rule === 'UnusualActivity',
+          size: a.total_size,
+        }
+      })
   } catch { return [] }
 }
 
@@ -2623,7 +2644,7 @@ TLT (Bonds): ${marketIntel?.sectors?.TLT ? (Number(marketIntel.sectors.TLT.today
 
 ═══ OPTIONS FLOW (Unusual Whales) ═══
 Market Tide: ${marketTide?.bias || 'No data'} | P/C Ratio: ${marketTide?.putCallRatio || '—'}
-${optionsFlow.length ? `${optionsFlow.length} SPX/SPY flow alerts:\n${optionsFlow.slice(0, 5).map((f: any) => `  ${f.ticker} ${(f.type || '').toUpperCase()} ${f.strike} — ${f.sentiment}${f.unusual ? ' ⚡UNUSUAL' : ''}`).join('\n')}` : 'No SPX/SPY options flow alerts'}
+${optionsFlow.length ? `${optionsFlow.length} flow alerts (biggest first):\n${optionsFlow.slice(0, 5).map((f: any) => `  ${f.ticker} ${(f.type||'').toUpperCase()} $${f.strike} ${f.expiry||''} — ${f.sentiment} ${f.premium||''}${f.unusual ? ' ⚡' : ''}`).join('\n')}` : 'No options flow data'}
 
 ═══ HISTORICAL CONTEXT (Tiingo) ═══
 ${tiingoContext ? tiingoContext.summary : 'No Tiingo key — add for historical gap/implied move data'}
@@ -3084,12 +3105,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {optionsFlow.length === 0 ? (
                     <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center', padding: '8px 0' }}>{keys[UW_KEY] ? 'No flow alerts' : 'Add UW key in Settings'}</div>
                   ) : optionsFlow.slice(0, 4).map((f: any, i: number) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: `1px solid rgba(100,140,220,0.06)` }}>
-                      <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: (f.type||'').toUpperCase().startsWith('C') ? '#00ff88' : '#ff1a4a', width: 24 }}>{(f.ticker||'').toUpperCase()}</span>
-                      <span style={{ fontSize: 7, fontWeight: 700, color: (f.type||'').toUpperCase().startsWith('C') ? '#00ff88' : '#ff1a4a', width: 22 }}>{(f.type||'').toUpperCase().startsWith('C') ? 'CALL' : 'PUT'}</span>
-                      <span style={{ fontFamily: fontDisplay, fontSize: 8, flex: 1, color: C.text }}>{f.strike}</span>
-                      <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 2, background: f.sentiment==='BULLISH'?'rgba(0,170,85,0.1)':'rgba(204,16,64,0.08)', color: f.sentiment==='BULLISH'?C.synapse:f.sentiment==='BEARISH'?C.red:C.textMuted, border: `1px solid ${f.sentiment==='BULLISH'?'rgba(0,170,85,0.25)':'rgba(204,16,64,0.2)'}` }}>{f.sentiment||'NEUT'}</span>
-                      {f.unusual && <span style={{ fontSize: 8, color: C.fire }}>⚡</span>}
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 0', borderBottom: '1px solid rgba(0,229,255,0.06)' }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: (f.type||'').startsWith('c') ? '#00ff88' : '#ff1a4a', minWidth: 36 }}>{(f.ticker||'').toUpperCase()}</span>
+                      <span style={{ fontSize: 7, fontWeight: 700, color: (f.type||'').startsWith('c') ? '#00ff88' : '#ff1a4a', width: 20 }}>{(f.type||'').startsWith('c') ? 'C' : 'P'}</span>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 8, color: '#f0f4ff', width: 36 }}>${f.strike}</span>
+                      <span style={{ fontSize: 7, color: '#8899bb', flex: 1 }}>{f.expiry||''}</span>
+                      <span style={{ fontSize: 7, color: '#00e5ff', fontWeight: 600 }}>{f.premium||''}</span>
+                      <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: f.sentiment==='BULLISH'?'rgba(0,255,136,0.1)':f.sentiment==='BEARISH'?'rgba(255,26,74,0.08)':'rgba(0,229,255,0.05)', color: f.sentiment==='BULLISH'?'#00ff88':f.sentiment==='BEARISH'?'#ff1a4a':'#8899bb', fontWeight: 700 }}>{(f.sentiment||'NEUT').substring(0,4)}</span>
+                      {f.unusual && <span style={{ fontSize: 9, color: '#ff6b00' }}>⚡</span>}
                     </div>
                   ))}
                   <div style={{ marginTop: 6, fontSize: 7, color: C.teal, cursor: 'pointer' }} onClick={() => setTab('deepdive')}>→ Full flow in Deep Dive</div>
