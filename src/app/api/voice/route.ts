@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Cap individual request size
-  const trimmed = text.substring(0, 4000)
+  const trimmed = text.substring(0, 600)  // ~10s of audio max, keeps within Vercel timeout
 
   // Web Speech — free, no rate limit needed, just echo back
   if (engine === 'webspeech') {

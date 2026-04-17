@@ -2592,7 +2592,7 @@ export default function CockpitPage() {
     const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
     const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
 
-    return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences unless asked for more detail. Be specific, reference real numbers. Challenge bad ideas directly.
+    return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 2 sentences. Never more than 40 words. Be direct and specific. Be specific, reference real numbers. Challenge bad ideas directly.
 
 NEVER say you are text-only. Your responses ARE spoken aloud in real-time.
 
@@ -2691,7 +2691,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 350,
+          max_tokens: 150,
           system: context,
           messages: [...chatMessages, { role: 'user', content: text }].slice(-10).map(m => ({ role: m.role, content: m.content }))
         })
