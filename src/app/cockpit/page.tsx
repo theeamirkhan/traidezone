@@ -1478,19 +1478,22 @@ export default function CockpitPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
 
-  // Safety: if speakLock gets stuck (onended never fires), unlock after 60s
+  // Safety: if speakLock gets stuck (onended never fires), unlock after 10s
   useEffect(() => {
     const watchdog = setInterval(() => {
       if (speakLockRef.current) {
-        // Check if audio source is actually still playing
         const src = audioSourceRef.current
-        if (!src) {
-          console.warn('TZ: watchdog unlocking stuck speakLock (no source)')
+        // Unlock if: no source, or source is in ended/disconnected state
+        const srcEnded = !src || (src as any).playbackState === 'finished'
+        if (srcEnded) {
+          console.warn('TZ watchdog: unlocking stuck speakLock')
           speakLockRef.current = false
+          audioSourceRef.current = null
           setSpeaking(false)
+          setListening(false)
         }
       }
-    }, 10000)  // check every 10s
+    }, 5000)  // check every 5s — faster recovery
     return () => clearInterval(watchdog)
   }, [])
   const [systemCheck, setSystemCheck] = useState<any>(null)
@@ -2722,6 +2725,10 @@ export default function CockpitPage() {
 
     } catch (e) {
       console.error('TZ speak error:', e)
+      // Always release lock on any error
+      speakLockRef.current = false
+      audioSourceRef.current = null
+      setSpeaking(false)
       finish()
     }
   }
@@ -3181,11 +3188,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
 
         {speaking && (
-          <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div onClick={() => { speakLockRef.current = false; audioSourceRef.current = null; setSpeaking(false); if (audioCtxRef.current) try { audioCtxRef.current.suspend() } catch {} }} title="Click to stop speaking" style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', opacity: 0.9 }}>
             {[0,1,2,3,4].map(i => (
               <div key={i} style={{ width: 2, borderRadius: 1, background: C.teal, animation: `waveAnim ${0.4 + i * 0.1}s ease-in-out infinite`, animationDelay: `${i * 0.08}s`, '--wh': `${8 + i * 2}px` } as any} />
             ))}
-            <span style={{ fontSize: 8, color: C.teal, letterSpacing: 1 }}>SPEAKING</span>
+            <span style={{ fontSize: 8, color: C.teal, letterSpacing: 1 }}>SPEAKING ×</span>
           </div>
         )}
       </div>
