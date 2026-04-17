@@ -2097,7 +2097,7 @@ export default function CockpitPage() {
         const greeting = data.content?.[0]?.text || `Hey ${name}, let's get to work. SPX at ${currentPrice?.toFixed(0)}, VIX at ${vixPrice?.toFixed(1)}.`
         setChatMessages(p => [...p, { role: 'assistant', content: greeting }])
         // Only speak if user has interacted with page (AudioContext requires user gesture)
-        try { speak(greeting) } catch {}
+        try { if (!speakLockRef.current) speak(greeting) } catch {}
       } catch {}
     }, 2500) // slight delay so market data has time to load
 
@@ -2297,9 +2297,9 @@ export default function CockpitPage() {
           setProactiveAlertsSent(prev => new Set([...prev, alertKey]))
           const direction = currentPrice > price ? 'broken above' : currentPrice < price ? 'broken below' : 'at'
           const msg = `Hey — SPX just ${direction} your ${price.toFixed(0)} level. ${crossed ? "That's the break you were watching." : "We're right at it now."} What's your read?`
-          // Add to chat and speak
+          // Add to chat — only speak if not already talking
           setChatMessages((p: any[]) => [...p, { role: 'assistant', content: msg }])
-          speak(msg)
+          if (!speakLockRef.current) speak(msg)
         }
       })
     }, 15000) // check every 15 seconds
@@ -2530,11 +2530,10 @@ export default function CockpitPage() {
   const speak = async (text: string) => {
     if (!text?.trim()) return
 
-    // If already speaking, stop current and queue the new text
+    // If already speaking, skip new call (don't interrupt mid-sentence)
+    // Queueing caused cutoff by calling stopAudio() — better to finish current speech
     if (speakLockRef.current) {
-      stopAudio()
-      speakQueueRef.current = text
-      return
+      return  // drop it — don't interrupt
     }
 
     speakLockRef.current = true
@@ -2566,9 +2565,8 @@ export default function CockpitPage() {
           }
         }, 1500)  // 1.5s buffer — lets speakers fully stop, prevents echo pickup
       }
-      // Play queued text if any
-      const queued = speakQueueRef.current
-      if (queued) { speakQueueRef.current = null; speak(queued) }
+      // Clear any stale queue (we no longer interrupt, so queue should always be empty)
+      speakQueueRef.current = null
     }
 
     try {
@@ -2792,7 +2790,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         }
         const errMsg = "I'm overloaded right now — try again in a few seconds."
         setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
-        speak(errMsg)
+        if (!speakLockRef.current) speak(errMsg)
         setChatLoading(false)
         return
       }
@@ -3642,7 +3640,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           aiResult.accountability || '',
                           aiResult.riskFlag ? `Risk alert: ${aiResult.riskFlag}` : '',
                         ].filter(Boolean).join(' ')
-                        if (narrative) speak(narrative)
+                        if (narrative && !speakLockRef.current) speak(narrative)
                       }} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'rgba(0,212,160,0.08)', border: '1px solid rgba(0,212,160,0.25)', borderRadius: 6, color: C.teal, cursor: 'pointer', fontSize: 10, fontFamily: font, fontWeight: 700 }}>
                         🔊 Read It
                       </button>
