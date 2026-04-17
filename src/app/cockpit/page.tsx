@@ -2845,7 +2845,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       }
 
       if (!res.ok || data?.error) {
-        const errMsg = "Having trouble connecting — check your internet and try again."
+        let errMsg = "Having trouble connecting — check your internet and try again."
+        if (data?.error?.message?.includes('credit balance')) {
+          errMsg = "⚠️ Anthropic credits depleted — add credits at console.anthropic.com/settings/billing to restore AI responses."
+        } else if (data?.error?.message?.includes('API key')) {
+          errMsg = "⚠️ Anthropic API key issue — check Settings."
+        }
         setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
         setChatLoading(false)
         return
