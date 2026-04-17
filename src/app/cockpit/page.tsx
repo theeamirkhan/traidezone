@@ -1658,12 +1658,13 @@ export default function CockpitPage() {
         if (planRes.ok) {
           const { data } = await planRes.json()
           if (data) {
+            // Handle both camelCase (user_settings path) and snake_case (morning_plans table)
             const plan = {
               bias: data.bias || 'neutral',
-              gapDirection: data.gap_direction || 'flat',
-              gapSize: data.gap_size || '',
-              impliedMove: data.implied_move || '',
-              keyLevels: data.key_levels || '',
+              gapDirection: data.gapDirection || data.gap_direction || 'flat',
+              gapSize: data.gapSize ?? data.gap_size ?? '',
+              impliedMove: data.impliedMove ?? data.implied_move ?? '',
+              keyLevels: data.keyLevels ?? data.key_levels ?? '',
               notes: data.notes || '',
             }
             setMorningPlan(plan)
