@@ -69,12 +69,12 @@ export async function POST(req: NextRequest) {
       }, { status: res.status })
     }
 
-    const buffer = await res.arrayBuffer()
-    return new NextResponse(buffer, {
+    // Stream OpenAI audio directly to client — avoids server-side buffering delay
+    return new NextResponse(res.body, {
       headers: {
         'Content-Type': 'audio/mpeg',
-        'Content-Length': buffer.byteLength.toString(),
         'Cache-Control': 'no-store',
+        'Transfer-Encoding': 'chunked',
       }
     })
   } catch (e: any) {

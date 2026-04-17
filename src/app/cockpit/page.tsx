@@ -2508,7 +2508,15 @@ export default function CockpitPage() {
         return
       }
 
-      // ── OpenAI TTS — fetch full audio then play ─────────────────────
+      // ── OpenAI TTS with streaming download ──────────────────────────
+      // Create AudioContext immediately so it's ready when audio arrives
+      let audioCtx = audioCtxRef.current
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        audioCtxRef.current = audioCtx
+      }
+      if (audioCtx.state === 'suspended') await audioCtx.resume()
+
       const res = await fetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2523,32 +2531,39 @@ export default function CockpitPage() {
         return
       }
 
-      // Discard if something newer is queued
       if (speakQueueRef.current) { finish(false); return }
 
-      // ── Create/reuse AudioContext immediately so it's ready ────────────
-      let audioCtx = audioCtxRef.current
-      if (!audioCtx || audioCtx.state === 'closed') {
-        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 })
-        audioCtxRef.current = audioCtx
+      // Stream-accumulate chunks then decode+play once — fast download, one clean playback
+      const reader = res.body!.getReader()
+      const chunks: Uint8Array[] = []
+      let totalBytes = 0
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (speakQueueRef.current) { finish(false); return }
+        chunks.push(value)
+        totalBytes += value.length
       }
-      if (audioCtx.state === 'suspended') await audioCtx.resume()
 
-      // ── Download full audio then play (streaming caused cutoff bug) ──
-      const arrayBuffer = await res.arrayBuffer()
+      if (speakQueueRef.current || totalBytes === 0) { finish(false); return }
+
+      // Assemble and decode — single decode, single play, single finish()
+      const combined = new Uint8Array(totalBytes)
+      let offset = 0
+      for (const c of chunks) { combined.set(c, offset); offset += c.length }
+
+      const audioBuffer = await audioCtx!.decodeAudioData(combined.buffer)
 
       if (speakQueueRef.current) { finish(false); return }
 
-      const audioBuffer = await audioCtx!.decodeAudioData(arrayBuffer)
-
-      // Stop any existing playback
+      // Stop any existing source cleanly
       if (audioSourceRef.current) { try { audioSourceRef.current.stop() } catch {} }
 
       const source = audioCtx!.createBufferSource()
       audioSourceRef.current = source
       source.buffer = audioBuffer
 
-      // Stereo routing — force both speakers
+      // Stereo routing
       const merger = audioCtx!.createChannelMerger(2)
       if (audioBuffer.numberOfChannels === 1) {
         source.connect(merger, 0, 0); source.connect(merger, 0, 1)
@@ -2560,11 +2575,7 @@ export default function CockpitPage() {
       merger.connect(panner)
       panner.connect(audioCtx!.destination)
 
-      // finish() called ONCE when audio naturally ends
-      let finished = false
-      source.onended = () => {
-        if (!finished) { finished = true; finish() }
-      }
+      source.onended = () => finish()  // finishCalled guard prevents double-fire
       source.start(0)
 
     } catch (e) {
@@ -2714,6 +2725,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         return
       }
 
+      // Speak FIRST (locks mic via speakLockRef), then update state
+      speak(reply)
       setChatMessages(p => {
         const updated = [...p, { role: 'assistant', content: reply }]
         if (updated.length % 10 === 0) {
@@ -2721,11 +2734,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         }
         return updated
       })
-      speak(reply)
     } catch (e) {
       const errMsg = "Connection error — make sure you're online and try again."
       setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
     }
+    // Don't set loading false until speak() has locked the mic
+    // (speak() is async so by the time we reach here speakLockRef is set)
     setChatLoading(false)
   }
 
