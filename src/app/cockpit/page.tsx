@@ -1477,6 +1477,22 @@ export default function CockpitPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+
+  // Safety: if speakLock gets stuck (onended never fires), unlock after 60s
+  useEffect(() => {
+    const watchdog = setInterval(() => {
+      if (speakLockRef.current) {
+        // Check if audio source is actually still playing
+        const src = audioSourceRef.current
+        if (!src) {
+          console.warn('TZ: watchdog unlocking stuck speakLock (no source)')
+          speakLockRef.current = false
+          setSpeaking(false)
+        }
+      }
+    }, 10000)  // check every 10s
+    return () => clearInterval(watchdog)
+  }, [])
   const [systemCheck, setSystemCheck] = useState<any>(null)
   const [systemCheckRunning, setSystemCheckRunning] = useState(false)
   const [customVoiceId, setCustomVoiceId] = useState('')
@@ -2658,7 +2674,21 @@ export default function CockpitPage() {
       merger.connect(panner)
       panner.connect(audioCtx!.destination)
 
-      source.onended = () => finish()  // finishCalled guard prevents double-fire
+      // Safety timeout: if onended never fires (page blurred, ctx suspended),
+      // force finish after audio duration + 3s buffer
+      const safetyMs = Math.ceil((audioBuffer.duration + 3) * 1000)
+      const safetyTimer = setTimeout(() => {
+        console.warn('TZ: safety timeout fired after', safetyMs, 'ms')
+        finish()
+      }, safetyMs)
+
+      source.onended = () => {
+        clearTimeout(safetyTimer)
+        finish()
+      }
+
+      // Keep AudioContext alive — don't let browser suspend it mid-playback
+      if (audioCtx!.state === 'suspended') await audioCtx!.resume()
       source.start(0)
 
     } catch (e) {
