@@ -2464,7 +2464,10 @@ export default function CockpitPage() {
       listeningRef.current = false  // prevent onend from restarting
     }
 
+    let finishCalled = false
     const finish = (resume = true) => {
+      if (finishCalled) return  // prevent double-fire
+      finishCalled = true
       speakLockRef.current = false
       audioSourceRef.current = null
       setSpeaking(false)
@@ -2472,9 +2475,11 @@ export default function CockpitPage() {
       // This prevents feedback loop where mic picks up speaker output
       if (resume && wasListening) {
         setTimeout(() => {
-          listeningRef.current = true  // re-enable before starting
-          startListening()
-        }, 600)  // 600ms buffer after audio ends before mic opens
+          if (!speakLockRef.current) {  // double-check still not speaking
+            listeningRef.current = true
+            startListening()
+          }
+        }, 1500)  // 1.5s buffer — lets speakers fully stop, prevents echo pickup
       }
       // Play queued text if any
       const queued = speakQueueRef.current
@@ -2529,58 +2534,38 @@ export default function CockpitPage() {
       }
       if (audioCtx.state === 'suspended') await audioCtx.resume()
 
-      // ── Stream chunks and play as they arrive ─────────────────────────
-      const reader = res.body!.getReader()
-      const chunks: Uint8Array[] = []
-      let startedPlaying = false
-      let totalBytes = 0
+      // ── Download full audio then play (streaming caused cutoff bug) ──
+      const arrayBuffer = await res.arrayBuffer()
 
-      const playChunks = async () => {
-        const combined = new Uint8Array(totalBytes)
-        let offset = 0
-        for (const c of chunks) { combined.set(c, offset); offset += c.length }
-        try {
-          const audioBuffer = await audioCtx!.decodeAudioData(combined.buffer.slice(0))
-          // Stop any previous source
-          if (audioSourceRef.current) { try { audioSourceRef.current.stop() } catch {} }
+      if (speakQueueRef.current) { finish(false); return }
 
-          const source = audioCtx!.createBufferSource()
-          audioSourceRef.current = source
-          source.buffer = audioBuffer
-          // Stereo routing
-          const merger = audioCtx!.createChannelMerger(2)
-          if (audioBuffer.numberOfChannels === 1) {
-            source.connect(merger, 0, 0); source.connect(merger, 0, 1)
-          } else {
-            source.connect(merger, 0, 0); source.connect(merger, 1, 1)
-          }
-          const panner = audioCtx!.createStereoPanner()
-          panner.pan.value = 0
-          merger.connect(panner)
-          panner.connect(audioCtx!.destination)
-          source.onended = () => finish()
-          source.start(0)
-          startedPlaying = true
-        } catch {}  // incomplete chunk — wait for more data
+      const audioBuffer = await audioCtx!.decodeAudioData(arrayBuffer)
+
+      // Stop any existing playback
+      if (audioSourceRef.current) { try { audioSourceRef.current.stop() } catch {} }
+
+      const source = audioCtx!.createBufferSource()
+      audioSourceRef.current = source
+      source.buffer = audioBuffer
+
+      // Stereo routing — force both speakers
+      const merger = audioCtx!.createChannelMerger(2)
+      if (audioBuffer.numberOfChannels === 1) {
+        source.connect(merger, 0, 0); source.connect(merger, 0, 1)
+      } else {
+        source.connect(merger, 0, 0); source.connect(merger, 1, 1)
       }
+      const panner = audioCtx!.createStereoPanner()
+      panner.pan.value = 0
+      merger.connect(panner)
+      panner.connect(audioCtx!.destination)
 
-      // Read all chunks
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (speakQueueRef.current) { finish(false); return }
-        chunks.push(value)
-        totalBytes += value.length
-        // Start playing once we have ~32KB (enough for first ~1s of audio)
-        if (!startedPlaying && totalBytes >= 32768) {
-          await playChunks()
-        }
+      // finish() called ONCE when audio naturally ends
+      let finished = false
+      source.onended = () => {
+        if (!finished) { finished = true; finish() }
       }
-
-      // If we never started (short response < 32KB), play it all now
-      if (!startedPlaying && totalBytes > 0) {
-        await playChunks()
-      }
+      source.start(0)
 
     } catch (e) {
       console.error('TZ speak error:', e)
