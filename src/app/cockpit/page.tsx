@@ -694,8 +694,8 @@ async function fetchMacroRegime(anthKey: string): Promise<any> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 400,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Search for the current Fed monetary policy stance and US market macro regime as of today ${new Date().toLocaleDateString()}. Answer these 4 questions in JSON only:
 {
@@ -2122,7 +2122,7 @@ export default function CockpitPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 120,
             messages: [{ role: 'user', content: promptLines }]
           })
