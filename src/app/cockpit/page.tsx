@@ -1680,6 +1680,19 @@ export default function CockpitPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
+  const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'none'>('loading')
+  const [subPlan, setSubPlan] = useState<string | null>(null)
+
+  // Check subscription access on load
+  useEffect(() => {
+    fetch('/api/subscription')
+      .then(r => r.json())
+      .then(d => {
+        setSubStatus(d.hasAccess ? 'active' : 'none')
+        setSubPlan(d.plan || null)
+      })
+      .catch(() => setSubStatus('none'))
+  }, [])
 
   // Show tutorial on first visit
   useEffect(() => {
@@ -3212,6 +3225,36 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       `}</style>
 
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
+
+      {/* ── SUBSCRIPTION GATE ── */}
+      {subStatus === 'loading' && (
+        <div style={{ position: 'fixed', inset: 0, background: '#060810', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#00e5ff', letterSpacing: 3, marginBottom: 12 }}>tr<span style={{ color: '#00ff88' }}>AI</span>de Zone</div>
+            <div style={{ fontSize: 10, color: '#6b7a9a', letterSpacing: 2 }}>VERIFYING ACCESS...</div>
+          </div>
+        </div>
+      )}
+      {subStatus === 'none' && (
+        <div style={{ position: 'fixed', inset: 0, background: '#060810', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono', monospace", padding: 24 }}>
+          <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, color: '#00e5ff', letterSpacing: 3, marginBottom: 6 }}>tr<span style={{ color: '#00ff88' }}>AI</span>de Zone</div>
+            <div style={{ fontSize: 12, color: '#6b7a9a', marginBottom: 32, letterSpacing: 1 }}>Your AI trading companion</div>
+            <div style={{ background: 'rgba(255,26,74,0.06)', border: '1px solid rgba(255,26,74,0.2)', borderRadius: 8, padding: '16px 20px', marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#ff1a4a', marginBottom: 6 }}>No active subscription</div>
+              <div style={{ fontSize: 11, color: '#8899bb', lineHeight: 1.7 }}>Your account doesn't have an active plan. Subscribe to access the full AI trading companion.</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              <a href="/pricing" style={{ display: 'block', background: 'rgba(0,229,255,0.1)', border: '1px solid rgba(0,229,255,0.3)', color: '#00e5ff', borderRadius: 8, padding: '12px 0', fontSize: 12, fontWeight: 700, textDecoration: 'none', letterSpacing: 1 }}>
+                View Plans & Pricing →
+              </a>
+              <button onClick={() => { fetch('/api/subscription').then(r=>r.json()).then(d=>{ if(d.hasAccess){ setSubStatus('active'); setSubPlan(d.plan) } }) }} style={{ background: 'transparent', border: '1px solid rgba(100,140,220,0.15)', color: '#6b7a9a', borderRadius: 8, padding: '10px 0', fontSize: 11, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
+                Already subscribed? Check again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── SYSTEM CHECK OVERLAY ── */}
       {systemCheck && !showSettings && (
