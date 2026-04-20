@@ -1,4 +1,5 @@
 'use client'
+import TutorialModal from './TutorialModal'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
@@ -1524,6 +1525,14 @@ export default function CockpitPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
+
+  // Show tutorial on first visit
+  useEffect(() => {
+    if (!localStorage.getItem('tz-tutorial-seen')) {
+      setShowTutorial(true)
+    }
+  }, [])
 
   // Safety: if speakLock gets stuck (onended never fires), unlock after 10s
   useEffect(() => {
@@ -3048,6 +3057,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         input, textarea { font-family: '${font}' !important; }
       `}</style>
 
+      {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
+
       {/* ── SYSTEM CHECK OVERLAY ── */}
       {systemCheck && !showSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,6,14,0.92)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }} onClick={() => setSystemCheck(null)}>
@@ -3220,6 +3231,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </span>
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 10, fontWeight: 700, padding: '4px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: '#6b7280', cursor: 'pointer', marginRight: 6 }}>Sign Out</button>
+          <button onClick={() => setShowTutorial(true)} title="Tutorial" style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.15)', borderRadius: 4, padding: '4px 8px', color: '#6b7a9a', cursor: 'pointer', fontSize: 10, fontFamily: font, transition: 'all 0.2s' }}>?</button>
           <button onClick={() => { setSystemCheck(null); runSystemCheck(); setShowSettings(false) }} title="System Check — verify all data feeds" style={{ background: systemCheckRunning ? 'rgba(255,183,0,0.1)' : 'rgba(0,229,255,0.04)', border: `1px solid ${systemCheckRunning ? 'rgba(255,183,0,0.3)' : 'rgba(0,229,255,0.15)'}`, borderRadius: 4, padding: '4px 8px', color: systemCheckRunning ? C.yellow : C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font, transition: 'all 0.2s' }}>{systemCheckRunning ? '⟳' : '✓'}</button>
           <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 4, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
         </div>
