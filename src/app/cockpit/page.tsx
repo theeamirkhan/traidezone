@@ -1173,6 +1173,159 @@ const TZ = () => (
 )
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
+// ── TONE TESTER ─────────────────────────────────────────────────────────────
+const TONE_SCENARIOS = [
+  "I just revenge traded after hitting my daily loss limit. Took 3 extra trades and gave back everything.",
+  "SPX is sitting right at VWAP. I want to go long but my checklist score is 4/13.",
+  "I had a perfect setup at 10:15 and missed the entry because I hesitated. Now it's moved 30 points without me.",
+  "I'm up $800 on the day. Should I take one more trade? The setup looks good.",
+  "I've been staring at the screen for 2 hours and haven't taken a trade. I'm second-guessing everything.",
+]
+
+const TONE_NAMES: Record<number, string> = {
+  1: 'Drill Sergeant',
+  2: 'Direct & Firm',
+  3: 'Balanced',
+  4: 'Encouraging',
+  5: 'Life Coach',
+}
+
+const TONE_COLORS: Record<number, string> = {
+  1: '#ff1a4a',
+  2: '#ff6b00',
+  3: '#ffb700',
+  4: '#00d4a0',
+  5: '#00e5ff',
+}
+
+const TONE_INSTRUCTIONS: Record<number, string> = {
+  1: "You are a DRILL SERGEANT. Be direct, blunt, and brutally honest. Call out mistakes immediately. No sugarcoating. Short sharp sentences. Hold this trader to military-level discipline.",
+  2: "You are direct and firm. No fluff. Call out bad habits clearly. Be honest even when it stings. Keep the trader accountable with a tough-love approach.",
+  3: "You are balanced — direct but supportive. Call out mistakes clearly but constructively. Mix accountability with encouragement based on what the trader needs.",
+  4: "You are encouraging and supportive. Acknowledge progress. Frame corrections as learning opportunities. Keep energy positive while maintaining accountability.",
+  5: "You are a LIFE COACH. Lead with empathy and encouragement. Reframe mistakes as growth moments. Keep the trader confident and emotionally regulated. Celebrate small wins.",
+}
+
+function ToneTester() {
+  const [scenario, setScenario] = useState('')
+  const [customScenario, setCustomScenario] = useState('')
+  const [results, setResults] = useState<Record<number, string>>({})
+  const [loading, setLoading] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+
+  const activeScenario = customScenario.trim() || scenario
+
+  const runTest = async () => {
+    if (!activeScenario) return
+    setLoading(true)
+    setResults({})
+    const tones = [1, 2, 3, 4, 5]
+    await Promise.all(tones.map(async (tone) => {
+      try {
+        const res = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 80,
+            messages: [{
+              role: 'user',
+              content: `${TONE_INSTRUCTIONS[tone]}
+
+You are an AI trading companion for an SPX intraday options trader. Respond to this situation in 1-2 sentences maximum, staying completely in character for your role.
+
+Trader says: "${activeScenario}"`
+            }]
+          })
+        })
+        const d = await res.json()
+        const text = d.content?.[0]?.text?.trim() || 'No response'
+        setResults(prev => ({ ...prev, [tone]: text }))
+      } catch {
+        setResults(prev => ({ ...prev, [tone]: 'Error getting response' }))
+      }
+    }))
+    setLoading(false)
+  }
+
+  const font = "'JetBrains Mono', monospace"
+  const fontD = "'Barlow Condensed', sans-serif"
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div
+        onClick={() => setExpanded(e => !e)}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 0', borderTop: '1px solid rgba(0,229,255,0.08)' }}
+      >
+        <span style={{ fontSize: 9, fontWeight: 700, color: '#00e5ff', letterSpacing: '1.5px', textTransform: 'uppercase' as const }}>Test Coaching Tone</span>
+        <span style={{ fontSize: 9, color: '#6b7a9a', marginLeft: 2 }}>— see how each tone responds to real scenarios</span>
+        <span style={{ fontSize: 11, color: '#6b7a9a', marginLeft: 'auto' }}>{expanded ? '▲' : '▼'}</span>
+      </div>
+
+      {expanded && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8 }}>
+          {/* Scenario selector */}
+          <div>
+            <div style={{ fontSize: 8, color: '#6b7a9a', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase' as const, marginBottom: 6 }}>Pick a scenario</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {TONE_SCENARIOS.map((s, i) => (
+                <div
+                  key={i}
+                  onClick={() => { setScenario(s); setCustomScenario('') }}
+                  style={{ padding: '7px 10px', borderRadius: 5, border: `1px solid ${scenario === s && !customScenario ? 'rgba(0,229,255,0.35)' : 'rgba(0,229,255,0.08)'}`, background: scenario === s && !customScenario ? 'rgba(0,229,255,0.06)' : 'rgba(0,0,0,0.2)', cursor: 'pointer', fontSize: 10, color: scenario === s && !customScenario ? '#d0d8f0' : '#8899bb', lineHeight: 1.5, transition: 'all 0.15s' }}
+                >
+                  {s}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom input */}
+          <div>
+            <div style={{ fontSize: 8, color: '#6b7a9a', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase' as const, marginBottom: 6 }}>Or type your own</div>
+            <textarea
+              value={customScenario}
+              onChange={e => { setCustomScenario(e.target.value); setScenario('') }}
+              placeholder="Describe a situation you want the AI to respond to..."
+              rows={2}
+              style={{ width: '100%', background: 'rgba(10,14,24,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 5, padding: '8px 10px', color: '#f0f4ff', fontSize: 11, fontFamily: font, resize: 'vertical' as const, outline: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* Test button */}
+          <button
+            onClick={runTest}
+            disabled={loading || !activeScenario}
+            style={{ background: loading || !activeScenario ? 'rgba(0,229,255,0.04)' : 'rgba(0,229,255,0.1)', border: `1px solid ${loading || !activeScenario ? 'rgba(0,229,255,0.1)' : 'rgba(0,229,255,0.3)'}`, color: loading || !activeScenario ? '#4a5568' : '#00e5ff', borderRadius: 6, padding: '9px 0', fontSize: 11, fontWeight: 700, cursor: loading || !activeScenario ? 'not-allowed' : 'pointer', fontFamily: font, letterSpacing: '0.5px', transition: 'all 0.15s' }}
+          >
+            {loading ? '⟳ Testing all 5 tones...' : '↗ Compare All 5 Tones'}
+          </button>
+
+          {/* Results */}
+          {Object.keys(results).length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 8, color: '#6b7a9a', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase' as const, marginBottom: 2 }}>Responses</div>
+              {[1, 2, 3, 4, 5].map(tone => (
+                <div key={tone} style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${TONE_COLORS[tone]}22`, borderLeft: `3px solid ${TONE_COLORS[tone]}`, borderRadius: 5, padding: '9px 12px' }}>
+                  <div style={{ fontFamily: fontD, fontSize: 11, fontWeight: 700, color: TONE_COLORS[tone], letterSpacing: '1px', marginBottom: 4 }}>
+                    {tone} — {TONE_NAMES[tone]}
+                  </div>
+                  <div style={{ fontSize: 11, color: results[tone] ? '#d0d8f0' : '#4a5568', lineHeight: 1.7, fontStyle: results[tone] ? 'normal' : 'italic' }}>
+                    {results[tone] || <span style={{ display: 'inline-block', width: 120, height: 10, background: 'rgba(255,255,255,0.05)', borderRadius: 3, animation: 'pulse 1.5s infinite' }} />}
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 9, color: '#4a5568', textAlign: 'center' as const, marginTop: 2 }}>
+                Adjust the slider above to set your preferred tone, then Save.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
@@ -1346,6 +1499,9 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
           <div style={{ fontSize: 10, color: C.textMuted, marginTop: 6, lineHeight: 1.5 }}>
             {[,'Blunt, direct, zero tolerance for mistakes.','Tough love, honest feedback.','Balanced accountability and support.','Positive reinforcement focused.','Empathetic, confidence-building.'][aiTone]}
           </div>
+
+          {/* Tone Tester */}
+          <ToneTester />
         </div>
 
         {/* Voice Speed */}
