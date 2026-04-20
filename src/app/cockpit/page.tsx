@@ -1292,9 +1292,7 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
                   )
                 })}
               </div>
-              <div style={{ fontSize: 9, color: C.textMuted, padding: '6px 10px', background: 'rgba(10,14,24,0.95)', borderRadius: 6, border: '1px solid rgba(0,229,255,0.1)' }}>
-                💡 OpenAI TTS — 20x cheaper than ElevenLabs, near-identical quality for trading context
-              </div>
+
             </div>
           )}
 
