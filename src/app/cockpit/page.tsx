@@ -3247,7 +3247,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </div>
 
               {/* Stat chips — redesigned for readability */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, flexShrink: 0 }}>
                 {[
                   { label: 'SPX vs VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '—', icon: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '', sub: `${fmt(currentPrice)} vs ${fmt(levels.spyVwap)}`, color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
                   { label: 'VIX Level', value: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—', icon: vixPrice && vixPrice > 18 ? '⚠' : '', sub: vixPrice ? `${vixPrice.toFixed(2)}` : 'Loading...', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
@@ -3274,7 +3274,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </div>
 
               {/* Options flow + market conditions */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flexShrink: 0 }}>
                 {/* Options Flow mini */}
                 <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, padding: 10, boxShadow: '0 0 0 1px rgba(0,229,255,0.08) inset', borderLeft: '2px solid #00e5ff' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -3336,7 +3336,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Composite Market Score */}
               {marketScore && (
-                <div style={{ background: 'rgba(10,14,24,0.98)', borderRadius: 6, padding: '14px 16px', border: `1px solid ${marketScore.color}20`, borderLeft: `3px solid ${marketScore.color}`, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ background: 'rgba(10,14,24,0.98)', borderRadius: 6, padding: '14px 16px', border: `1px solid ${marketScore.color}20`, borderLeft: `3px solid ${marketScore.color}`, position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(90deg, ${marketScore.color}60, transparent)` }} />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div>
@@ -3356,13 +3356,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* News + Calendar */}
               {(marketNews || economicCalendar) && (
-                <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10, flexShrink: 0 }}>
                   {marketNews && (
                     <div style={{ background: 'rgba(10,14,24,0.98)', borderRadius: 6, padding: '12px 14px', border: '1px solid rgba(0,229,255,0.12)', borderLeft: '2px solid #00e5ff' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                         <span style={{ fontFamily: fontDisplay, fontSize: 8, fontWeight: 700, color: '#00e5ff', letterSpacing: '1.5px' }}>TODAY'S NEWS</span>
                       </div>
-                      <div style={{ fontSize: 11, color: '#d0d8f0', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+                      <div style={{ fontSize: 11, color: '#d0d8f0', lineHeight: 1.7, whiteSpace: 'pre-line', maxHeight: 160, overflowY: 'auto' }}>
                         {(marketNews || '').replace(/^(Based on [^\n]+\n|Here are[^\n]+\n|Search results[^\n]+\n)/i, '').trim()}
                       </div>
                     </div>
@@ -3372,7 +3372,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                         <span style={{ fontFamily: fontDisplay, fontSize: 8, fontWeight: 700, color: '#ff6b00', letterSpacing: '1.5px' }}>ECONOMIC CALENDAR</span>
                       </div>
-                      <div style={{ fontSize: 11, color: '#d0d8f0', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+                      <div style={{ fontSize: 11, color: '#d0d8f0', lineHeight: 1.7, whiteSpace: 'pre-line', maxHeight: 160, overflowY: 'auto' }}>
                         {(economicCalendar || '').replace(/^(Based on [^\n]+\n|Here are[^\n]+\n|Search results[^\n]+\n)/i, '').trim()}
                       </div>
                     </div>
