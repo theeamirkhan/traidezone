@@ -280,7 +280,7 @@ const CHECKLIST = [
 async function runAI({
   candles, levels, currentPrice, impliedMove, anthKey,
   morningPlan, activePlaybook, tradeStats, optionsFlow, marketTide, marketIntel, tiingoContext,
-  marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory
+  marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar
 }: any) {
   if (!currentPrice) return null
   const recent = (candles || []).slice(-5).map((c: any) =>
@@ -317,6 +317,17 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
       ).join('\n')
     : 'No options flow data'
 
+  // Format earnings for AI prompt
+  const earningsSection = earningsCalendar.length
+    ? earningsCalendar.map(day => {
+        const isToday = day.date === new Date().toISOString().split('T')[0]
+        const isTomorrow = day.date === new Date(Date.now()+86400000).toISOString().split('T')[0]
+        const label = isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : day.date
+        const items = day.earnings.map((e: any) => `  ${e.symbol} ${e.time}${e.epsEst ? ' est ' + e.epsEst : ''}${e.expectedMove ? ' ±' + e.expectedMove : ''}`).join('\n')
+        return `${label}:\n${items}`
+      }).join('\n')
+    : 'No earnings data'
+
   const tiingoSection = tiingoContext
     ? `HISTORICAL GAP CONTEXT (Tiingo — past 1yr, ${tiingoContext.totalDays} trading days):
 ${tiingoContext.summary}
@@ -347,6 +358,9 @@ Market tide P/C: ${marketTide?.putCallRatio || '?'} — ${marketTide?.bias || '?
 
 OPTIONS FLOW:
 ${flowSection}
+
+EARNINGS THIS WEEK (S&P 500 / Large Cap):
+${earningsSection}
 
 ${tiingoSection}
 
@@ -677,6 +691,39 @@ function analyzeTradePatterns(trades: any[]): any {
 }
 
 // ── #7 MACRO REGIME ────────────────────────────────────────────────────────
+async function fetchEarningsCalendar(): Promise<any[]> {
+  try {
+    // Fetch next 5 trading days of earnings
+    const today = new Date()
+    const results: any[] = []
+    for (let i = 0; i <= 5; i++) {
+      const d = new Date(today.getTime() + i * 86400000)
+      const dateStr = d.toISOString().split('T')[0]
+      const dow = d.getDay()
+      if (dow === 0 || dow === 6) continue // skip weekends
+      try {
+        const res = await fetch(`/api/flow?path=/api/earnings/afterhours?date=${dateStr}`)
+        const data = await res.json()
+        const dayEarnings = (data.data || [])
+          .filter((e: any) => e.is_s_p_500 || parseFloat(e.marketcap || 0) > 5e9) // S&P500 or large cap
+          .sort((a: any, b: any) => parseFloat(b.marketcap || 0) - parseFloat(a.marketcap || 0))
+          .slice(0, 8)
+          .map((e: any) => ({
+            symbol: e.symbol,
+            name: e.full_name,
+            date: dateStr,
+            time: e.report_time === 'premarket' ? 'BMO' : e.report_time === 'postmarket' ? 'AMC' : 'AH',
+            epsEst: e.street_mean_est ? '$' + parseFloat(e.street_mean_est).toFixed(2) : null,
+            expectedMove: e.expected_move_perc ? (parseFloat(e.expected_move_perc) * 100).toFixed(1) + '%' : null,
+            isSP500: e.is_s_p_500,
+          }))
+        if (dayEarnings.length) results.push({ date: dateStr, earnings: dayEarnings })
+      } catch {}
+    }
+    return results
+  } catch { return [] }
+}
+
 async function fetchMacroRegime(anthKey: string): Promise<any> {
   if (!anthKey) anthKey = 'server'
   // Only refresh once per day — cache in localStorage
@@ -1497,6 +1544,7 @@ export default function CockpitPage() {
     return () => clearInterval(watchdog)
   }, [])
   const [systemCheck, setSystemCheck] = useState<any>(null)
+  const [earningsCalendar, setEarningsCalendar] = useState<any[]>([])
   const [systemCheckRunning, setSystemCheckRunning] = useState(false)
   const [customVoiceId, setCustomVoiceId] = useState('')
   const [elVoices, setElVoices] = useState<any[]>([])
@@ -2372,11 +2420,15 @@ export default function CockpitPage() {
           fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY'),
         ])
         localStorage.setItem('tz-news-date', todayKey)
+        // Fetch earnings calendar once per day (no API cost — uses UW)
+        fetchEarningsCalendar().then(ec => setEarningsCalendar(ec))
       }
       setMarketIntel(intel)
       setOptionsFlow(flow)
       setMarketTide(tide)
       setTiingoContext(tiingo)
+      // Load earnings on first run
+      if (!earningsCalendar.length) fetchEarningsCalendar().then(ec => setEarningsCalendar(ec))
       if (news) setMarketNews(news)
       if (calendar) setEconomicCalendar(calendar)
       if (mtf) setMultiTFData(mtf)
@@ -2388,7 +2440,8 @@ export default function CockpitPage() {
         impliedMove: morningPlan.impliedMove,
         anthKey: keys[ANTH_KEY] || 'server',
         morningPlan, activePlaybook, tradeStats,
-        optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo
+        optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo,
+        marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar
       })
       if (result) {
         setAiResult(result)
@@ -2402,7 +2455,8 @@ export default function CockpitPage() {
             impliedMove: morningPlan.impliedMove,
             anthKey: keys[ANTH_KEY] || 'server',
             morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
-            tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo
+            tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo,
+            marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar
           })
           if (retry) {
             setAiResult(retry)
@@ -2741,6 +2795,14 @@ export default function CockpitPage() {
     const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
     const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
     const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
+    const earningsSection = earningsCalendar.length
+      ? earningsCalendar.map((day: any) => {
+          const isToday = day.date === new Date().toISOString().split('T')[0]
+          const isTomorrow = day.date === new Date(Date.now()+86400000).toISOString().split('T')[0]
+          const label = isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : day.date
+          return `${label}: ${day.earnings.map((e: any) => `${e.symbol} ${e.time}${e.epsEst ? ' est '+e.epsEst : ''}${e.expectedMove ? ' ±'+e.expectedMove : ''}`).join(', ')}`
+        }).join('\n')
+      : 'No earnings data'
 
     return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 2 sentences. Never more than 40 words. Be direct and specific. Be specific, reference real numbers. Challenge bad ideas directly.
 
@@ -2774,6 +2836,9 @@ TLT (Bonds): ${marketIntel?.sectors?.TLT ? (Number(marketIntel.sectors.TLT.today
 ═══ OPTIONS FLOW (Unusual Whales) ═══
 Market Tide: ${marketTide?.bias || 'No data'} | P/C Ratio: ${marketTide?.putCallRatio || '—'}
 ${optionsFlow.length ? `${optionsFlow.length} flow alerts (biggest first):\n${optionsFlow.slice(0, 5).map((f: any) => `  ${f.ticker} ${(f.type||'').toUpperCase()} $${f.strike} ${f.expiry||''} — ${f.sentiment} ${f.premium||''}${f.unusual ? ' ⚡' : ''}`).join('\n')}` : 'No options flow data'}
+
+EARNINGS THIS WEEK:
+${earningsSection}
 
 ═══ HISTORICAL CONTEXT (Tiingo) ═══
 ${tiingoContext ? tiingoContext.summary : 'No Tiingo key — add for historical gap/implied move data'}
@@ -3354,6 +3419,37 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               )}
 
+              {/* Earnings Calendar */}
+              {earningsCalendar.length > 0 && (
+                <div style={{ background: 'rgba(10,14,24,0.98)', borderRadius: 6, padding: '12px 14px', border: '1px solid rgba(255,183,0,0.15)', borderLeft: '3px solid #ffb700', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                    <span style={{ fontSize: 9, color: '#ffb700' }}>📅</span>
+                    <span style={{ fontFamily: fontDisplay, fontSize: 8, fontWeight: 700, color: '#ffb700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Earnings This Week</span>
+                    <span style={{ fontSize: 7, color: '#6b7a9a', marginLeft: 'auto' }}>{earningsCalendar.reduce((a, d) => a + d.earnings.length, 0)} reports</span>
+                  </div>
+                  {earningsCalendar.map((day: any) => {
+                    const isToday = day.date === new Date().toISOString().split('T')[0]
+                    const isTomorrow = day.date === new Date(Date.now()+86400000).toISOString().split('T')[0]
+                    const label = isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                    return (
+                      <div key={day.date} style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 8, color: isToday ? '#ffb700' : isTomorrow ? '#00e5ff' : '#6b7a9a', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {day.earnings.map((e: any) => (
+                            <div key={e.symbol} style={{ display: 'flex', alignItems: 'center', gap: 4, background: e.isSP500 ? 'rgba(255,183,0,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${e.isSP500 ? 'rgba(255,183,0,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 4, padding: '3px 7px' }}>
+                              <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 700, color: e.isSP500 ? '#f0f4ff' : '#8899bb' }}>{e.symbol}</span>
+                              <span style={{ fontSize: 7, color: e.time === 'BMO' ? '#00ff88' : '#ff9900', fontWeight: 600 }}>{e.time}</span>
+                              {e.epsEst && <span style={{ fontSize: 7, color: '#6b7a9a' }}>{e.epsEst}</span>}
+                              {e.expectedMove && <span style={{ fontSize: 7, color: '#00e5ff' }}>±{e.expectedMove}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
               {/* News + Calendar */}
               {(marketNews || economicCalendar) && (
                 <div style={{ display: 'grid', gridTemplateColumns: economicCalendar && marketNews ? '1fr 1fr' : '1fr', gap: 10, flexShrink: 0 }}>
@@ -3870,7 +3966,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||''), fetchOptionsFlow(keys[UW_KEY]||''), fetchMarketTide(keys[UW_KEY]||''), fetchTiingoContext(keys[TIINGO_KEY]||'', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory})
+                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar})
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{
