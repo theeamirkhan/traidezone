@@ -3892,10 +3892,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           ))}
                         </div>
                       </div>
-                      {/* Quick prompts */}
+                      {/* Quick prompts — auto-send on click */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                         {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
-                          <button key={q} onClick={() => setChatInput(q)} style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 6, padding: '8px 10px', color: '#00e5ff', cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600, textAlign: 'left' as const }}>
+                          <button key={q} onClick={() => sendChatWithText(q)} style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 6, padding: '8px 10px', color: '#00e5ff', cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 600, textAlign: 'left' as const }}>
                             {q}
                           </button>
                         ))}
@@ -5053,7 +5053,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                   <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
                     {["What's the setup?", "Should I trade?", "Am I in system?", "What does flow say?"].map(q => (
-                      <button key={q} onClick={() => setChatInput(q)} style={{ background: C.tealDim, border: `1px solid ${C.tealBorder}`, borderRadius: 99, padding: '3px 10px', color: C.textDim, cursor: 'pointer', fontSize: 9, fontFamily: font }}>
+                      <button key={q} onClick={() => sendChatWithText(q)} style={{ background: C.tealDim, border: `1px solid ${C.tealBorder}`, borderRadius: 99, padding: '3px 10px', color: C.textDim, cursor: 'pointer', fontSize: 9, fontFamily: font }}>
                         {q}
                       </button>
                     ))}
