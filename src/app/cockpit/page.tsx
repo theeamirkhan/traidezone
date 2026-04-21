@@ -2767,9 +2767,53 @@ export default function CockpitPage() {
       const d = await (await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/1/day/${yest}/${yest}?adjusted=true&sort=asc&limit=1`)}`)).json()
       return { status: d.results?.length>0?'✅ OK':'❌ NO DATA', pdh: d.results?.[0]?.h?.toFixed(0), pdl: d.results?.[0]?.l?.toFixed(0) }
     })
-    await chk('VWAP (Tiingo)', async () => {
+    await chk('VWAP (Tiingo → SPX)', async () => {
       const d = await (await fetch('/api/tiingo?ticker=SPY&endpoint=intraday')).json()
-      const b = Array.isArray(d)?d:[]; return { status: b.length>0?'✅ OK':'❌ NO DATA', bars: b.length, last: b[b.length-1]?.close?.toFixed(2), note: 'TWAP (no volume on free plan)' }
+      const bars = Array.isArray(d)?d:[]
+      if (!bars.length) return { status: '❌ NO DATA', note: 'Tiingo returned no bars' }
+      // Calc TWAP (volume-weighted not available on free Tiingo)
+      const sum = bars.reduce((a: number, b: any) => a + (parseFloat(b.close)||0), 0)
+      const twap = (sum / bars.length)
+      const lastBar = bars[bars.length-1]
+      const lastBarAge = lastBar?.date ? Math.round((Date.now() - new Date(lastBar.date).getTime()) / 60000) : null
+      const spxRatio = currentPrice && lastBar?.close ? currentPrice / lastBar.close : null
+      const spxVwap = spxRatio ? (twap * spxRatio).toFixed(2) : null
+      const note = 'SPY TWAP × SPX/SPY ratio. No tick volume on free Tiingo plan.'
+      return {
+        status: lastBarAge && lastBarAge < 30 ? '✅ OK' : lastBarAge && lastBarAge < 120 ? '⚠️ STALE' : '⚠️ OLD',
+        spyTwap: twap.toFixed(2),
+        spxVwap,
+        bars: bars.length,
+        lastBarAge: lastBarAge ? lastBarAge + ' min ago' : 'unknown',
+        ratio: spxRatio?.toFixed(4),
+        note,
+        validate: 'Compare SPX VWAP on TradingView (5m chart, VWAP indicator)'
+      }
+    })
+    await chk('200 EMA (Polygon)', async () => {
+      // The 200 EMA is calculated from Polygon I:SPX 5m candles
+      // Check freshness of those candles
+      const weekAgo = new Date(Date.now()-7*86400000).toISOString().split('T')[0]
+      const d = await (await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${weekAgo}/${today}?adjusted=true&sort=asc&limit=500`)}`)).json()
+      const bars = d.results || []
+      const lastBar = bars[bars.length-1]
+      const lastBarDate = lastBar ? new Date(lastBar.t).toLocaleDateString('en-US',{timeZone:'America/New_York'}) : 'none'
+      const lastBarAge = lastBar ? Math.round((Date.now() - lastBar.t) / 60000) : null
+      const isDelayed = d.status === 'DELAYED' || (lastBarAge && lastBarAge > 600)
+      // Quick EMA preview using last 20 closes
+      const closes = bars.slice(-20).map((b: any) => b.c)
+      const simpleAvg = closes.length ? (closes.reduce((a: number, c: number) => a + c, 0) / closes.length).toFixed(0) : null
+      return {
+        status: isDelayed ? '⚠️ DELAYED DATA' : '✅ OK',
+        polygonStatus: d.status,
+        totalBars: bars.length,
+        lastBarDate,
+        lastBarAge: lastBarAge ? lastBarAge + ' min ago' : 'unknown',
+        ema200Shown: levels?.ema200?.toFixed(0) || 'not loaded',
+        approxAvgLast20: simpleAvg,
+        warning: isDelayed ? 'Polygon free plan has ~1 week delay on I:SPX intraday. EMA may be stale.' : null,
+        validate: 'Compare 200 EMA on TradingView (5m SPX chart, EMA 200 indicator)'
+      }
     })
     await chk('Options Flow', async () => {
       const d = await (await fetch('/api/flow?path=/api/option-trades/flow-alerts?limit=50')).json()
@@ -3278,23 +3322,43 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               <button onClick={() => setSystemCheck(null)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#8899bb', cursor: 'pointer', fontSize: 18 }}>×</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {Object.entries(systemCheck).map(([name, data]: any) => (
-                <div key={name} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 10px', borderRadius: 4, background: data.status?.includes('✅') ? 'rgba(0,255,136,0.04)' : data.status?.includes('⚠') ? 'rgba(255,183,0,0.06)' : 'rgba(255,26,74,0.06)', border: `1px solid ${data.status?.includes('✅') ? 'rgba(0,255,136,0.12)' : data.status?.includes('⚠') ? 'rgba(255,183,0,0.2)' : 'rgba(255,26,74,0.15)'}` }}>
-                  <span style={{ fontSize: 12, minWidth: 20 }}>{data.status?.includes('✅') ? '✅' : data.status?.includes('⚠') ? '⚠️' : '❌'}</span>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#f0f4ff', fontFamily: font }}>{name}</span>
-                    <span style={{ fontSize: 9, color: '#8899bb', marginLeft: 8 }}>{data.ms}ms</span>
-                    <div style={{ fontSize: 10, color: '#8899bb', marginTop: 2 }}>
-                      {Object.entries(data)
-                        .filter(([k]) => !['status','ms'].includes(k))
-                        .map(([k,v]) => v ? `${k}: ${v}` : null)
-                        .filter(Boolean)
-                        .join(' · ')
-                        .substring(0, 80)}
+              {Object.entries(systemCheck).map(([name, data]: any) => {
+                const isOk = data.status?.includes('✅')
+                const isWarn = data.status?.includes('⚠')
+                const borderCol = isOk ? 'rgba(0,255,136,0.15)' : isWarn ? 'rgba(255,183,0,0.25)' : 'rgba(255,26,74,0.2)'
+                const bgCol = isOk ? 'rgba(0,255,136,0.04)' : isWarn ? 'rgba(255,183,0,0.06)' : 'rgba(255,26,74,0.06)'
+                const icon = isOk ? '✅' : isWarn ? '⚠️' : '❌'
+                // Fields to show as detail pills
+                const detailFields = Object.entries(data)
+                  .filter(([k]) => !['status','ms','note','warning','validate'].includes(k))
+                  .map(([k,v]) => v ? `${k}: ${v}` : null)
+                  .filter(Boolean) as string[]
+                return (
+                  <div key={name} style={{ padding: '8px 10px', borderRadius: 5, background: bgCol, border: `1px solid ${borderCol}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: detailFields.length || data.warning || data.validate ? 5 : 0 }}>
+                      <span style={{ fontSize: 11 }}>{icon}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f0f4ff', fontFamily: font, flex: 1 }}>{name}</span>
+                      <span style={{ fontSize: 9, color: '#6b7a9a' }}>{data.ms}ms</span>
                     </div>
+                    {detailFields.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                        {detailFields.slice(0,6).map((f: string) => (
+                          <span key={f} style={{ fontSize: 9, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3, padding: '1px 6px', color: '#8899bb' }}>{f}</span>
+                        ))}
+                      </div>
+                    )}
+                    {data.warning && (
+                      <div style={{ fontSize: 9, color: '#ffb700', lineHeight: 1.5, marginTop: 3 }}>⚠ {data.warning}</div>
+                    )}
+                    {data.validate && (
+                      <div style={{ fontSize: 9, color: '#00e5ff', lineHeight: 1.5, marginTop: 3 }}>📐 {data.validate}</div>
+                    )}
+                    {data.note && !data.warning && (
+                      <div style={{ fontSize: 9, color: '#6b7a9a', lineHeight: 1.5, marginTop: 2 }}>{data.note}</div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => { setSystemCheck(null); runSystemCheck() }} style={{ padding: '6px 16px', borderRadius: 4, background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)', color: '#00e5ff', cursor: 'pointer', fontFamily: font, fontSize: 11, fontWeight: 600 }}>↻ Re-run</button>
