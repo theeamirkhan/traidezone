@@ -2650,9 +2650,9 @@ export default function CockpitPage() {
       await run()
       clearTimeout(safetyTimer)
     }
-    const initialTimer = setTimeout(runWithSafety, 3000)
-    aiIntervalRef.current = setInterval(run, 180000)
-    return () => { clearTimeout(initialTimer); clearTimeout(safetyTimer); clearInterval(aiIntervalRef.current) }
+    // Auto-run removed — signal is now manual only (saves ~$1.68/day)
+    // Users click "Get AI Signal" when they want a read
+    return () => { clearTimeout(safetyTimer); clearInterval(aiIntervalRef.current) }
   }, [keys[ANTH_KEY], activePlaybookId])
 
   // Auto-scroll chat
@@ -3560,6 +3560,32 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             {/* Left — Dashboard */}
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
 
+              {/* Manual Signal Trigger */}
+              {!aiResult && !aiLoading && (
+                <div style={{ background: 'rgba(0,212,160,0.06)', border: '1px solid rgba(0,212,160,0.25)', borderRadius: 6, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#00d4a0', letterSpacing: 1, marginBottom: 3 }}>AI Signal Ready</div>
+                    <div style={{ fontSize: 10, color: '#6b7a9a', lineHeight: 1.5 }}>Tap to get LONG / SHORT / WAIT with entry, stop & targets</div>
+                  </div>
+                  <button onClick={async () => {
+                    setAiLoading(true)
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||'server'), fetchOptionsFlow(keys[UW_KEY]||'server'), fetchMarketTide(keys[UW_KEY]||'server'), fetchTiingoContext(keys[TIINGO_KEY]||'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY]||'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar })
+                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
+                    setAiLoading(false)
+                  }} style={{ fontFamily: font, fontSize: 13, fontWeight: 700, padding: '10px 20px', borderRadius: 6, background: 'rgba(0,212,160,0.12)', border: '1px solid rgba(0,212,160,0.4)', color: '#00d4a0', cursor: 'pointer', letterSpacing: 0.5, whiteSpace: 'nowrap' as const }}>
+                    ▶ Get Signal
+                  </button>
+                </div>
+              )}
+              {aiLoading && (
+                <div style={{ background: 'rgba(0,212,160,0.04)', border: '1px solid rgba(0,212,160,0.15)', borderRadius: 6, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: '#00d4a0', animation: `pulse 1s ${i*0.15}s infinite` }} />)}</div>
+                  <div style={{ fontSize: 11, color: '#00d4a0', fontWeight: 600 }}>Analyzing market conditions...</div>
+                </div>
+              )}
+
               {/* Signal Hero */}
               <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 6, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,229,255,0.08) inset, 0 4px 24px rgba(0,0,0,0.4)', borderTop: '2px solid #00d4a0' }}>
                 <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(0,212,160,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
@@ -3571,6 +3597,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: fontDisplay, fontSize: 30, fontWeight: 900, color: signalColor, opacity: 0.75 }}>{aiResult?.confidence || 0}%</div>
                     <div style={{ fontSize: 7, color: C.textMuted }}>AI confidence</div>
+                  <button onClick={async () => {
+                    setAiLoading(true)
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||'server'), fetchOptionsFlow(keys[UW_KEY]||'server'), fetchMarketTide(keys[UW_KEY]||'server'), fetchTiingoContext(keys[TIINGO_KEY]||'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY]||'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar })
+                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
+                    setAiLoading(false)
+                  }} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', borderRadius: 4, background: 'transparent', border: '1px solid rgba(0,212,160,0.2)', color: '#6b7a9a', cursor: 'pointer', marginTop: 4, display: 'block' }}>↻ refresh</button>
                   </div>
                 </div>
                 {/* Probability bars */}
@@ -4259,7 +4293,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(0,212,160,0.25)'}`,
                     borderRadius: 8, padding: '10px 0', color: aiLoading ? C.textMuted : C.violet,
                     cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 11, fontWeight: 700, letterSpacing: '0.5px'
-                  }}>{aiLoading ? 'Analyzing...' : '↻ Refresh AI Analysis'}</button>
+                  }}>{aiLoading ? '⟳  Analyzing market...' : '▶  Get AI Signal'}</button>
                 </div>
               </div>
             </div>
@@ -4503,7 +4537,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
                     setAiLoading(false)
-                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? 'ANALYZING...' : '↻ REFRESH AI'}</button>
+                  }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? '⟳ ANALYZING...' : '▶ GET AI SIGNAL'}</button>
                 </div>
               </div>
             </div>
