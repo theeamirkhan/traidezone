@@ -1369,16 +1369,21 @@ function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngin
     if (vals[VOICE_ID]) { setVoiceId(vals[VOICE_ID]); localStorage.setItem(VOICE_ID, vals[VOICE_ID]) }
     localStorage.setItem('tz-dark-mode', darkMode.toString())
     localStorage.setItem('tz-ai-tone', aiTone.toString())
-    localStorage.setItem('tz-user-name', userName)
-    // Sync name to trader profile
-    if (userName) {
+    localStorage.setItem('tz-voice-speed', voiceSpeed.toString())
+    const trimmedName = userName.trim()
+    const trimmedWelcome = welcomeMessage.trim()
+    localStorage.setItem('tz-user-name', trimmedName)
+    localStorage.setItem('tz-welcome-message', trimmedWelcome)
+    setUserName(trimmedName)
+    setWelcomeMessage(trimmedWelcome)
+    // Sync name to trader profile in Supabase
+    if (trimmedName) {
       fetch('/api/trader-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: userName })
+        body: JSON.stringify({ name: trimmedName })
       }).catch(() => {})
     }
-    localStorage.setItem('tz-welcome-message', welcomeMessage)
     onClose()
   }
 
@@ -1839,6 +1844,14 @@ export default function CockpitPage() {
     if (savedVoice) setVoiceId(savedVoice)
     const savedSpeed = localStorage.getItem('tz-voice-speed')
     if (savedSpeed) setVoiceSpeed(parseFloat(savedSpeed))
+
+    // Load name, welcome message, and AI tone
+    const savedName = localStorage.getItem('tz-user-name')
+    if (savedName) setUserName(savedName)
+    const savedWelcome = localStorage.getItem('tz-welcome-message')
+    if (savedWelcome) setWelcomeMessage(savedWelcome)
+    const savedTone = localStorage.getItem('tz-ai-tone')
+    if (savedTone) setAiTone(parseInt(savedTone))
 
     // Auto-fetch ElevenLabs voices
     const elKey = localStorage.getItem(EL_KEY)
@@ -2379,7 +2392,15 @@ export default function CockpitPage() {
         const hour = new Date().getHours()
         const timeOfDay = hour < 10 ? 'morning' : hour < 14 ? 'session' : 'afternoon'
         const lastWeakness = traderProfile?.weaknesses?.slice(-1)[0] || null
-        const promptLines = [
+        // Use custom welcome message if set, otherwise generate one
+        const customWelcome = welcomeMessage?.trim()
+          ? welcomeMessage.replace(/{name}/gi, name).replace(/{spx}/gi, currentPrice?.toFixed(0) || '').replace(/{vix}/gi, vixPrice?.toFixed(1) || '')
+          : null
+        const promptLines = customWelcome ? [
+          `Say this welcome message naturally, spoken aloud, to the trader: "${customWelcome}"`,
+          `Trader name: ${name}. SPX at ${currentPrice?.toFixed(2)}, VIX at ${vixPrice?.toFixed(1) || 'unknown'}.`,
+          `Keep it under 2 sentences. Speak it exactly as written but feel free to adapt tense.`,
+        ] : [
           `Generate a brief, natural trading companion greeting (2-3 sentences max, spoken aloud).`,
           `Trader name: ${name}. ${isReturning ? `Session #${sessionNum + 1} together.` : 'First session.'}`,
           `Time: ${timeOfDay}. SPX at ${currentPrice?.toFixed(2)}.`,
@@ -2387,7 +2408,8 @@ export default function CockpitPage() {
           lastWeakness ? `Last session note: ${lastWeakness}` : '',
           `Be warm but direct. Get them focused. Reference real prices. No generic fluff.`,
           `${isReturning ? 'You know this trader — reference your relationship naturally.' : 'Introduce yourself as their AI trading companion.'}`,
-        ].filter(Boolean).join(' ')
+        ]
+        const promptStr = promptLines.filter(Boolean).join(' ')
 
         const res = await fetch('/api/ai', {
           method: 'POST',
@@ -2395,7 +2417,7 @@ export default function CockpitPage() {
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 120,
-            messages: [{ role: 'user', content: promptLines }]
+            messages: [{ role: 'user', content: promptStr }]
           })
         })
         const data = await res.json()
