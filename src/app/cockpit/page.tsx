@@ -2678,14 +2678,15 @@ export default function CockpitPage() {
   const listeningRef = useRef(false)  // stable ref so speak() can check without stale closure
 
   const startListening = () => {
+    console.log('[MIC] startListening called, speakLock:', speakLockRef.current, 'listening:', listeningRef.current)
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) { alert('Speech recognition not supported in this browser. Use Chrome.'); return }
-    if (recognitionRef.current) { recognitionRef.current.stop() }
+    if (recognitionRef.current) { console.log('[MIC] stopping existing recognition'); recognitionRef.current.stop() }
     const recognition = new SpeechRecognition()
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-US'
-    recognition.onstart = () => { setListening(true); listeningRef.current = true }
+    recognition.onstart = () => { console.log('[MIC] recognition started OK'); setListening(true); listeningRef.current = true }
     recognition.onresult = (event: any) => {
       let interim = '', final = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -2721,6 +2722,7 @@ export default function CockpitPage() {
   }
 
   const stopListening = () => {
+    console.log('[MIC] stopListening called')
     listeningRef.current = false
     if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null }
     setListening(false)
@@ -4033,7 +4035,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 {/* Input area */}
                 <div style={{ padding: '12px 14px', background: 'rgba(4,6,14,0.99)', borderTop: '1px solid rgba(0,229,255,0.12)', flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
-                    <button onClick={listening ? stopListening : startListening} style={{ width: 44, height: 44, borderRadius: '50%', border: `2px solid ${listening ? 'rgba(255,26,74,0.7)' : 'rgba(255,26,74,0.35)'}`, background: listening ? 'rgba(255,26,74,0.15)' : 'rgba(255,26,74,0.07)', color: '#ff1a4a', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 6px rgba(255,26,74,0.1), 0 0 16px rgba(255,26,74,0.3)' : '0 0 12px rgba(255,26,74,0.1)', animation: listening ? 'micGlow 0.8s infinite' : 'none', transition: 'all 0.2s', flexShrink: 0 }}>
+                    <button onClick={() => { console.log('[MIC] button clicked, listening:', listening); listening ? stopListening() : startListening() }} style={{ width: 44, height: 44, borderRadius: '50%', border: `2px solid ${listening ? 'rgba(255,26,74,0.7)' : 'rgba(255,26,74,0.35)'}`, background: listening ? 'rgba(255,26,74,0.15)' : 'rgba(255,26,74,0.07)', color: '#ff1a4a', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 6px rgba(255,26,74,0.1), 0 0 16px rgba(255,26,74,0.3)' : '0 0 12px rgba(255,26,74,0.1)', animation: listening ? 'micGlow 0.8s infinite' : 'none', transition: 'all 0.2s', flexShrink: 0 }}>
                       {listening ? '↹' : '🎙️'}
                     </button>
                     <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ↹ to stop)' : 'Ask your AI companion...'}
