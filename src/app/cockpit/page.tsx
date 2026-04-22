@@ -430,7 +430,7 @@ async function fetchMarketNews(anthKey: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Search for the top 3-4 US stock market news headlines right now for today ${new Date().toLocaleDateString('en-US')}. Focus on: Fed/economic data, macro events, SPX/SPY moves, anything that affects intraday trading today. Return ONLY a brief bullet summary like:
@@ -456,7 +456,7 @@ async function fetchEconomicCalendar(anthKey: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Search for the US economic calendar events for today ${today}. Include: FOMC meetings/Fed speakers, CPI/PPI/NFP/GDP releases, Treasury auctions, major earnings (if pre/post market). Return ONLY in this format:
@@ -2375,12 +2375,12 @@ export default function CockpitPage() {
     fetchHistory('I:SPX', setCandles, 'spx')
   }, [chartTf])
 
-  // Profile-aware session greeting — fires once per session when cockpit opens
+  // Profile-aware session greeting — fires once per session, period
   const greetedRef = useRef(false)
   useEffect(() => {
-    if (tab !== 'cockpit' || greetedRef.current) return
-    if (!currentPrice) return  // wait for market data
-    greetedRef.current = true
+    if (tab !== 'cockpit') return
+    if (greetedRef.current) return  // already greeted this session
+    greetedRef.current = true  // mark immediately so re-renders don't re-fire
 
     const delay = setTimeout(async () => {
       // Check if AudioContext can be created (requires prior user gesture)
@@ -2431,7 +2431,7 @@ export default function CockpitPage() {
 
     return () => clearTimeout(delay)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, currentPrice])
+  }, [tab])
 
   // Recalculate composite market score when inputs change
   useEffect(() => {
@@ -2661,7 +2661,8 @@ export default function CockpitPage() {
     // Claude AI calls (news/calendar/macro) — once per day, cached in localStorage
     const fetchDailyAI = async () => {
       const todayKey = new Date().toISOString().split('T')[0]
-      if (localStorage.getItem('tz-news-date') === todayKey && marketNews) return
+      // Check localStorage first — don't re-fire if already ran today
+      if (localStorage.getItem('tz-news-date') === todayKey) return
       try {
         const [news, calendar, macro, mtf] = await Promise.all([
           fetchMarketNews(keys[ANTH_KEY] || 'server'),
