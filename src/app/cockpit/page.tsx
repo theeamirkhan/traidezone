@@ -2678,15 +2678,23 @@ export default function CockpitPage() {
   const listeningRef = useRef(false)  // stable ref so speak() can check without stale closure
 
   const startListening = () => {
-    console.log('[MIC] startListening called, speakLock:', speakLockRef.current, 'listening:', listeningRef.current)
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) { alert('Speech recognition not supported in this browser. Use Chrome.'); return }
-    if (recognitionRef.current) { console.log('[MIC] stopping existing recognition'); recognitionRef.current.stop() }
+    // Force-stop any current speech — user explicitly clicked mic, take priority
+    if (speakLockRef.current) {
+      speakLockRef.current = false
+      setSpeaking(false)
+      if (audioSourceRef.current) {
+        try { (audioSourceRef.current as any).stop() } catch {}
+        audioSourceRef.current = null
+      }
+    }
+    if (recognitionRef.current) { try { recognitionRef.current.stop() } catch {} }
     const recognition = new SpeechRecognition()
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-US'
-    recognition.onstart = () => { console.log('[MIC] recognition started OK'); setListening(true); listeningRef.current = true }
+    recognition.onstart = () => { setListening(true); listeningRef.current = true }
     recognition.onresult = (event: any) => {
       let interim = '', final = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -2708,13 +2716,13 @@ export default function CockpitPage() {
     recognition.onend = () => {
       // Only restart if user hasn't manually stopped AND we're not currently speaking
       // speakLockRef prevents mic from restarting mid-speech (fixes hearing-itself bug)
-      if (recognitionRef.current === recognition && listeningRef.current && !speakLockRef.current) {
+      if (recognitionRef.current === recognition && listeningRef.current) {
         setTimeout(() => {
-          // Double-check still not speaking after brief delay
-          if (listeningRef.current && !speakLockRef.current) {
+          // Restart unless user manually stopped or currently speaking (brief grace period)
+          if (listeningRef.current && recognitionRef.current === recognition) {
             try { recognition.start() } catch {}
           }
-        }, 200)
+        }, 300)
       }
     }
     recognitionRef.current = recognition
@@ -2722,7 +2730,6 @@ export default function CockpitPage() {
   }
 
   const stopListening = () => {
-    console.log('[MIC] stopListening called')
     listeningRef.current = false
     if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null }
     setListening(false)
@@ -2879,12 +2886,13 @@ export default function CockpitPage() {
     setSpeaking(true)
 
     const wasListening = listeningRef.current
+    // Temporarily pause mic during speech — but keep listeningRef true so it restarts after
     if (recognitionRef.current) {
-      try { recognitionRef.current.abort() } catch {}  // abort() is more immediate than stop()
+      try { recognitionRef.current.abort() } catch {}
       recognitionRef.current = null
       setListening(false)
       setLiveTranscript('')
-      listeningRef.current = false  // prevent onend from restarting
+      // Don't set listeningRef=false — it will restart mic after speech via finish()
     }
 
     let finishCalled = false
@@ -4035,7 +4043,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 {/* Input area */}
                 <div style={{ padding: '12px 14px', background: 'rgba(4,6,14,0.99)', borderTop: '1px solid rgba(0,229,255,0.12)', flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 8 }}>
-                    <button onClick={() => { console.log('[MIC] button clicked, listening:', listening); listening ? stopListening() : startListening() }} style={{ width: 44, height: 44, borderRadius: '50%', border: `2px solid ${listening ? 'rgba(255,26,74,0.7)' : 'rgba(255,26,74,0.35)'}`, background: listening ? 'rgba(255,26,74,0.15)' : 'rgba(255,26,74,0.07)', color: '#ff1a4a', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 6px rgba(255,26,74,0.1), 0 0 16px rgba(255,26,74,0.3)' : '0 0 12px rgba(255,26,74,0.1)', animation: listening ? 'micGlow 0.8s infinite' : 'none', transition: 'all 0.2s', flexShrink: 0 }}>
+                    <button onClick={() => { listening ? stopListening() : startListening() }} style={{ width: 44, height: 44, borderRadius: '50%', border: `2px solid ${listening ? 'rgba(255,26,74,0.7)' : 'rgba(255,26,74,0.35)'}`, background: listening ? 'rgba(255,26,74,0.15)' : 'rgba(255,26,74,0.07)', color: '#ff1a4a', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 6px rgba(255,26,74,0.1), 0 0 16px rgba(255,26,74,0.3)' : '0 0 12px rgba(255,26,74,0.1)', animation: listening ? 'micGlow 0.8s infinite' : 'none', transition: 'all 0.2s', flexShrink: 0 }}>
                       {listening ? '↹' : '🎙️'}
                     </button>
                     <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={listening ? 'Listening... (tap ↹ to stop)' : 'Ask your AI companion...'}
