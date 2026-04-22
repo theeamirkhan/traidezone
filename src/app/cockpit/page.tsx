@@ -101,6 +101,7 @@ if (typeof window !== 'undefined' && !document.getElementById('tz-white-style'))
     @keyframes aiGlow { 0%,100%{box-shadow:0 2px 8px rgba(0,229,255,0.06)} 50%{box-shadow:0 4px 20px rgba(0,229,255,0.18)} }
     @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
     @keyframes scanBeam { 0%{top:-1px;opacity:0} 5%{opacity:0.6} 95%{opacity:0.3} 100%{top:100%;opacity:0} }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
     @keyframes brainRing { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
     @keyframes lightArc { 0%{opacity:0.7} 60%{opacity:0.3} 100%{opacity:0} }
     @keyframes waveAnim { 0%,100%{height:2px;opacity:0.2} 50%{height:var(--wh,10px);opacity:0.85} }
@@ -1679,6 +1680,8 @@ export default function CockpitPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [flowAlerts, setFlowAlerts] = useState<any[]>([])
+  const flowAlertShownRef = useRef<Set<string>>(new Set())
   const [showTutorial, setShowTutorial] = useState(false)
   const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'none'>('loading')
   const [subPlan, setSubPlan] = useState<string | null>(null)
@@ -1700,6 +1703,38 @@ export default function CockpitPage() {
       setShowTutorial(true)
     }
   }, [])
+
+  // Flow alert monitoring — watch for large sweeps
+  useEffect(() => {
+    if (!optionsFlow.length) return
+    const ALERT_THRESHOLD = 500  // $500K premium
+    const newAlerts: any[] = []
+    optionsFlow.forEach((f: any) => {
+      const premK = parseFloat(f.premium?.replace('K','') || '0')
+      const key = `${f.ticker}-${f.strike}-${f.expiry}-${f.type}`
+      if (premK >= ALERT_THRESHOLD && !flowAlertShownRef.current.has(key)) {
+        flowAlertShownRef.current.add(key)
+        newAlerts.push({
+          id: key,
+          ticker: f.ticker,
+          type: f.type,
+          strike: f.strike,
+          expiry: f.expiry,
+          premium: f.premium,
+          sentiment: f.sentiment,
+          unusual: f.unusual,
+          ts: Date.now(),
+        })
+      }
+    })
+    if (newAlerts.length) {
+      setFlowAlerts(prev => [...newAlerts, ...prev].slice(0, 5))
+      // Speak the top alert if not already speaking
+      const top = newAlerts[0]
+      const msg = `Big flow alert — ${top.ticker} ${top.type} ${top.premium} ${top.sentiment === 'BULLISH' ? 'bullish' : top.sentiment === 'BEARISH' ? 'bearish' : ''} sweep`
+      if (!speakLockRef.current) speak(msg)
+    }
+  }, [optionsFlow])
 
   // Safety: if speakLock gets stuck (onended never fires), unlock after 10s
   useEffect(() => {
@@ -3312,6 +3347,53 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         </div>
       )}
 
+      {/* ── FLOW ALERT BANNERS ── */}
+      {flowAlerts.length > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 950, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 340 }}>
+          {flowAlerts.map((alert, i) => (
+            <div key={alert.id} style={{
+              background: 'rgba(6,8,16,0.97)',
+              border: `1px solid ${alert.sentiment === 'BULLISH' ? 'rgba(0,255,136,0.4)' : alert.sentiment === 'BEARISH' ? 'rgba(255,26,74,0.4)' : 'rgba(0,229,255,0.3)'}`,
+              borderLeft: `3px solid ${alert.sentiment === 'BULLISH' ? '#00ff88' : alert.sentiment === 'BEARISH' ? '#ff1a4a' : '#00e5ff'}`,
+              borderRadius: 6,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px ${alert.sentiment === 'BULLISH' ? 'rgba(0,255,136,0.08)' : alert.sentiment === 'BEARISH' ? 'rgba(255,26,74,0.08)' : 'rgba(0,229,255,0.08)'}`,
+              animation: 'slideInLeft 0.3s ease',
+              cursor: 'pointer',
+            }} onClick={() => setFlowAlerts(prev => prev.filter(a => a.id !== alert.id))}>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ fontSize: 8, color: '#6b7a9a', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>
+                  {alert.unusual ? '⚡ SWEEP' : '📊 FLOW'}
+                </div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: alert.sentiment === 'BULLISH' ? '#00ff88' : alert.sentiment === 'BEARISH' ? '#ff1a4a' : '#f0f4ff', letterSpacing: 1 }}>
+                  {alert.ticker}
+                </div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: alert.type?.startsWith('c') ? '#00ff88' : '#ff1a4a' }}>
+                    {alert.type?.toUpperCase()} ${alert.strike}
+                  </span>
+                  <span style={{ fontSize: 9, color: '#6b7a9a' }}>{alert.expiry}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 900, color: '#00e5ff' }}>{alert.premium}</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                    background: alert.sentiment === 'BULLISH' ? 'rgba(0,255,136,0.12)' : alert.sentiment === 'BEARISH' ? 'rgba(255,26,74,0.1)' : 'rgba(0,229,255,0.08)',
+                    color: alert.sentiment === 'BULLISH' ? '#00ff88' : alert.sentiment === 'BEARISH' ? '#ff1a4a' : '#8899bb'
+                  }}>{alert.sentiment}</span>
+                </div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); setFlowAlerts(prev => prev.filter(a => a.id !== alert.id)) }}
+                style={{ background: 'transparent', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 16, padding: '0 2px', flexShrink: 0 }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── SYSTEM CHECK OVERLAY ── */}
       {systemCheck && !showSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,6,14,0.92)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }} onClick={() => setSystemCheck(null)}>
@@ -3979,11 +4061,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       style={{ flex: 1, background: 'rgba(10,14,24,0.95)', border: `1px solid ${listening ? 'rgba(255,26,74,0.4)' : 'rgba(0,229,255,0.2)'}`, borderRadius: 4, padding: '9px 12px', color: '#f0f4ff', fontFamily: font, fontSize: 13, outline: 'none', transition: 'border-color 0.2s' }} />
                     <button onClick={sendChat} disabled={!chatInput.trim() || chatLoading} style={{ width: 34, height: 34, background: chatInput.trim() ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${chatInput.trim() ? 'rgba(0,212,160,0.25)' : 'rgba(100,140,220,0.1)'}`, borderRadius: 3, color: chatInput.trim() ? C.violet : C.textMuted, cursor: chatInput.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontFamily: font, fontWeight: 700, flexShrink: 0 }}>↑</button>
                   </div>
-                  {/* Voice switcher */}
-                  <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                    {[{name:'Rachel',id:'21m00Tcm4TlvDq8ikWAM'},{name:'Drew',id:'29vD33N1CtxCmqQRPOHJ'},{name:'Clyde',id:'2EiwWnXFnvU5JabPnv8n'},{name:'Paul',id:'5Q0t7uMcjvnagumLfvZi'},{name:'Domi',id:'AZnzlk1XvdvUeBnXmlld'},{name:'Sarah',id:'EXAVITQu4vr4xnSDxMaL'},{name:'Thomas',id:'GBv7mTt0atIp3Br8iCZE'}].map(v => (
-                      <button key={v.id} onClick={() => { setVoiceId(v.id); localStorage.setItem(VOICE_ID, v.id) }} style={{ padding: '3px 9px', borderRadius: 3, background: voiceId === v.id ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${voiceId === v.id ? 'rgba(0,212,160,0.35)' : 'rgba(0,229,255,0.10)'}`, color: voiceId === v.id ? '#00d4a0' : '#6b7a9a', fontSize: 11, cursor: 'pointer', fontFamily: font, transition: 'all 0.12s', fontWeight: voiceId === v.id ? 700 : 400 }}>{v.name}</button>
+                  {/* Voice — compact single line */}
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 6 }}>
+                    <span style={{ fontSize: 8, color: '#4a5568', fontWeight: 700, letterSpacing: 1 }}>VOICE</span>
+                    {['nova','onyx','alloy','echo','shimmer'].map(v => (
+                      <button key={v} onClick={() => { setVoiceId(v); localStorage.setItem(VOICE_ID, v) }} style={{ padding: '2px 7px', borderRadius: 3, background: voiceId === v ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${voiceId === v ? 'rgba(0,212,160,0.35)' : 'rgba(0,229,255,0.08)'}`, color: voiceId === v ? '#00d4a0' : '#6b7a9a', fontSize: 10, cursor: 'pointer', fontFamily: font, fontWeight: voiceId === v ? 700 : 400 }}>{v}</button>
                     ))}
+                    <button onClick={() => setShowSettings(true)} style={{ fontSize: 8, color: '#4a5568', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px', marginLeft: 2 }}>⚙</button>
                   </div>
                 </div>
               </div>
