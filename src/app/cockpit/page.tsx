@@ -5052,13 +5052,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
       </div>
 
-        {/* ── AI VOICE COMPANION (STAR FEATURE — always visible) ── */}
+        {/* ── AI VOICE COMPANION (floating — only on non-cockpit tabs) ── */}
       <div style={{
         position: 'fixed', bottom: 0, right: 0,
         width: companionOpen ? 420 : 64,
         height: companionOpen ? 580 : 64,
         zIndex: 600,
         transition: 'all 0.35s cubic-bezier(0.16,1,0.3,1)',
+        display: tab === 'cockpit' ? 'none' : undefined,
+        pointerEvents: tab === 'cockpit' ? 'none' : undefined,
       }}>
         {/* Collapsed brain button */}
         {!companionOpen && (
