@@ -802,7 +802,7 @@ async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tra
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
         messages: [{ role: 'user', content: `Analyze this trading session conversation and extract insights about the trader's psychology and behavior patterns.
 
@@ -2690,7 +2690,7 @@ export default function CockpitPage() {
 
     const dataInterval = setInterval(fetchFreeData, 60000)
     return () => clearInterval(dataInterval)
-  }, [keys[ANTH_KEY], keys[POLY_KEY], keys[UW_KEY], keys[TIINGO_KEY]])
+  }, [])  // run once on mount — all keys are server-side constants
 
   // Auto-scroll chat
   useEffect(() => {
@@ -2875,7 +2875,7 @@ export default function CockpitPage() {
       return { status: t.length>0?'✅ OK':'❌ NO DATA', ratio, call: callP>0?'$'+(callP/1e6).toFixed(1)+'M':null, put: putP>0?'$'+(putP/1e6).toFixed(1)+'M':null, bias: ratio&&parseFloat(ratio)>1.2?'PUT HEAVY':ratio&&parseFloat(ratio)<0.8?'CALL HEAVY':'BALANCED' }
     })
     await chk('AI Engine', async () => {
-      const d = await (await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:10,messages:[{role:'user',content:'OK'}]})})).json()
+      const d = await (await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:10,messages:[{role:'user',content:'OK'}]})})).json()
       return { status: d.content?.[0]?.text?'✅ OK':'❌ FAIL', error: d.error?.message?.substring(0,60) }
     })
     await chk('Voice (OpenAI)', async () => {
@@ -2884,7 +2884,7 @@ export default function CockpitPage() {
       return { status: r.ok?'✅ OK':'❌ FAIL', bytes: buf?.byteLength, note: r.ok?'Audio generating':'Check OPENAI_API_KEY' }
     })
     await chk('Market News Feed', async () => {
-      const d = await (await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:60,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:'Top market news today in 1 sentence.'}]})})).json()
+      const d = await (await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:60,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:'Top market news today in 1 sentence.'}]})})).json()
       const txt = (d.content||[]).map((i: any)=>i.text||'').join('').substring(0,80)
       return { status: txt?'✅ OK':'❌ FAIL', preview: txt||null }
     })
