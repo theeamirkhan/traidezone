@@ -1704,37 +1704,45 @@ export default function CockpitPage() {
     }
   }, [])
 
-  // Flow alert monitoring — watch for large sweeps
+  // Flow alert — independent polling loop every 60s, no manual trigger needed
   useEffect(() => {
-    if (!optionsFlow.length) return
     const ALERT_THRESHOLD = 500  // $500K premium
-    const newAlerts: any[] = []
-    optionsFlow.forEach((f: any) => {
-      const premK = parseFloat(f.premium?.replace('K','') || '0')
-      const key = `${f.ticker}-${f.strike}-${f.expiry}-${f.type}`
-      if (premK >= ALERT_THRESHOLD && !flowAlertShownRef.current.has(key)) {
-        flowAlertShownRef.current.add(key)
-        newAlerts.push({
-          id: key,
-          ticker: f.ticker,
-          type: f.type,
-          strike: f.strike,
-          expiry: f.expiry,
-          premium: f.premium,
-          sentiment: f.sentiment,
-          unusual: f.unusual,
-          ts: Date.now(),
+    const poll = async () => {
+      try {
+        const uwKey = keys[UW_KEY] || 'server'
+        const d = await (await fetch(`/api/flow?path=/api/option-trades/flow-alerts?limit=50`)).json()
+        const all: any[] = d.data || []
+        all.sort((a: any, b: any) => parseFloat(b.total_premium||0) - parseFloat(a.total_premium||0))
+        const newAlerts: any[] = []
+        all.forEach((f: any) => {
+          const premK = parseFloat(f.total_premium || '0') / 1000
+          if (premK < ALERT_THRESHOLD) return
+          const ticker = f.ticker || f.symbol || ''
+          const type = f.put_call || f.option_type || ''
+          const strike = f.strike_price || f.strike || ''
+          const expiry = f.expiration_date || f.expiry || ''
+          const sentiment = f.sentiment || (type.toLowerCase().startsWith('c') ? 'BULLISH' : 'BEARISH')
+          const premStr = premK >= 1000 ? `$${(premK/1000).toFixed(1)}M` : `$${Math.round(premK)}K`
+          const key = `${ticker}-${strike}-${expiry}-${type}-${Math.round(premK)}`
+          if (!flowAlertShownRef.current.has(key)) {
+            flowAlertShownRef.current.add(key)
+            newAlerts.push({ id: key, ticker, type, strike, expiry, premium: premStr, sentiment, unusual: f.is_unusual || f.unusual, ts: Date.now() })
+          }
         })
-      }
-    })
-    if (newAlerts.length) {
-      setFlowAlerts(prev => [...newAlerts, ...prev].slice(0, 5))
-      // Speak the top alert if not already speaking
-      const top = newAlerts[0]
-      const msg = `Big flow alert — ${top.ticker} ${top.type} ${top.premium} ${top.sentiment === 'BULLISH' ? 'bullish' : top.sentiment === 'BEARISH' ? 'bearish' : ''} sweep`
-      if (!speakLockRef.current) speak(msg)
+        if (newAlerts.length) {
+          setFlowAlerts(prev => [...newAlerts, ...prev].slice(0, 5))
+          const top = newAlerts[0]
+          const dir = top.sentiment === 'BULLISH' ? 'bullish' : top.sentiment === 'BEARISH' ? 'bearish' : ''
+          const msg = `Flow alert. ${top.ticker} ${top.type?.toLowerCase().startsWith('c') ? 'call' : 'put'} ${top.premium} ${dir} sweep.`
+          setTimeout(() => { if (!speakLockRef.current) speak(msg) }, 500)
+        }
+      } catch {}
     }
-  }, [optionsFlow])
+    // First poll after 10s (let page load), then every 60s
+    const init = setTimeout(poll, 10000)
+    const interval = setInterval(poll, 60000)
+    return () => { clearTimeout(init); clearInterval(interval) }
+  }, [])
 
   // Safety: if speakLock gets stuck (onended never fires), unlock after 10s
   useEffect(() => {
