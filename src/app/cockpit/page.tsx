@@ -2615,88 +2615,59 @@ export default function CockpitPage() {
   }, [currentPrice, drawnLines.length])
 
   // AI auto-run every 3 min — fires even pre-market to load options flow
+  // ── AUTO DATA LOOP — free APIs only, no Claude AI ──────────────────────
+  // Polygon (Indices Advanced + Stocks Starter), Unusual Whales, Tiingo
+  // All on unlimited/subscription plans — auto-refresh every 60s
   useEffect(() => {
-    // keys loaded server-side, always run
-    const run = async () => {
-      setAiLoading(true)
-      // Free/fast sources refresh every 3 min
-      const [intel, flow, tide, tiingo, skew] = await Promise.all([
-        fetchMarketIntel(keys[POLY_KEY] || 'server'),
-        fetchOptionsFlow(keys[UW_KEY] || 'server'),
-        fetchMarketTide(keys[UW_KEY] || 'server'),
-        fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
-        fetchZeroDTESkew(keys[UW_KEY] || 'server'),
-      ])
+    const fetchFreeData = async () => {
+      try {
+        const [intel, flow, tide, tiingo, skew] = await Promise.all([
+          fetchMarketIntel(keys[POLY_KEY] || 'server'),
+          fetchOptionsFlow(keys[UW_KEY] || 'server'),
+          fetchMarketTide(keys[UW_KEY] || 'server'),
+          fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
+          fetchZeroDTESkew(keys[UW_KEY] || 'server'),
+        ])
+        setMarketIntel(intel)
+        setOptionsFlow(flow)
+        setMarketTide(tide)
+        setTiingoContext(tiingo)
+        if (skew) setZeroDTESkew(skew)
+      } catch {}
+    }
 
-      // Expensive AI calls (web search) — fetch ONCE per day, cache in state
+    // Claude AI calls (news/calendar/macro) — once per day, cached in localStorage
+    const fetchDailyAI = async () => {
       const todayKey = new Date().toISOString().split('T')[0]
-      let news = marketNews, calendar = economicCalendar, macro = macroRegime, mtf = multiTFData
-      if (!marketNews || !localStorage.getItem('tz-news-date') || localStorage.getItem('tz-news-date') !== todayKey) {
-        ;[news, calendar, macro, mtf] = await Promise.all([
+      if (localStorage.getItem('tz-news-date') === todayKey && marketNews) return
+      try {
+        const [news, calendar, macro, mtf] = await Promise.all([
           fetchMarketNews(keys[ANTH_KEY] || 'server'),
           fetchEconomicCalendar(keys[ANTH_KEY] || 'server'),
           fetchMacroRegime(keys[ANTH_KEY] || 'server'),
           fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY'),
         ])
         localStorage.setItem('tz-news-date', todayKey)
-        // Fetch earnings calendar once per day (no API cost — uses UW)
-        fetchEarningsCalendar().then(ec => setEarningsCalendar(ec))
-      }
-      setMarketIntel(intel)
-      setOptionsFlow(flow)
-      setMarketTide(tide)
-      setTiingoContext(tiingo)
-      // Load earnings on first run
+        if (news) setMarketNews(news)
+        if (calendar) setEconomicCalendar(calendar)
+        if (macro) setMacroRegime(macro)
+        if (mtf) setMultiTFData(mtf)
+      } catch {}
+    }
+
+    // Earnings — once per day, no AI cost (Unusual Whales)
+    const fetchDailyEarnings = () => {
       if (!earningsCalendar.length) fetchEarningsCalendar().then(ec => setEarningsCalendar(ec))
-      if (news) setMarketNews(news)
-      if (calendar) setEconomicCalendar(calendar)
-      if (mtf) setMultiTFData(mtf)
-      if (macro) setMacroRegime(macro)
-      if (skew) setZeroDTESkew(skew)
-      const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
-      const result = await runAI({
-        candles, levels, currentPrice,
-        impliedMove: morningPlan.impliedMove,
-        anthKey: keys[ANTH_KEY] || 'server',
-        morningPlan, activePlaybook, tradeStats,
-        optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo,
-        marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar
-      })
-      if (result) {
-        setAiResult(result)
-        setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-        setAiLoading(false)
-      } else {
-        // runAI returned null (overloaded or error) — retry once after 5s
-        setTimeout(async () => {
-          const retry = await runAI({
-            candles, levels, currentPrice,
-            impliedMove: morningPlan.impliedMove,
-            anthKey: keys[ANTH_KEY] || 'server',
-            morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
-            tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo,
-            marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar
-          })
-          if (retry) {
-            setAiResult(retry)
-            setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-          }
-          setAiLoading(false)
-        }, 5000)
-      }
     }
-    // Small delay to let candles load before first run
-    // Safety: if still loading after 20s, stop the spinner so Retry button shows
-    let safetyTimer: any = null
-    const runWithSafety = async () => {
-      safetyTimer = setTimeout(() => setAiLoading(false), 20000)
-      await run()
-      clearTimeout(safetyTimer)
-    }
-    // Auto-run removed — signal is now manual only (saves ~$1.68/day)
-    // Users click "Get AI Signal" when they want a read
-    return () => { clearTimeout(safetyTimer); clearInterval(aiIntervalRef.current) }
-  }, [keys[ANTH_KEY], activePlaybookId])
+
+    // Run immediately on mount, then free data every 60s
+    fetchFreeData()
+    fetchDailyAI()   // Claude AI — cached, only fires once per day
+    fetchDailyEarnings()
+
+    const dataInterval = setInterval(fetchFreeData, 60000)
+    return () => clearInterval(dataInterval)
+  }, [keys[ANTH_KEY], keys[POLY_KEY], keys[UW_KEY], keys[TIINGO_KEY]])
 
   // Auto-scroll chat
   useEffect(() => {
