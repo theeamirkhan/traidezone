@@ -2404,15 +2404,55 @@ export default function CockpitPage() {
     // keys handled server-side
     // Sequential load: SPX first so currentPriceRef is populated before SPY VWAP ratio
     ;(async () => {
-      await fetchHistory('I:SPX', setCandles, 'spx')
+      // Fetch today-only first for accurate price, then full history for chart
+      const todayStr = new Date().toISOString().split('T')[0]
+      const spxToday = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
+      const spxTodayBars = spxToday?.results || []
+      if (spxTodayBars.length > 0) {
+        const mapped = spxTodayBars.map((r: any) => ({t:r.t,o:r.o,h:r.h,l:r.l,c:r.c,v:r.v}))
+        setCandles(mapped)
+        setCurrentPrice(spxTodayBars[spxTodayBars.length-1].c)
+        let tpv=0,tv=0
+        mapped.forEach((c: any) => { const tp=(c.h+c.l+c.c)/3; tpv+=tp*(c.v||1); tv+=(c.v||1) })
+        const vwap = tv>0 ? tpv/tv : 0
+        if (vwap>5000) setLevels((p: any) => ({...p, spyVwap: vwap, spxVwapDirect: vwap}))
+        const emas = calcEMA(mapped,200)
+        const e200 = emas[emas.length-1]
+        if (e200) setLevels((p: any) => ({...p, ema200: e200}))
+      }
+      // Then load full history for chart background (don't update currentPrice from this)
+      fetchHistory('I:SPX', setCandles, 'spx')
       fetchHistory('SPY', setSpyCandles, 'spy')
       fetchHistory('I:VIX', setVixCandles, 'vix')
+      // VIX price
+      const vixToday = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
+      const vixBars = vixToday?.results || []
+      if (vixBars.length>0) setVixPrice(vixBars[vixBars.length-1].c)
     })()
     setConnected(true)
     const interval = setInterval(async () => {
-      await fetchHistory('I:SPX', setCandles, 'spx')
-      fetchHistory('SPY', setSpyCandles, 'spy')
-      fetchHistory('I:VIX', setVixCandles, 'vix')
+      // Fetch today-only for price/VWAP/EMA accuracy — daysBack:7 misses today with 500 bar limit
+      const todayStr = new Date().toISOString().split('T')[0]
+      const spxR = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
+      const spxBars = spxR?.results || []
+      if (spxBars.length > 0) {
+        const mapped = spxBars.map((r: any) => ({t:r.t,o:r.o,h:r.h,l:r.l,c:r.c,v:r.v}))
+        setCandles(mapped)
+        setCurrentPrice(spxBars[spxBars.length-1].c)
+        // VWAP
+        let tpv=0,tv=0
+        mapped.forEach((c: any) => { const tp=(c.h+c.l+c.c)/3; tpv+=tp*(c.v||1); tv+=(c.v||1) })
+        const vwap = tv>0 ? tpv/tv : 0
+        if (vwap>5000) setLevels((p: any) => ({...p, spyVwap: vwap, spxVwapDirect: vwap}))
+        // 200 EMA
+        const emas = calcEMA(mapped,200)
+        const e200 = emas[emas.length-1]
+        if (e200) setLevels((p: any) => ({...p, ema200: e200}))
+      }
+      // VIX
+      const vixR = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
+      const vixBars = vixR?.results || []
+      if (vixBars.length>0) setVixPrice(vixBars[vixBars.length-1].c)
     }, 60000)
     return () => clearInterval(interval)
   }, [keys, fetchHistory])
