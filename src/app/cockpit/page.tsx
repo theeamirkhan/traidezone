@@ -285,7 +285,10 @@ async function runAI({
   marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar,
   aiTone
 }: any) {
-  if (!currentPrice) return null
+  // Use last candle close if live price not yet loaded (weekend/after-hours)
+  const effectivePrice = currentPrice || candles?.slice(-1)[0]?.c || null
+  if (!effectivePrice) return null
+  currentPrice = effectivePrice
   const recent = (candles || []).slice(-5).map((c: any) =>
     `O:${c.o?.toFixed(0)} H:${c.h?.toFixed(0)} L:${c.l?.toFixed(0)} C:${c.c?.toFixed(0)}`
   ).join(' | ')
@@ -2156,14 +2159,16 @@ export default function CockpitPage() {
       while (fromDate.getDay() === 0 || fromDate.getDay() === 6) fromDate.setDate(fromDate.getDate() - 1)
       const fromStr = fromDate.toISOString().split('T')[0]
 
-      // Paginate through Polygon's cursor-based pages until we have all bars
+      // Fetch candles — max 3 pages to avoid infinite pagination on weekends/after-hours
       const fetchAllPages = async (initialPath: string): Promise<any[]> => {
         let all: any[] = []
         let nextPath: string | null = initialPath
         let page = 0
-        while (nextPath && page < 25) {
+        while (nextPath && page < 3) {
           const data: any = await proxyFetch(nextPath).then(r => r.json())
           if (data.results?.length) all = all.concat(data.results)
+          // Stop if we already have enough bars (500+) — don't chase more
+          if (all.length >= 500) break
           if (data.next_url) {
             try { const u = new URL(data.next_url); nextPath = u.pathname + u.search }
             catch { break }
