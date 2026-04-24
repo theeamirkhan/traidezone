@@ -2692,10 +2692,44 @@ export default function CockpitPage() {
   useEffect(() => {
     const fetchFreeData = async () => {
       try {
-        // Refresh candles every cycle — price, VWAP, 200 EMA all depend on this
-        await fetchHistory('I:SPX', setCandles, 'spx')
-        fetchHistory('SPY', setSpyCandles, 'spy')
-        fetchHistory('I:VIX', setVixCandles, 'vix')
+        // Inline price refresh — bypasses stale closure in fetchHistory useCallback
+        const todayStr = new Date().toISOString().split('T')[0]
+        const spxRes = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json()).catch(() => null)
+        const spxBars = spxRes?.results || []
+        if (spxBars.length > 0) {
+          const mapped = spxBars.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v }))
+          setCandles(mapped)
+          const last = mapped[mapped.length - 1]
+          setCurrentPrice(last.c)
+          // VWAP from today's RTH bars
+          const rthBars = mapped.filter((c: any) => {
+            const estT = new Date(new Date(c.t).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+            return estT.getHours() > 9 || (estT.getHours() === 9 && estT.getMinutes() >= 30)
+          })
+          if (rthBars.length >= 1) {
+            let tpv = 0, tv = 0
+            rthBars.forEach((c: any) => { const tp=(c.h+c.l+c.c)/3; const v=c.v||1; tpv+=tp*v; tv+=v })
+            const vwap = tv > 0 ? tpv / tv : 0
+            if (vwap > 5000) setLevels((p: any) => ({ ...p, spyVwap: vwap, spxVwapDirect: vwap }))
+          }
+          // 200 EMA
+          const emas = calcEMA(mapped, 200)
+          const ema200 = emas[emas.length - 1]
+          if (ema200) setLevels((p: any) => ({ ...p, ema200: ema200 }))
+        }
+        // VIX price
+        const vixRes = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json()).catch(() => null)
+        const vixBars = vixRes?.results || []
+        if (vixBars.length > 0) {
+          setVixCandles(vixBars.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })))
+          setVixPrice(vixBars[vixBars.length - 1].c)
+        }
+        // SPY price
+        const spyRes = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/SPY/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json()).catch(() => null)
+        const spyBars = spyRes?.results || []
+        if (spyBars.length > 0) {
+          setSpyCandles(spyBars.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })))
+        }
         const [intel, flow, tide, tiingo, skew] = await Promise.all([
           fetchMarketIntel(keys[POLY_KEY] || 'server'),
           fetchOptionsFlow(keys[UW_KEY] || 'server'),
