@@ -354,18 +354,30 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
   // Dynamic: live price, candles, VIX, flow → fresh each call
 
   const aiToneVal = aiTone || 3
+  // Defensive: wrap each field to prevent .length/.map crashes on undefined params
+  const safeMorning = morningSection || ''
+  const safePlaybook = playbookSection || ''
+  const safeStats = statsSection || ''
+  const safeTiingo = tiingoSection || ''
+  const safeNews = marketNews ? String(marketNews).substring(0, 250) : ''
+  const safeCal = economicCalendar ? String(economicCalendar).substring(0, 120) : ''
+  const safeEarnings = earningsSection || ''
+  const safeMem = sessionMemory ? String(sessionMemory).substring(0, 150) : ''
+  const safeMacro = macroRegime ? `MACRO: ${macroRegime.regime||''} — ${macroRegime.keyRisk||''}` : ''
+  const safeTone = (toneInstructions && toneInstructions[aiToneVal]) ? toneInstructions[aiToneVal] : 'Be direct and balanced.'
+
   const systemPrompt = [
     'You are an elite SPX intraday trading AI companion. Keep this trader disciplined, data-driven, and in their system.',
-    `COACHING STYLE: ${toneInstructions[aiToneVal] || toneInstructions[3]}`,
-    morningSection,
-    playbookSection,
-    `TRADER STATS:\n${statsSection}`,
-    tiingoSection || '',
-    macroRegime ? `MACRO: ${macroRegime.regime} — ${macroRegime.keyRisk}` : '',
-    marketNews ? `NEWS: ${String(marketNews).substring(0, 250)}` : '',
-    economicCalendar ? `CALENDAR: ${String(economicCalendar).substring(0, 120)}` : '',
-    earningsSection ? `EARNINGS:\n${earningsSection}` : '',
-    sessionMemory ? `MEMORY: ${String(sessionMemory).substring(0, 150)}` : '',
+    `COACHING STYLE: ${safeTone}`,
+    safeMorning,
+    safePlaybook,
+    `TRADER STATS:\n${safeStats}`,
+    safeTiingo,
+    safeMacro,
+    safeNews ? `NEWS: ${safeNews}` : '',
+    safeCal ? `CALENDAR: ${safeCal}` : '',
+    safeEarnings ? `EARNINGS:\n${safeEarnings}` : '',
+    safeMem ? `MEMORY: ${safeMem}` : '',
     `Respond ONLY with this JSON (no markdown):
 {
   "signal": "LONG" | "SHORT" | "WAIT" | "NO TRADE",
@@ -2237,8 +2249,6 @@ export default function CockpitPage() {
 
         if (key === 'spx') {
           const prevP = currentPrice
-          // Always use the most recent bar's close — works on weekends/after-hours too
-          setCurrentPrice(last.c)
 
           // Calculate VWAP directly from I:SPX bars — most accurate, no SPY conversion needed
           const rthSpx = mapped.filter((c: any) => {
@@ -2420,10 +2430,8 @@ export default function CockpitPage() {
         const e200 = emas[emas.length-1]
         if (e200) setLevels((p: any) => ({...p, ema200: e200}))
       }
-      // Then load full history for chart background (don't update currentPrice from this)
-      fetchHistory('I:SPX', setCandles, 'spx')
-      fetchHistory('SPY', setSpyCandles, 'spy')
-      fetchHistory('I:VIX', setVixCandles, 'vix')
+      // Full history for chart loads in the background via chartTf useEffect
+      // Don't call fetchHistory here — it overwrites today-only candles with 7-day stale data
       // VIX price
       const vixToday = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
       const vixBars = vixToday?.results || []
