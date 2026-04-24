@@ -2207,13 +2207,8 @@ export default function CockpitPage() {
 
         if (key === 'spx') {
           const prevP = currentPrice
-          // I:SPX intraday data may be delayed on some Polygon plans
-          // Only use if the bar is from today (within 12 hours)
-          const barAge = Date.now() - last.t
-          const barIsToday = barAge < 12 * 60 * 60 * 1000
-          if (barIsToday) {
-            setCurrentPrice(last.c)
-          }
+          // Always use the most recent bar's close — works on weekends/after-hours too
+          setCurrentPrice(last.c)
           // currentPrice will also be updated from SPY derivation when SPY loads
           if (prevP && last.c !== prevP) {
             const el = document.getElementById('tz-spx-price')
