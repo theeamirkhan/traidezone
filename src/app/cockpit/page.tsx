@@ -399,16 +399,25 @@ Flow: ${flowSection}${zeroDTESkew ? `\n0DTE: ${zeroDTESkew.skewLabel} P/C ${zero
   try { liveContextSafe = liveContext } catch { liveContextSafe = `SPX at ${effectivePrice}` }
 
   try {
-    const res = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 700,
-        system: [{ type: 'text', text: systemPromptSafe, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: liveContextSafe }],
-      }),
-    })
+    // 20s timeout — if Anthropic doesn't respond, fail fast
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 20000)
+    let res: Response
+    try {
+      res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 700,
+          system: [{ type: 'text', text: systemPromptSafe, cache_control: { type: 'ephemeral' } }],
+          messages: [{ role: 'user', content: liveContextSafe }],
+        }),
+      })
+    } finally {
+      clearTimeout(timeout)
+    }
     const data = await res.json()
     if (data.error || data?.error?.type === 'overloaded_error') return null
     const text = (data.content || []).map((i: any) => i.text || '').join('').replace(/```json|```/g, '').trim()
@@ -3176,7 +3185,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           max_tokens: 150,
           system: [{ type: 'text', text: context, cache_control: { type: 'ephemeral' } }],
           messages: [...chatMessages, { role: 'user', content: text }].slice(-10).map(m => ({ role: m.role, content: m.content }))
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
       })
       const data = await res.json()
 
@@ -4290,7 +4300,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       {aiLoading ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ width: 10, height: 10, border: `1.5px solid rgba(100,140,220,0.2)`, borderTopColor: C.violet, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                          <div style={{ fontSize: 11, color: C.textMuted }}>Analyzing market...</div>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>Analyzing... (up to 20s)</div>
+                          <button onClick={() => setAiLoading(false)} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, border: '1px solid rgba(255,100,0,0.3)', background: 'rgba(255,100,0,0.08)', color: '#ff6b00', cursor: 'pointer', fontFamily: font, marginLeft: 4 }}>✕ Cancel</button>
                         </div>
                       ) : (
                         <>
@@ -4389,7 +4400,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     border: `1px solid ${aiLoading ? 'rgba(100,140,220,0.15)' : 'rgba(0,212,160,0.25)'}`,
                     borderRadius: 8, padding: '10px 0', color: aiLoading ? C.textMuted : C.violet,
                     cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 11, fontWeight: 700, letterSpacing: '0.5px'
-                  }}>{aiLoading ? '⟳  Analyzing market...' : '▶  Get AI Signal'}</button>
+                  }}>{aiLoading ? '⟳  Analyzing...' : '▶  Get AI Signal'}</button>
                 </div>
               </div>
             </div>
