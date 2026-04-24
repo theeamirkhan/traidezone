@@ -384,10 +384,12 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
   ].filter(Boolean).join('\n\n')
 
   const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
-  const vwapPos = currentPrice && levels?.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '?'
+  // Use manual override if set, otherwise use calculated VWAP
+  const effectiveVwap = manualVwap || levels?.spyVwap || null
+  const vwapPos = currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? 'ABOVE' : 'BELOW') : '?'
   const emaPos = currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'
 
-  const liveContext = `LIVE (${timeNow} ET): SPX ${fmt(currentPrice)} | VWAP ${fmt(levels?.spyVwap)} ${vwapPos} | 200EMA ${fmt(levels?.ema200)} ${emaPos}
+  const liveContext = `LIVE (${timeNow} ET): SPX ${fmt(currentPrice)} | VWAP ${fmt(effectiveVwap)} ${vwapPos} | 200EMA ${fmt(levels?.ema200)} ${emaPos}
 PDH ${fmt(levels?.pdh)} | PDL ${fmt(levels?.pdl)} | Open ${fmt(levels?.dayOpen)}
 VIX ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'}) | Breadth ${marketIntel?.breadth?.bias || '?'} | Tide ${marketTide?.bias || '?'} P/C ${marketTide?.putCallRatio || '?'}
 Candles: ${recent}
@@ -515,8 +517,8 @@ function calcMarketScore({
   }
 
   // VWAP position (10pts)
-  if (currentPrice && levels?.spyVwap) {
-    const vwapScore = currentPrice > levels.spyVwap ? 10 : 3
+  if (currentPrice && effectiveVwap) {
+    const vwapScore = currentPrice > effectiveVwap ? 10 : 3
     score += (vwapScore - 5)
     breakdown.vwap = { score: vwapScore, label: currentPrice > levels.spyVwap ? 'Above' : 'Below' }
   }
@@ -1690,6 +1692,9 @@ export default function CockpitPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [manualVwap, setManualVwap] = useState<number | null>(null)
+  const [editingVwap, setEditingVwap] = useState(false)
+  const [vwapInput, setVwapInput] = useState('')
   const [flowAlerts, setFlowAlerts] = useState<any[]>([])
   const flowAlertShownRef = useRef<Set<string>>(new Set())
   const [showTutorial, setShowTutorial] = useState(false)
@@ -3122,7 +3127,7 @@ ${traderProfile.session_count > 0 ? `You've had ${traderProfile.session_count} s
 
 ═══ LIVE MARKET DATA ═══
 SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : '—'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : '—'}%)
-SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
+SPX vs VWAP (${fmt(effectiveVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
 SPX vs 200 EMA (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE — long-term bullish' : 'BELOW — long-term bearish') : 'No EMA data'}
 PDH: ${fmt(levels.pdh)} | PDL: ${fmt(levels.pdl)} | Prev Close: ${fmt(levels.prevClose)}
 Implied Move Range: ${fmt(levels.impliedLow)} — ${fmt(levels.impliedHigh)}
@@ -3582,8 +3587,31 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* VWAP / EMA quick view */}
         <div style={{ padding: '0 16px', borderRight: '1px solid rgba(0,229,255,0.1)', display: 'flex', alignItems: 'center', gap: 12, height: '100%' }}>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 7, color: '#ffb700', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>VWAP</span>
-            <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#f0f4ff' }}>{fmt(levels.spyVwap)}</span>
+            <span style={{ fontSize: 7, color: '#ffb700', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>VWAP{manualVwap ? ' ✎' : ''}</span>
+            {editingVwap ? (
+              <input
+                autoFocus
+                value={vwapInput}
+                onChange={e => setVwapInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const v = parseFloat(vwapInput)
+                    if (v > 5000 && v < 15000) { setManualVwap(v); setLevels((p: any) => ({ ...p, spyVwap: v, spxVwapDirect: v })) }
+                    setEditingVwap(false)
+                  }
+                  if (e.key === 'Escape') { setEditingVwap(false); setManualVwap(null) }
+                }}
+                onBlur={() => setEditingVwap(false)}
+                placeholder="e.g. 7126"
+                style={{ width: 72, background: 'rgba(255,183,0,0.1)', border: '1px solid rgba(255,183,0,0.5)', borderRadius: 3, color: '#ffb700', fontSize: 12, fontFamily: font, padding: '1px 4px', outline: 'none' }}
+              />
+            ) : (
+              <span
+                onClick={() => { setVwapInput(String(Math.round(effectiveVwap || levels?.spyVwap || 0))); setEditingVwap(true) }}
+                title="Click to override VWAP · Esc to clear"
+                style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: manualVwap ? '#ffb700' : '#f0f4ff', cursor: 'pointer', borderBottom: manualVwap ? '1px dashed rgba(255,183,0,0.5)' : 'none' }}
+              >{fmt(effectiveVwap)}</span>
+            )}
             {currentPrice && levels.spyVwap && (
               <span style={{ fontSize: 9, color: currentPrice > levels.spyVwap ? '#00ff88' : '#ff1a4a', textShadow: currentPrice > levels.spyVwap ? '0 0 8px rgba(0,255,136,0.6)' : '0 0 8px rgba(255,26,74,0.6)', fontWeight: 700 }}>
                 {currentPrice > levels.spyVwap ? '▲' : '▼'}
@@ -3761,7 +3789,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Stat chips — redesigned for readability */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, flexShrink: 0 }}>
                 {[
-                  { label: 'SPX vs VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '—', icon: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '', sub: `${fmt(currentPrice)} vs ${fmt(levels.spyVwap)}`, color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
+                  { label: 'SPX vs VWAP', value: currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? 'ABOVE' : 'BELOW') : '—', icon: currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? '▲' : '▼') : '', sub: `${fmt(currentPrice)} vs ${fmt(effectiveVwap)}`, color: currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? C.synapse : C.red) : C.textMuted },
                   { label: 'VIX Level', value: vixPrice ? (vixPrice > 25 ? 'HIGH' : vixPrice > 18 ? 'ELEVATED' : 'NORMAL') : '—', icon: vixPrice && vixPrice > 18 ? '⚠' : '', sub: vixPrice ? `${vixPrice.toFixed(2)}` : 'Loading...', color: vixPrice ? (vixPrice > 25 ? C.red : vixPrice > 18 ? C.fire : C.synapse) : C.textMuted },
                   { label: 'Market Tide', value: marketTide ? (marketTide.bias === 'CALL HEAVY (bullish)' ? 'BULLISH' : marketTide.bias === 'PUT HEAVY (bearish)' ? 'BEARISH' : 'BALANCED') : '—', icon: '', sub: marketTide ? `P/C ${marketTide.putCallRatio}` : 'Loading...', color: marketTide?.bias?.includes('CALL') ? C.synapse : marketTide?.bias?.includes('PUT') ? C.red : C.teal },
                   { label: 'Sector Breadth', value: marketIntel?.breadth?.bias || '—', icon: '', sub: marketIntel?.breadth ? `${marketIntel.breadth.advancing}↑ ${marketIntel.breadth.declining}↓ of 8` : 'Loading...', color: marketIntel?.breadth?.advancing >= 6 ? C.synapse : marketIntel?.breadth?.declining >= 6 ? C.red : C.fire },
@@ -4020,7 +4048,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ display: 'flex', background: 'rgba(6,8,16,0.99)', borderBottom: '1px solid rgba(0,229,255,0.08)' }}>
                   {[
                     { label: 'SPX', value: fmt(currentPrice), color: C.text },
-                    { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—', color: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? C.synapse : C.red) : C.textMuted },
+                    { label: 'VWAP', value: currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? '▲' : '▼') : '—', color: currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? C.synapse : C.red) : C.textMuted },
                     { label: 'VIX', value: vixPrice ? vixPrice.toFixed(1) : '—', color: vixPrice && vixPrice > 18 ? C.fire : C.synapse },
                     { label: 'SCORE', value: `${score}/13`, color: gradeColor },
                     { label: 'P&L', value: `$${todayPnL.toFixed(0)}`, color: todayPnL >= 0 ? C.synapse : C.red },
