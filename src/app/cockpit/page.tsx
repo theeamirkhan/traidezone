@@ -282,7 +282,8 @@ const CHECKLIST = [
 async function runAI({
   candles, levels, currentPrice, impliedMove, anthKey,
   morningPlan, activePlaybook, tradeStats, optionsFlow, marketTide, marketIntel, tiingoContext,
-  marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar
+  marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar,
+  aiTone
 }: any) {
   if (!currentPrice) return null
   const recent = (candles || []).slice(-5).map((c: any) =>
@@ -344,63 +345,50 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
     5: "You are a LIFE COACH. Lead with empathy and encouragement. Reframe mistakes as growth moments. Keep the trader confident and emotionally regulated. Celebrate small wins.",
   }
 
-  const prompt = `You are an elite SPX intraday trading AI companion. Your job is to keep this trader disciplined, data-driven, and in their system.
+  // ── PROMPT CACHING: static system prompt (cached) + dynamic user message ──
+  // Static: persona, coaching style, morning plan, playbook, stats, macro, news
+  // These change at most once per session → cached at $0.30/M vs $3/M (90% savings)
+  // Dynamic: live price, candles, VIX, flow → fresh each call
 
-PRICE & LEVELS:
-SPX: ${fmt(currentPrice)} | Open: ${fmt(levels?.dayOpen)} | PDH: ${fmt(levels?.pdh)} | PDL: ${fmt(levels?.pdl)}
-vs SPY VWAP (${fmt(levels?.spyVwap)}): ${currentPrice && levels?.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '?'}
-vs 200 EMA (${fmt(levels?.ema200)}): ${currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'}
-Implied move: ${fmt(levels?.impliedLow)} — ${fmt(levels?.impliedHigh)}
-Recent 5 candles: ${recent}
-
-VIX: ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'})
-Market breadth: ${marketIntel?.breadth?.bias || 'Unknown'}
-Market tide P/C: ${marketTide?.putCallRatio || '?'} — ${marketTide?.bias || '?'}
-
-OPTIONS FLOW:
-${flowSection}
-
-EARNINGS THIS WEEK (S&P 500 / Large Cap):
-${earningsSection}
-
-${tiingoSection}
-
-${morningSection}
-
-${playbookSection}
-
-TRADER STATS:
-${statsSection}
-
-${macroRegime ? `MACRO: ${macroRegime.regime} — ${macroRegime.keyRisk}` : ''}
-${marketNews ? `NEWS: ${(marketNews||'').substring(0,250)}` : ''}
-${economicCalendar ? `CALENDAR: ${(economicCalendar||'').substring(0,120)}` : ''}
-${multiTFData ? `MULTI-TF: ${multiTFData.confluence}` : ''}
-${zeroDTESkew ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : ''}
-${marketScore ? `SCORE: ${marketScore.score}/100 ${marketScore.label}` : ''}
-${tradePatterns?.revengePatterns > 2 ? `⚠ REVENGE TRADING PATTERN DETECTED` : ''}
-${sessionMemory ? `MEMORY: ${(sessionMemory||'').substring(0,150)}` : ''}
-
-Be direct, specific, reference the playbook. Use news/calendar/macro context. No generic advice.
-
-Respond ONLY with this JSON:
+  const aiToneVal = aiTone || 3
+  const systemPrompt = [
+    'You are an elite SPX intraday trading AI companion. Keep this trader disciplined, data-driven, and in their system.',
+    `COACHING STYLE: ${toneInstructions[aiToneVal] || toneInstructions[3]}`,
+    morningSection,
+    playbookSection,
+    `TRADER STATS:\n${statsSection}`,
+    tiingoSection || '',
+    macroRegime ? `MACRO: ${macroRegime.regime} — ${macroRegime.keyRisk}` : '',
+    marketNews ? `NEWS: ${String(marketNews).substring(0, 250)}` : '',
+    economicCalendar ? `CALENDAR: ${String(economicCalendar).substring(0, 120)}` : '',
+    earningsSection ? `EARNINGS:\n${earningsSection}` : '',
+    sessionMemory ? `MEMORY: ${String(sessionMemory).substring(0, 150)}` : '',
+    `Respond ONLY with this JSON (no markdown):
 {
   "signal": "LONG" | "SHORT" | "WAIT" | "NO TRADE",
   "confidence": 0-100,
   "marketConditions": "2-3 sentences",
-  "todaysEdge": "1-2 sentences — specific to playbook if active",
-  "accountability": "1 sentence calling out any rule violation risk",
-  "riskFlag": "1 sentence on biggest risk right now",
+  "todaysEdge": "1-2 sentences specific to playbook",
+  "accountability": "1 sentence on rule violation risk",
+  "riskFlag": "1 sentence on biggest risk",
   "entryZone": { "high": 0.00, "low": 0.00 },
   "stopLevel": 0.00,
   "target1": 0.00,
   "target2": 0.00,
   "moveSize": 0,
-  "buyZones": [
-    { "type": "buy", "high": 0.00, "low": 0.00 },
-    { "type": "nobuy", "high": 0.00, "low": 0.00 }
-  ]
-}`
+  "buyZones": [{ "type": "buy", "high": 0.00, "low": 0.00 }, { "type": "nobuy", "high": 0.00, "low": 0.00 }]
+}`,
+  ].filter(Boolean).join('\n\n')
+
+  const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
+  const vwapPos = currentPrice && levels?.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE' : 'BELOW') : '?'
+  const emaPos = currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'
+
+  const liveContext = `LIVE (${timeNow} ET): SPX ${fmt(currentPrice)} | VWAP ${fmt(levels?.spyVwap)} ${vwapPos} | 200EMA ${fmt(levels?.ema200)} ${emaPos}
+PDH ${fmt(levels?.pdh)} | PDL ${fmt(levels?.pdl)} | Open ${fmt(levels?.dayOpen)}
+VIX ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'}) | Breadth ${marketIntel?.breadth?.bias || '?'} | Tide ${marketTide?.bias || '?'} P/C ${marketTide?.putCallRatio || '?'}
+Candles: ${recent}
+Flow: ${flowSection}${zeroDTESkew ? `\n0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : ''}${marketScore ? `\nScore: ${marketScore.score}/100 ${marketScore.label}` : ''}${tradePatterns?.revengePatterns > 2 ? '\n⚠ REVENGE TRADING PATTERN ACTIVE' : ''}${multiTFData ? `\nMTF: ${multiTFData.confluence}` : ''}`
 
   try {
     const res = await fetch('/api/ai', {
@@ -408,8 +396,9 @@ Respond ONLY with this JSON:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 700,
+        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: liveContext }],
       }),
     })
     const data = await res.json()
@@ -3173,7 +3162,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 150,
-          system: context,
+          system: [{ type: 'text', text: context, cache_control: { type: 'ephemeral' } }],
           messages: [...chatMessages, { role: 'user', content: text }].slice(-10).map(m => ({ role: m.role, content: m.content }))
         })
       })
@@ -3664,7 +3653,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||'server'), fetchOptionsFlow(keys[UW_KEY]||'server'), fetchMarketTide(keys[UW_KEY]||'server'), fetchTiingoContext(keys[TIINGO_KEY]||'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY]||'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar })
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY]||'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar, aiTone })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
                   }} style={{ fontFamily: font, fontSize: 13, fontWeight: 700, padding: '10px 20px', borderRadius: 6, background: 'rgba(0,212,160,0.12)', border: '1px solid rgba(0,212,160,0.4)', color: '#00d4a0', cursor: 'pointer', letterSpacing: 0.5, whiteSpace: 'nowrap' as const }}>
@@ -3694,7 +3683,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||'server'), fetchOptionsFlow(keys[UW_KEY]||'server'), fetchMarketTide(keys[UW_KEY]||'server'), fetchTiingoContext(keys[TIINGO_KEY]||'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY]||'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar })
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY]||'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar, aiTone })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
                   }} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', borderRadius: 4, background: 'transparent', border: '1px solid rgba(0,212,160,0.2)', color: '#6b7a9a', cursor: 'pointer', marginTop: 4, display: 'block' }}>↻ refresh</button>
@@ -4296,7 +4285,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>AI analysis unavailable — Anthropic may be busy</div>
                           <button onClick={() => {
                             setAiLoading(true)
-                            runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null, tradeStats }).then(r => { if (r) { setAiResult(r); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) } setAiLoading(false) })
+                            runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null, tradeStats, aiTone }).then(r => { if (r) { setAiResult(r); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) } setAiLoading(false) })
                           }} style={{ fontSize: 10, padding: '4px 12px', borderRadius: 4, border: `1px solid ${C.tealBorder}`, background: C.tealDim, color: C.teal, cursor: 'pointer', fontFamily: font, fontWeight: 600 }}>
                             ↻ Retry
                           </button>
@@ -4380,7 +4369,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||''), fetchOptionsFlow(keys[UW_KEY]||''), fetchMarketTide(keys[UW_KEY]||''), fetchTiingoContext(keys[TIINGO_KEY]||'', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar})
+                    const result = await runAI({candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, earningsCalendar, aiTone })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{
@@ -4629,7 +4618,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY] || 'server'), fetchOptionsFlow(keys[UW_KEY] || 'server'), fetchMarketTide(keys[UW_KEY] || 'server'), fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory })
+                    const result = await runAI({ candles, levels, currentPrice, impliedMove: morningPlan.impliedMove, anthKey: keys[ANTH_KEY] || 'server', morningPlan, activePlaybook, tradeStats, optionsFlow: flow, marketTide: tide, marketIntel: intel, tiingoContext: tiingo2, marketNews, economicCalendar, multiTFData, zeroDTESkew, tradePatterns, macroRegime, marketScore, sessionMemory, aiTone })
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{ width: 'calc(100% - 20px)', margin: '10px', padding: '8px', background: aiLoading ? C.surface2 : C.tealDim, border: `1px solid ${aiLoading ? C.border : C.tealBorder}`, borderRadius: 3, color: aiLoading ? C.textDim : C.violet, cursor: aiLoading ? 'not-allowed' : 'pointer', fontFamily: font, fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>{aiLoading ? '⟳ ANALYZING...' : '▶ GET AI SIGNAL'}</button>
