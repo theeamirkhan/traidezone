@@ -1740,22 +1740,31 @@ export default function CockpitPage() {
     return () => { clearTimeout(init); clearInterval(interval) }
   }, [])
 
-  // Safety: if speakLock gets stuck (onended never fires), unlock after 10s
+  // Safety: unlock speakLock only when audio source is confirmed finished
+  const speakLockTimerRef = useRef<number>(0)
   useEffect(() => {
     const watchdog = setInterval(() => {
       if (speakLockRef.current) {
         const src = audioSourceRef.current
-        // Unlock if: no source, or source is in ended/disconnected state
-        const srcEnded = !src || (src as any).playbackState === 'finished'
-        if (srcEnded) {
-          console.warn('TZ watchdog: unlocking stuck speakLock')
+        if (src && (src as any).playbackState === 'finished') {
+          // Audio done — unlock
           speakLockRef.current = false
           audioSourceRef.current = null
           setSpeaking(false)
-          setListening(false)
+          speakLockTimerRef.current = 0
+        } else if (src) {
+          // Audio playing — force unlock after 60s max
+          if (!speakLockTimerRef.current) speakLockTimerRef.current = Date.now()
+          else if (Date.now() - speakLockTimerRef.current > 60000) {
+            speakLockRef.current = false; audioSourceRef.current = null
+            setSpeaking(false); speakLockTimerRef.current = 0
+          }
         }
+        // !src + speakLock = audio hasn't started yet, leave it alone
+      } else {
+        speakLockTimerRef.current = 0
       }
-    }, 5000)  // check every 5s — faster recovery
+    }, 5000)
     return () => clearInterval(watchdog)
   }, [])
   const [systemCheck, setSystemCheck] = useState<any>(null)
@@ -2159,38 +2168,36 @@ export default function CockpitPage() {
       while (fromDate.getDay() === 0 || fromDate.getDay() === 6) fromDate.setDate(fromDate.getDate() - 1)
       const fromStr = fromDate.toISOString().split('T')[0]
 
-      // Fetch candles — max 3 pages to avoid infinite pagination on weekends/after-hours
+      // Fetch candles — single page only, use what Polygon returns
+      // Polygon returns newest bars first via cursor — one page of 500 is enough
       const fetchAllPages = async (initialPath: string): Promise<any[]> => {
-        let all: any[] = []
-        let nextPath: string | null = initialPath
-        let page = 0
-        while (nextPath && page < 3) {
-          const data: any = await proxyFetch(nextPath).then(r => r.json())
-          if (data.results?.length) all = all.concat(data.results)
-          // Stop if we already have enough bars (500+) — don't chase more
-          if (all.length >= 500) break
-          if (data.next_url) {
-            try { const u = new URL(data.next_url); nextPath = u.pathname + u.search }
-            catch { break }
-          } else { break }
-          page++
-        }
-        return all
+        try {
+          const text = await proxyFetch(initialPath).then(r => r.text())
+          if (!text || !text.trim()) return []
+          const data = JSON.parse(text)
+          return data.results || []
+        } catch { return [] }
       }
 
       const ydayData = await proxyFetch(
         `/v2/aggs/ticker/${ticker}/range/1/day/${ydayStr}/${ydayStr}?adjusted=true&sort=asc&limit=1`
       ).then(r => r.json())
 
-      let resultsToUse = await fetchAllPages(
-        `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${fromStr}/${today}?adjusted=true&sort=asc&limit=${tfCfg.limit}`
-      )
-
-      // Pre-market fallback
-      if (!resultsToUse.length) {
+      // Fetch today's bars first, fall back to yesterday if empty
+      let resultsToUse: any[] = []
+      try {
         resultsToUse = await fetchAllPages(
-          `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${ydayStr}/${ydayStr}?adjusted=true&sort=asc&limit=${tfCfg.limit}`
+          `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${fromStr}/${today}?adjusted=true&sort=asc&limit=500`
         )
+      } catch { resultsToUse = [] }
+
+      // Pre-market / weekend fallback — use yesterday's bars
+      if (!resultsToUse.length) {
+        try {
+          resultsToUse = await fetchAllPages(
+            `/v2/aggs/ticker/${ticker}/range/${tfCfg.multiplier}/${tfCfg.timespan}/${ydayStr}/${ydayStr}?adjusted=true&sort=asc&limit=500`
+          )
+        } catch { resultsToUse = [] }
       }
 
       if (resultsToUse.length > 0) {
