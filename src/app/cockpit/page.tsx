@@ -384,8 +384,7 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
   ].filter(Boolean).join('\n\n')
 
   const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
-  // Use manual override if set, otherwise use calculated VWAP
-  const effectiveVwap = manualVwap || levels?.spyVwap || null
+  const effectiveVwap = levels?.spyVwap || null
   const vwapPos = currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? 'ABOVE' : 'BELOW') : '?'
   const emaPos = currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'
 
@@ -517,8 +516,8 @@ function calcMarketScore({
   }
 
   // VWAP position (10pts)
-  if (currentPrice && effectiveVwap) {
-    const vwapScore = currentPrice > effectiveVwap ? 10 : 3
+  if (currentPrice && levels?.spyVwap) {
+    const vwapScore = currentPrice > levels.spyVwap ? 10 : 3
     score += (vwapScore - 5)
     breakdown.vwap = { score: vwapScore, label: currentPrice > levels.spyVwap ? 'Above' : 'Below' }
   }
@@ -1695,6 +1694,8 @@ export default function CockpitPage() {
   const [manualVwap, setManualVwap] = useState<number | null>(null)
   const [editingVwap, setEditingVwap] = useState(false)
   const [vwapInput, setVwapInput] = useState('')
+  // Computed — use manual override when set, else calculated VWAP
+  const effectiveVwap = manualVwap || levels?.spyVwap || null
   const [flowAlerts, setFlowAlerts] = useState<any[]>([])
   const flowAlertShownRef = useRef<Set<string>>(new Set())
   const [showTutorial, setShowTutorial] = useState(false)
@@ -3127,7 +3128,7 @@ ${traderProfile.session_count > 0 ? `You've had ${traderProfile.session_count} s
 
 ═══ LIVE MARKET DATA ═══
 SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : '—'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : '—'}%)
-SPX vs VWAP (${fmt(effectiveVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
+SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
 SPX vs 200 EMA (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE — long-term bullish' : 'BELOW — long-term bearish') : 'No EMA data'}
 PDH: ${fmt(levels.pdh)} | PDL: ${fmt(levels.pdl)} | Prev Close: ${fmt(levels.prevClose)}
 Implied Move Range: ${fmt(levels.impliedLow)} — ${fmt(levels.impliedHigh)}
