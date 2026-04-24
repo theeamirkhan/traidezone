@@ -326,7 +326,7 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
   // Format earnings for AI prompt
   const todayStr = new Date().toISOString().split('T')[0]
   const tomorrowStr = new Date(Date.now()+86400000).toISOString().split('T')[0]
-  const earningsSection = earningsCalendar.length
+  const earningsSection = earningsCalendar?.length
     ? earningsCalendar
         .filter((day: any) => day.date === todayStr || day.date === tomorrowStr)
         .map((day: any) => {
@@ -393,6 +393,11 @@ VIX ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'}) | Br
 Candles: ${recent}
 Flow: ${flowSection}${zeroDTESkew ? `\n0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : ''}${marketScore ? `\nScore: ${marketScore.score}/100 ${marketScore.label}` : ''}${tradePatterns?.revengePatterns > 2 ? '\n⚠ REVENGE TRADING PATTERN ACTIVE' : ''}${multiTFData ? `\nMTF: ${multiTFData.confluence}` : ''}`
 
+  let systemPromptSafe = systemPrompt
+  let liveContextSafe = liveContext
+  try { systemPromptSafe = systemPrompt } catch { systemPromptSafe = 'You are a trading AI companion.' }
+  try { liveContextSafe = liveContext } catch { liveContextSafe = `SPX at ${effectivePrice}` }
+
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
@@ -400,8 +405,8 @@ Flow: ${flowSection}${zeroDTESkew ? `\n0DTE: ${zeroDTESkew.skewLabel} P/C ${zero
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 700,
-        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: liveContext }],
+        system: [{ type: 'text', text: systemPromptSafe, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: liveContextSafe }],
       }),
     })
     const data = await res.json()
