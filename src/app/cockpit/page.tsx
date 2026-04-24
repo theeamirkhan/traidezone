@@ -2682,6 +2682,10 @@ export default function CockpitPage() {
   useEffect(() => {
     const fetchFreeData = async () => {
       try {
+        // Refresh candles every cycle — price, VWAP, 200 EMA all depend on this
+        await fetchHistory('I:SPX', setCandles, 'spx')
+        fetchHistory('SPY', setSpyCandles, 'spy')
+        fetchHistory('I:VIX', setVixCandles, 'vix')
         const [intel, flow, tide, tiingo, skew] = await Promise.all([
           fetchMarketIntel(keys[POLY_KEY] || 'server'),
           fetchOptionsFlow(keys[UW_KEY] || 'server'),
