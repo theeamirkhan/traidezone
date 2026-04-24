@@ -314,28 +314,27 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
     : 'No trade history uploaded yet'
 
   const flowSection = optionsFlow?.length
-    ? optionsFlow.slice(0, 8).map((f: any) =>
+    ? optionsFlow.slice(0, 5).map((f: any) =>
         `${f.ticker} ${(f.type||'').toUpperCase()} $${f.strike} ${f.expiry} — ${f.sentiment} ${f.premium}${f.unusual ? ' ⚡SWEEP' : ''}`
       ).join('\n')
     : 'No options flow data'
 
   // Format earnings for AI prompt
+  const todayStr = new Date().toISOString().split('T')[0]
+  const tomorrowStr = new Date(Date.now()+86400000).toISOString().split('T')[0]
   const earningsSection = earningsCalendar.length
-    ? earningsCalendar.map(day => {
-        const isToday = day.date === new Date().toISOString().split('T')[0]
-        const isTomorrow = day.date === new Date(Date.now()+86400000).toISOString().split('T')[0]
-        const label = isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : day.date
-        const items = day.earnings.map((e: any) => `  ${e.symbol} ${e.time}${e.epsEst ? ' est ' + e.epsEst : ''}${e.expectedMove ? ' ±' + e.expectedMove : ''}`).join('\n')
-        return `${label}:\n${items}`
-      }).join('\n')
+    ? earningsCalendar
+        .filter((day: any) => day.date === todayStr || day.date === tomorrowStr)
+        .map((day: any) => {
+          const label = day.date === todayStr ? 'TODAY' : 'TOMORROW'
+          const items = day.earnings.slice(0,3).map((e: any) => `${e.symbol} ${e.time}${e.expectedMove ? ' ±' + e.expectedMove : ''}`).join(', ')
+          return `${label}: ${items}`
+        }).join('\n') || 'No earnings today/tomorrow'
     : 'No earnings data'
 
   const tiingoSection = tiingoContext
-    ? `HISTORICAL GAP CONTEXT (Tiingo — past 1yr, ${tiingoContext.totalDays} trading days):
-${tiingoContext.summary}
-Gap fill rate: ${tiingoContext.gapFillRate || 'N/A'}% | Continuation rate: ${tiingoContext.continueRate || 'N/A'}% | Avg day return after similar gap: ${tiingoContext.avgDayReturn || 'N/A'}%
-Implied move historical accuracy: ${tiingoContext.imAccuracy}% of days stay within the implied range`
-    : 'No Tiingo key — add in Settings for historical gap/implied move data'
+    ? `GAP STATS: fill ${tiingoContext.gapFillRate||'N/A'}% | continuation ${tiingoContext.continueRate||'N/A'}% | avg return ${tiingoContext.avgDayReturn||'N/A'}%`
+    : ''
 
   const toneInstructions: Record<number, string> = {
     1: "You are a DRILL SERGEANT. Be direct, blunt, and brutally honest. Call out mistakes immediately. No sugarcoating. Short sharp sentences. Hold this trader to military-level discipline.",
@@ -373,14 +372,14 @@ ${playbookSection}
 TRADER STATS:
 ${statsSection}
 
-${macroRegime ? `MACRO REGIME: ${macroRegime.fedStance} (${macroRegime.rateLevel}) — ${macroRegime.regime}: ${macroRegime.regimeSummary}. Risk: ${macroRegime.keyRisk}` : ''}
-${marketNews ? `TODAY\'S NEWS:\n${marketNews}` : ''}
-${economicCalendar ? `CALENDAR:\n${economicCalendar}` : ''}
-${multiTFData ? `MULTI-TF: Weekly ${multiTFData.weekly.trend} (${multiTFData.weekly.ma20}MA) | Daily ${multiTFData.daily.trend} | ${multiTFData.confluence}` : ''}
-${zeroDTESkew ? `0DTE SKEW: ${zeroDTESkew.skewLabel} | Calls ${zeroDTESkew.callPct}% | Puts ${zeroDTESkew.putPct}% | P/C ${zeroDTESkew.pcRatio}` : ''}
-${marketScore ? `MARKET SCORE: ${marketScore.score}/100 — ${marketScore.label}` : ''}
-${tradePatterns ? `TRADER PATTERNS: Best hour ${tradePatterns.bestHour} | Avg win $${tradePatterns.avgWinnerSize} vs loss $${tradePatterns.avgLoserSize}${tradePatterns.cutWinnersEarly ? ' ⚠ CUTTING WINNERS EARLY' : ''} | Revenge trades: ${tradePatterns.revengePatterns}` : ''}
-${sessionMemory ? `MEMORY FROM PAST SESSIONS:\n${sessionMemory}` : ''}
+${macroRegime ? `MACRO: ${macroRegime.regime} — ${macroRegime.keyRisk}` : ''}
+${marketNews ? `NEWS: ${(marketNews||'').substring(0,250)}` : ''}
+${economicCalendar ? `CALENDAR: ${(economicCalendar||'').substring(0,120)}` : ''}
+${multiTFData ? `MULTI-TF: ${multiTFData.confluence}` : ''}
+${zeroDTESkew ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : ''}
+${marketScore ? `SCORE: ${marketScore.score}/100 ${marketScore.label}` : ''}
+${tradePatterns?.revengePatterns > 2 ? `⚠ REVENGE TRADING PATTERN DETECTED` : ''}
+${sessionMemory ? `MEMORY: ${(sessionMemory||'').substring(0,150)}` : ''}
 
 Be direct, specific, reference the playbook. Use news/calendar/macro context. No generic advice.
 
