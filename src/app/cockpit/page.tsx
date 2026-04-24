@@ -2242,7 +2242,8 @@ export default function CockpitPage() {
             })
             const spxVwap = tv > 0 ? tpv / tv : 0
             if (spxVwap > 5000 && spxVwap < 15000) {
-              setLevels((p: any) => ({ ...p, spyVwap: spxVwap }))
+              // Use setTimeout to ensure this runs AFTER the SPY fetch's setLevels
+              setTimeout(() => setLevels((p: any) => ({ ...p, spyVwap: spxVwap, spxVwapDirect: spxVwap })), 200)
             }
           }
           // currentPrice will also be updated from SPY derivation when SPY loads
@@ -2358,7 +2359,8 @@ export default function CockpitPage() {
               ...p,
               spyVwapRaw: rawSpyVwap,
               spyCurrentPrice: last.c,
-              spyVwap: rawSpyVwap * ratio,
+              // Only use SPY-derived VWAP if no direct SPX VWAP available
+              spyVwap: (p.spxVwapDirect && p.spxVwapDirect > 5000) ? p.spxVwapDirect : rawSpyVwap * ratio,
               spy200EMA: rawSpy200 ? rawSpy200 * ratio : null,
               spy200EMAraw: rawSpy200,
               lastGoodRatio: (rawRatio > 9.5 && rawRatio < 10.5) ? rawRatio : (storedRatio || p.lastGoodRatio),
