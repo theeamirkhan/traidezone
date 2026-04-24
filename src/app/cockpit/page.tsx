@@ -2223,6 +2223,28 @@ export default function CockpitPage() {
           const prevP = currentPrice
           // Always use the most recent bar's close — works on weekends/after-hours too
           setCurrentPrice(last.c)
+
+          // Calculate VWAP directly from I:SPX bars — most accurate, no SPY conversion needed
+          const rthSpx = mapped.filter((c: any) => {
+            const d = new Date(c.t)
+            const estT = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+            const todayStr = est.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+            const barStr = d.toLocaleDateString('en-US', { timeZone: 'America/New_York' })
+            const h = estT.getHours(), m = estT.getMinutes()
+            return barStr === todayStr && (h > 9 || (h === 9 && m >= 30))
+          })
+          if (rthSpx.length >= 1) {
+            let tpv = 0, tv = 0
+            rthSpx.forEach((c: any) => {
+              const tp = (c.h + c.l + c.c) / 3
+              const vol = c.v || 1
+              tpv += tp * vol; tv += vol
+            })
+            const spxVwap = tv > 0 ? tpv / tv : 0
+            if (spxVwap > 5000 && spxVwap < 15000) {
+              setLevels((p: any) => ({ ...p, spyVwap: spxVwap }))
+            }
+          }
           // currentPrice will also be updated from SPY derivation when SPY loads
           if (prevP && last.c !== prevP) {
             const el = document.getElementById('tz-spx-price')
