@@ -1734,10 +1734,20 @@ export default function CockpitPage() {
           const premK = parseFloat(f.total_premium || '0') / 1000
           if (premK < ALERT_THRESHOLD) return
           const ticker = f.ticker || f.symbol || ''
-          const type = f.put_call || f.option_type || ''
-          const strike = f.strike_price || f.strike || ''
-          const expiry = f.expiration_date || f.expiry || ''
-          const sentiment = f.sentiment || (type.toLowerCase().startsWith('c') ? 'BULLISH' : 'BEARISH')
+          const type = f.type || f.put_call || f.option_type || ''  // UW flow-alerts uses 'type'
+          const strike = f.strike || f.strike_price || ''
+          const expiry = f.expiry || f.expiration_date || ''
+          const isCall = type.toLowerCase().startsWith('c')
+          const isPut = type.toLowerCase().startsWith('p')
+          // Sentiment: ask-side premium = aggressive buyer (bullish for calls, bearish for puts)
+          const askPrem = parseFloat(f.total_ask_side_prem || '0')
+          const bidPrem = parseFloat(f.total_bid_side_prem || '0')
+          const aggressiveBuy = askPrem > bidPrem
+          const sentiment = f.sentiment || (
+            isCall ? (aggressiveBuy ? 'BULLISH' : 'NEUTRAL') :
+            isPut  ? (aggressiveBuy ? 'BEARISH' : 'NEUTRAL') :
+            'NEUTRAL'
+          )
           const premStr = premK >= 1000 ? `$${(premK/1000).toFixed(1)}M` : `$${Math.round(premK)}K`
           const key = `${ticker}-${strike}-${expiry}-${type}-${Math.round(premK)}`
           if (!flowAlertShownRef.current.has(key)) {
