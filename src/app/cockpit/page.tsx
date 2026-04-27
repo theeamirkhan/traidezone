@@ -2813,32 +2813,85 @@ export default function CockpitPage() {
           for (const lvl of levels_check) {
             const dist = Math.abs((currentPrice - lvl.price!) / currentPrice)
             if (dist < 0.003) {  // within 0.3% (~21pts on SPX 7100)
-              // Velocity: how fast approaching
-              const closes = candles.slice(-5).map((c: any) => c.c)
+              const closes = candles.slice(-6).map((c: any) => c.c)
+              const highs  = candles.slice(-6).map((c: any) => c.h)
+              const lows   = candles.slice(-6).map((c: any) => c.l)
+              const bodies = candles.slice(-3).map((c: any) => Math.abs(c.c - c.o))
+              const ranges = candles.slice(-3).map((c: any) => c.h - c.l)
+              
+              // Is price approaching the level?
               const approaching = lvl.price! > currentPrice
-                ? closes[closes.length-1] > closes[0]  // price moving toward higher level
-                : closes[closes.length-1] < closes[0]  // price moving toward lower level
+                ? closes[closes.length-1] > closes[0]
+                : closes[closes.length-1] < closes[0]
 
-              // Volume confirmation: last 3 bars vs prior 10
+              // Velocity: how quickly approaching (pts per bar)
+              const velocity = closes.length >= 2
+                ? Math.abs(closes[closes.length-1] - closes[closes.length-3]) / 2
+                : 0
+
+              // Volume: last 3 bars vs prior 10
               const recent3Vol = candles.slice(-3).reduce((s: number, c: any) => s + (c.v||0), 0) / 3
               const prior10Vol = candles.slice(-13, -3).reduce((s: number, c: any) => s + (c.v||0), 0) / 10
               const volConfirm = prior10Vol > 0 ? recent3Vol / prior10Vol : 1
+
+              // Candle structure: ratio of body to total range (high bodies = conviction)
+              const avgBodyRatio = ranges[0] > 0
+                ? bodies.reduce((s: number, b: number, i: number) => s + (ranges[i] > 0 ? b/ranges[i] : 0.5), 0) / bodies.length
+                : 0.5
+
+              // Wick analysis: are wicks forming AT the level? (rejection signal)
+              const levelAbove = lvl.price! > currentPrice
+              const wicksAtLevel = levelAbove
+                ? highs.filter((h: number) => Math.abs(h - lvl.price!) < lvl.price! * 0.001).length
+                : lows.filter((l: number) => Math.abs(l - lvl.price!) < lvl.price! * 0.001).length
+              const hasRejectionWicks = wicksAtLevel >= 2  // 2+ wicks touching = rejection forming
+
+              // Number of times price has tested this level (more tests = weaker)
+              const levelTests = candles.slice(-20).filter((c: any) => 
+                Math.abs(c.h - lvl.price!) < lvl.price! * 0.002 || 
+                Math.abs(c.l - lvl.price!) < lvl.price! * 0.002
+              ).length
+              const testWeakness = levelTests > 3 ? -8 : levelTests > 1 ? -4 : 0  // repeated tests weaken
+
+              // Time of day bias (ET)
+              const estHour = parseInt(new Date().toLocaleTimeString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }))
+              const estMin  = new Date().getMinutes()
+              // VWAP bounce strongest 9:30-11am and 2-3pm, breakout strongest 11am-1pm
+              const timeAdj = (estHour === 9 && estMin >= 30) || estHour === 10
+                ? (lvl.label === 'VWAP' ? -8 : -4)   // early session: bounce more likely at VWAP
+                : (estHour === 11 || estHour === 12 || estHour === 13)
+                ? 8   // midday: breakouts more likely
+                : (estHour === 14 || estHour === 15)
+                ? -5  // late session: fading and mean reversion
+                : 0
 
               // Flow bias
               const bullFlow = optionsFlow.filter((f: any) => f.sentiment === 'BULLISH').length
               const bearFlow = optionsFlow.filter((f: any) => f.sentiment === 'BEARISH').length
               const flowBias = bullFlow > bearFlow ? 'BULLISH' : bearFlow > bullFlow ? 'BEARISH' : 'NEUTRAL'
+              const flowAdj = (approaching && flowBias === 'BULLISH' && lvl.label === 'VWAP' && currentPrice < lvl.price!) ||
+                              (approaching && flowBias === 'BEARISH' && lvl.label === 'VWAP' && currentPrice > lvl.price!) ? -8
+                : (approaching && ((flowBias === 'BULLISH' && lvl.price! < currentPrice) || (flowBias === 'BEARISH' && lvl.price! > currentPrice))) ? 10
+                : 0
 
-              // Breakout probability
-              // Higher vol approaching = more likely breakout
-              // Flow confirming direction = more likely breakout
-              // VIX elevated = more likely rejection
-              const baseBreakout = approaching ? 52 : 48
-              const volAdj = volConfirm > 1.5 ? 12 : volConfirm > 1.2 ? 6 : volConfirm < 0.8 ? -8 : 0
-              const flowAdj = (approaching && flowBias === 'BULLISH' && lvl.price! > currentPrice) ||
-                              (approaching && flowBias === 'BEARISH' && lvl.price! < currentPrice) ? 10 : -5
-              const vixAdj = (vixPrice || 18) > 25 ? -10 : (vixPrice || 18) < 14 ? 5 : 0
-              const breakoutPct = Math.max(20, Math.min(80, baseBreakout + volAdj + flowAdj + vixAdj))
+              // VIX regime
+              const vixAdj = (vixPrice || 18) > 28 ? -12 : (vixPrice || 18) > 22 ? -6 : (vixPrice || 18) < 14 ? 6 : 0
+
+              // Volume approaching adj
+              const volAdj = volConfirm > 2.0 ? 15 : volConfirm > 1.5 ? 8 : volConfirm > 1.2 ? 4 : volConfirm < 0.8 ? -6 : 0
+
+              // Candle conviction adj
+              const convictionAdj = avgBodyRatio > 0.65 ? 6 : avgBodyRatio < 0.35 ? -6 : 0
+
+              // Rejection wick penalty
+              const wickAdj = hasRejectionWicks ? -12 : 0
+
+              const base = approaching ? 52 : 45
+              const breakoutPct = Math.max(18, Math.min(82, 
+                base + volAdj + flowAdj + vixAdj + timeAdj + testWeakness + convictionAdj + wickAdj
+              ))
+
+              const timeNowStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
 
               setLevelProximity({
                 level: lvl.label,
@@ -2850,7 +2903,22 @@ export default function CockpitPage() {
                 breakoutPct: Math.round(breakoutPct),
                 bouncePct: 100 - Math.round(breakoutPct),
                 volConfirm: volConfirm.toFixed(1),
+                velocity: velocity.toFixed(1),
+                levelTests,
+                hasRejectionWicks,
+                bodyRatio: (avgBodyRatio * 100).toFixed(0),
                 flowBias,
+                timeOfDay: estHour < 11 ? 'Early (bounce favored)' : estHour < 14 ? 'Midday (breakout favored)' : 'Late (fade favored)',
+                detectedAt: timeNowStr,
+                // breakdown for transparency
+                factors: [
+                  { label: 'Volume', value: volAdj > 0 ? `+${volAdj}` : `${volAdj}`, positive: volAdj >= 0 },
+                  { label: 'Flow', value: flowAdj > 0 ? `+${flowAdj}` : `${flowAdj}`, positive: flowAdj >= 0 },
+                  { label: 'VIX', value: vixAdj > 0 ? `+${vixAdj}` : `${vixAdj}`, positive: vixAdj >= 0 },
+                  { label: 'Time', value: timeAdj > 0 ? `+${timeAdj}` : `${timeAdj}`, positive: timeAdj >= 0 },
+                  { label: 'Tests', value: testWeakness > 0 ? `+${testWeakness}` : `${testWeakness}`, positive: testWeakness >= 0 },
+                  { label: 'Wicks', value: wickAdj > 0 ? `+${wickAdj}` : `${wickAdj}`, positive: wickAdj >= 0 },
+                ],
               })
               break
             }
@@ -3624,7 +3692,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   }}>{alert.direction === 'BULL' ? '▲ BULLISH' : '▼ BEARISH'}</span>
                 </div>
                 <div style={{ fontSize: 9, color: '#8899bb' }}>
-                  {(alert.volume / 1000).toFixed(0)}K shares · ${alert.price} · {alert.time}
+                  {(alert.volume / 1000).toFixed(0)}K shares · ${alert.price}
+                </div>
+                <div style={{ fontSize: 7, color: 'rgba(255,183,0,0.45)', marginTop: 2, letterSpacing: 0.5 }}>
+                  ⏱ {alert.time} ET
                 </div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); setVolumeAlerts(prev => prev.filter(a => a.id !== alert.id)) }}
@@ -3654,26 +3725,44 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
           <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.08)' }} />
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 5 }}>
-              <div style={{ textAlign: 'center', flex: 1 }}>
+            {/* Main probability row */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+              <div style={{ textAlign: 'center', flex: 1, background: levelProximity.breakoutPct > 55 ? 'rgba(0,255,136,0.06)' : 'rgba(255,26,74,0.06)', borderRadius: 5, padding: '4px 6px' }}>
                 <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1 }}>BREAKOUT</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: levelProximity.breakoutPct > 55 ? '#00ff88' : '#ff1a4a' }}>{levelProximity.breakoutPct}%</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 900, color: levelProximity.breakoutPct > 55 ? '#00ff88' : '#ff1a4a' }}>{levelProximity.breakoutPct}%</div>
               </div>
-              <div style={{ textAlign: 'center', flex: 1 }}>
+              <div style={{ textAlign: 'center', flex: 1, background: levelProximity.bouncePct > 55 ? 'rgba(0,255,136,0.06)' : 'rgba(255,26,74,0.06)', borderRadius: 5, padding: '4px 6px' }}>
                 <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1 }}>BOUNCE</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: levelProximity.bouncePct > 55 ? '#00ff88' : '#ff1a4a' }}>{levelProximity.bouncePct}%</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 20, fontWeight: 900, color: levelProximity.bouncePct > 55 ? '#00ff88' : '#ff1a4a' }}>{levelProximity.bouncePct}%</div>
               </div>
-              <div style={{ textAlign: 'center', flex: 1 }}>
+              <div style={{ textAlign: 'center', flex: 1, padding: '4px 6px' }}>
                 <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1 }}>DISTANCE</div>
-                <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, color: '#f0f4ff' }}>{levelProximity.distPts}pts</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 900, color: '#f0f4ff' }}>{levelProximity.distPts}pts</div>
+                <div style={{ fontSize: 7, color: 'rgba(255,183,0,0.5)' }}>⏱ {levelProximity.detectedAt} ET</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, fontSize: 8, color: '#6b7a9a' }}>
-              <span>Vol {levelProximity.volConfirm}× avg</span>
+            {/* Factor breakdown */}
+            {levelProximity.factors && (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
+                {levelProximity.factors.map((f: any) => (
+                  <span key={f.label} style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3,
+                    background: f.positive ? 'rgba(0,255,136,0.08)' : 'rgba(255,26,74,0.08)',
+                    color: f.positive ? '#00d4a0' : '#ff6b6b', border: `1px solid ${f.positive ? 'rgba(0,255,136,0.2)' : 'rgba(255,26,74,0.2)'}` }}>
+                    {f.label} {f.value}
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Context row */}
+            <div style={{ display: 'flex', gap: 8, fontSize: 8, color: '#6b7a9a', flexWrap: 'wrap' }}>
+              <span>Vol <span style={{ color: parseFloat(levelProximity.volConfirm) > 1.3 ? '#00d4a0' : '#6b7a9a' }}>{levelProximity.volConfirm}×</span></span>
               <span>·</span>
-              <span style={{ color: levelProximity.flowBias === 'BULLISH' ? '#00ff88' : levelProximity.flowBias === 'BEARISH' ? '#ff1a4a' : '#8899bb' }}>Flow {levelProximity.flowBias}</span>
+              <span style={{ color: levelProximity.flowBias === 'BULLISH' ? '#00ff88' : levelProximity.flowBias === 'BEARISH' ? '#ff1a4a' : '#8899bb' }}>{levelProximity.flowBias} flow</span>
               <span>·</span>
-              <span>{levelProximity.approaching ? '→ Approaching' : '← Moving Away'}</span>
+              <span>{levelProximity.levelTests} tests</span>
+              {levelProximity.hasRejectionWicks && <><span>·</span><span style={{ color: '#ffb700' }}>⚡ rejection wicks</span></>}
+              <span>·</span>
+              <span style={{ color: '#8899bb' }}>{levelProximity.timeOfDay}</span>
             </div>
           </div>
           <button onClick={() => setLevelProximity(null)}
