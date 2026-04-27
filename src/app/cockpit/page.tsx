@@ -1587,10 +1587,10 @@ function ProbMeter({ value, color }: { value: number; color: string }) {
 // Timeframe config: daysBack drives from-date, limit must cover all bars
 // 1m=1day(500bars) 5m=5days(500) 15m=10days(400) 1H=20days(200) 1D=1yr(500)
 const TF_CONFIG: Record<string, {multiplier: number, timespan: string, daysBack: number, limit: number}> = {
-  '1':  { multiplier: 1,  timespan: 'minute', daysBack: 2,   limit: 500 },  // 1 trading day
-  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days
-  '15': { multiplier: 15, timespan: 'minute', daysBack: 9,   limit: 500 },  // 5 trading days (7 cal + buffer)
-  '60': { multiplier: 60, timespan: 'minute', daysBack: 30,  limit: 500 },  // 20 trading days (28 cal + buffer)
+  '1':  { multiplier: 1,  timespan: 'minute', daysBack: 3,   limit: 500 },  // 1 trading day
+  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days (~7 cal)
+  '15': { multiplier: 15, timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days (~7 cal)
+  '60': { multiplier: 60, timespan: 'minute', daysBack: 35,  limit: 500 },  // 20 trading days (~28 cal)
   '1D': { multiplier: 1,  timespan: 'day',    daysBack: 400, limit: 500 },  // ~1 year
 }
 
@@ -2261,21 +2261,26 @@ export default function CockpitPage() {
       const fromStr = fromDate.toISOString().split('T')[0]
 
       // Fetch candles with pagination for Deep Dive chart
-      // Caps at tfCfg.limit total bars to avoid infinite loops
+      // Stops when we have enough TRADING DAYS (not just bar count)
       const fetchAllPages = async (initialPath: string): Promise<any[]> => {
-        // Target bars per timeframe (to know when we have enough)
         const tf2 = key === 'spx' ? (chartTfRef.current || '5') : '5'
-        const targetBars = tf2 === '1' ? 400 : tf2 === '5' ? 300 : tf2 === '15' ? 130 : tf2 === '60' ? 130 : 400
+        // How many trading days we want per timeframe
+        const targetTradingDays = tf2 === '1' ? 2 : tf2 === '5' ? 5 : tf2 === '15' ? 5 : tf2 === '60' ? 20 : 250
+        const maxPages = 60  // safety cap — 1H needs up to 50 pages
         let all: any[] = []
         let nextPath: string | null = initialPath
         let pages = 0
-        const maxPages = 20  // safety cap
-        while (nextPath && pages < maxPages && all.length < targetBars) {
+        while (nextPath && pages < maxPages) {
           try {
             const text = await proxyFetch(nextPath).then(r => r.text())
             if (!text || !text.trim()) break
             const data = JSON.parse(text)
             if (data.results?.length) all = all.concat(data.results)
+            // Count unique trading days in what we have
+            const tradingDays = new Set(
+              all.map((b: any) => new Date(b.t).toLocaleDateString('en-US', { timeZone: 'America/New_York' }))
+            ).size
+            if (tradingDays >= targetTradingDays) break  // we have enough days
             if (data.next_url) {
               try { const u = new URL(data.next_url); nextPath = u.pathname + u.search }
               catch { break }
