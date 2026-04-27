@@ -88,7 +88,7 @@ export default function UsageReport({ onClose }: { onClose: () => void }) {
   const byType = summary?.byType || {}
 
   const dateKeys  = Object.keys(byDate).sort().slice(-days)
-  const maxCost   = Math.max(...dateKeys.map(d => byDate[d]?.cost || 0), 0.001)
+  const maxCost   = Math.max(...dateKeys.map((d: string) => (byDate[d]?.cost as number) || 0), 0.001)
   const totalCost = adminData?.summary?.totalCost ?? today?.cost ?? 0
   const monthCost = adminData?.monthToDateCost ?? period?.totalCost ?? 0
 
@@ -206,7 +206,7 @@ export default function UsageReport({ onClose }: { onClose: () => void }) {
             {Object.entries(byModel).map(([model, stats]: [string, any]) => (
               <div key={model} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <div style={{ fontSize: 9, color: model === 'Sonnet' ? C.violet : C.yellow, width: 60, flexShrink: 0 }}>{model}</div>
-                <Bar value={stats.cost} max={Object.values(byModel).reduce((m: number, s: any) => Math.max(m, s.cost), 0)} color={model === 'Sonnet' ? C.violet : C.yellow} />
+                <Bar value={stats.cost} max={Object.values(byModel).reduce((m: number, s: any) => Math.max(m, (s.cost as number) || 0), 0) as number} color={model === 'Sonnet' ? C.violet : C.yellow} />
                 <div style={{ fontSize: 9, color: C.text, width: 52, textAlign: 'right', flexShrink: 0 }}>${stats.cost.toFixed(4)}</div>
                 <div style={{ fontSize: 8, color: C.dim, width: 30, textAlign: 'right', flexShrink: 0 }}>{stats.requests}req</div>
               </div>
@@ -223,7 +223,7 @@ export default function UsageReport({ onClose }: { onClose: () => void }) {
               .map(([type, stats]: [string, any]) => (
                 <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ fontSize: 9, color: C.text, width: 90, flexShrink: 0 }}>{TYPE_LABELS[type] || type}</div>
-                  <Bar value={stats.cost} max={Object.values(byType).reduce((m: number, s: any) => Math.max(m, s.cost), 0)} color={C.teal} />
+                  <Bar value={stats.cost} max={Object.values(byType).reduce((m: number, s: any) => Math.max(m, (s.cost as number) || 0), 0) as number} color={C.teal} />
                   <div style={{ fontSize: 9, color: C.text, width: 52, textAlign: 'right', flexShrink: 0 }}>${stats.cost.toFixed(4)}</div>
                   <div style={{ fontSize: 8, color: C.dim, width: 30, textAlign: 'right', flexShrink: 0 }}>{stats.requests}req</div>
                 </div>
