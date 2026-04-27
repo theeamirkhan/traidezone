@@ -29,7 +29,7 @@ export interface SignalResult {
 
 export async function runSignal(input: SignalInput): Promise<SignalResult | null> {
   // Build and validate context
-  const ctx = buildSignalContext(input)
+  const ctx = await buildSignalContext(input)
 
   if (!ctx.isValid) {
     console.warn('[runSignal] context invalid — not calling AI:', ctx.warnings)

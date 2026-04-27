@@ -1,6 +1,7 @@
 'use client'
 import TutorialModal from './TutorialModal'
 import SettingsModal from './components/SettingsModal'
+import AgentStatus from './components/AgentStatus'
 import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
@@ -3639,6 +3640,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <div style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? '#00ff88' : '#ff1a4a', boxShadow: connected ? '0 0 10px rgba(0,255,136,0.8)' : '0 0 10px rgba(255,26,74,0.6)', animation: connected ? 'pulse 2s infinite' : 'none' }} />
             <span style={{ fontSize: 7, color: connected ? '#00ff88' : '#ff1a4a', fontWeight: 700, letterSpacing: 3, textShadow: connected ? '0 0 8px rgba(0,255,136,0.8)' : '0 0 8px rgba(255,26,74,0.8)' }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
+            <AgentStatus />
           </div>
         </div>
 

@@ -15,6 +15,7 @@
  */
 
 import type { MarketData } from '../hooks/useMarketData'
+import { validateMarketData } from '../agents/dataValidator'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -137,20 +138,34 @@ function buildRecentCandles(candles: any[]): string {
 
 // ── buildSignalContext ────────────────────────────────────────────────────────
 
-export function buildSignalContext(input: SignalInput): SignalContext {
+export async function buildSignalContext(input: SignalInput): Promise<SignalContext> {
   const warnings: string[] = []
   const { market, morningPlan, activePlaybook, tradeStats, aiTone,
           optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew,
           marketScore, tradePatterns, multiTFData,
           marketNews, economicCalendar, macroRegime, earningsCalendar, sessionMemory } = input
 
-  // ── Validate critical prices ───────────────────────────────────────────────
+  // ── Step 1: basic validation ────────────────────────────────────────────────
   const price = validatePrice(market.currentPrice, 'SPX price', warnings)
   const vwap  = validateVwap(market.levels?.spyVwap ?? null, price, warnings)
   const ema   = validateEma(market.levels?.ema200 ?? null, price, warnings)
 
-  // Can't generate a meaningful signal without price
-  const isValid = !!price
+  // ── Step 2: Data Validation Agent — cross-check against Yahoo Finance ────────
+  // Only runs during market hours when prices should match closely
+  const agentResult = await validateMarketData(
+    market.currentPrice,
+    market.levels?.spyVwap ?? null,
+    market.vixPrice ?? null,
+  )
+
+  // Merge agent warnings into context warnings
+  if (agentResult.warnings.length > 0) {
+    warnings.push(...agentResult.warnings)
+  }
+
+  // Agent can block the signal if price drift is too large
+  // isValid = price exists AND agent didn't block it
+  const isValid = !!price && agentResult.isValid
 
   // ── Static system prompt (Anthropic caches this) ──────────────────────────
   const tone = TONE[aiTone] || TONE[3]
