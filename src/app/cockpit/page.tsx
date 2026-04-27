@@ -1,5 +1,6 @@
 'use client'
 import TutorialModal from './TutorialModal'
+import { useMarketData } from './hooks/useMarketData'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
@@ -1607,18 +1608,29 @@ export default function CockpitPage() {
   const C = CC  // C now tracks dark/light mode across all 454 references
 
 
-  // Market data
-  const [candles, setCandles] = useState<any[]>([])
-  const [spyCandles, setSpyCandles] = useState<any[]>([])
-  const [vixCandles, setVixCandles] = useState<any[]>([])
-  const [currentPrice, setCurrentPrice] = useState<number | null>(null)
+  // ── Market data — single source of truth via useMarketData hook ────────
+  const md = useMarketData(morningPlan?.impliedMove ? parseFloat(morningPlan.impliedMove) : undefined)
+  const { candles, spyCandles, vixCandles, changes, connected, dataAge } = md
+  const currentPrice    = md.currentPrice
+  const spyPrice        = md.spyPrice
+  const vixPrice        = md.vixPrice
+  const openPrice       = md.openPrice
+  const levels          = md.levels
+  const manualVwap      = md.manualVwap
   const currentPriceRef = useRef<number | null>(null)
-  const [spyPrice, setSpyPrice] = useState<number | null>(null)
-  const [vixPrice, setVixPrice] = useState<number | null>(null)
-  const [openPrice, setOpenPrice] = useState<number | null>(null)
-  const [levels, setLevels] = useState<any>({})
-  const [changes, setChanges] = useState<any>({})
-  const [connected, setConnected] = useState(false)
+
+  // Keep setters available for legacy code paths that still exist in page.tsx
+  // These will be removed as refactor progresses
+  const setCandles    = (_: any) => {}  // now managed by hook
+  const setSpyCandles = (_: any) => {}
+  const setVixCandles = (_: any) => {}
+  const setCurrentPrice = (_: any) => {}
+  const setSpyPrice   = (_: any) => {}
+  const setVixPrice   = (_: any) => {}
+  const setOpenPrice  = (_: any) => {}
+  const setLevels     = (_: any) => {}
+  const setChanges    = (_: any) => {}
+  const setConnected  = (_: any) => {}
 
   // Morning plan
   const [morningPlan, setMorningPlan] = useState(() => {
@@ -1703,11 +1715,10 @@ export default function CockpitPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
-  const [manualVwap, setManualVwap] = useState<number | null>(null)
   const [editingVwap, setEditingVwap] = useState(false)
   const [vwapInput, setVwapInput] = useState('')
-  // Computed — use manual override when set, else calculated VWAP
-  const effectiveVwap = manualVwap || levels?.spyVwap || null
+  // effectiveVwap — hook handles manual override priority internally
+  const effectiveVwap = md.manualVwap || levels?.spyVwap || null
   const [flowAlerts, setFlowAlerts] = useState<any[]>([])
   const flowAlertShownRef = useRef<Set<string>>(new Set())
   const [showTutorial, setShowTutorial] = useState(false)
@@ -2410,59 +2421,13 @@ export default function CockpitPage() {
     } catch (e) { console.error(key, e) }
   }, [keys])
 
+  // Data loading handled by useMarketData hook above
+  // fetchHistory still used for Deep Dive chart (multi-day candles)
   useEffect(() => {
-    // keys handled server-side
-    // Sequential load: SPX first so currentPriceRef is populated before SPY VWAP ratio
-    ;(async () => {
-      // Fetch today-only first for accurate price, then full history for chart
-      const todayStr = new Date().toISOString().split('T')[0]
-      const spxToday = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
-      const spxTodayBars = spxToday?.results || []
-      if (spxTodayBars.length > 0) {
-        const mapped = spxTodayBars.map((r: any) => ({t:r.t,o:r.o,h:r.h,l:r.l,c:r.c,v:r.v}))
-        setCandles(mapped)
-        setCurrentPrice(spxTodayBars[spxTodayBars.length-1].c)
-        let tpv=0,tv=0
-        mapped.forEach((c: any) => { const tp=(c.h+c.l+c.c)/3; tpv+=tp*(c.v||1); tv+=(c.v||1) })
-        const vwap = tv>0 ? tpv/tv : 0
-        if (vwap>5000) setLevels((p: any) => ({...p, spyVwap: vwap, spxVwapDirect: vwap}))
-        const emas = calcEMA(mapped,200)
-        const e200 = emas[emas.length-1]
-        if (e200) setLevels((p: any) => ({...p, ema200: e200}))
-      }
-      // Full history for chart loads in the background via chartTf useEffect
-      // Don't call fetchHistory here — it overwrites today-only candles with 7-day stale data
-      // VIX price
-      const vixToday = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
-      const vixBars = vixToday?.results || []
-      if (vixBars.length>0) setVixPrice(vixBars[vixBars.length-1].c)
-    })()
-    setConnected(true)
-    const interval = setInterval(async () => {
-      // Fetch today-only for price/VWAP/EMA accuracy — daysBack:7 misses today with 500 bar limit
-      const todayStr = new Date().toISOString().split('T')[0]
-      const spxR = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
-      const spxBars = spxR?.results || []
-      if (spxBars.length > 0) {
-        const mapped = spxBars.map((r: any) => ({t:r.t,o:r.o,h:r.h,l:r.l,c:r.c,v:r.v}))
-        setCandles(mapped)
-        setCurrentPrice(spxBars[spxBars.length-1].c)
-        // VWAP
-        let tpv=0,tv=0
-        mapped.forEach((c: any) => { const tp=(c.h+c.l+c.c)/3; tpv+=tp*(c.v||1); tv+=(c.v||1) })
-        const vwap = tv>0 ? tpv/tv : 0
-        if (vwap>5000) setLevels((p: any) => ({...p, spyVwap: vwap, spxVwapDirect: vwap}))
-        // 200 EMA
-        const emas = calcEMA(mapped,200)
-        const e200 = emas[emas.length-1]
-        if (e200) setLevels((p: any) => ({...p, ema200: e200}))
-      }
-      // VIX
-      const vixR = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r=>r.json()).catch(()=>null)
-      const vixBars = vixR?.results || []
-      if (vixBars.length>0) setVixPrice(vixBars[vixBars.length-1].c)
-    }, 60000)
-    return () => clearInterval(interval)
+    // Load chart history for Deep Dive tab
+    fetchHistory('I:SPX', () => {}, 'spx')  // chart only — price comes from hook
+    fetchHistory('SPY', () => {}, 'spy')
+    fetchHistory('I:VIX', () => {}, 'vix')
   }, [keys, fetchHistory])
 
   // Reload SPX when timeframe changes — fetchHistory already has fresh chartTf via useCallback
@@ -2740,44 +2705,8 @@ export default function CockpitPage() {
   useEffect(() => {
     const fetchFreeData = async () => {
       try {
-        // Inline price refresh — bypasses stale closure in fetchHistory useCallback
-        const todayStr = new Date().toISOString().split('T')[0]
-        const spxRes = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json()).catch(() => null)
-        const spxBars = spxRes?.results || []
-        if (spxBars.length > 0) {
-          const mapped = spxBars.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v }))
-          setCandles(mapped)
-          const last = mapped[mapped.length - 1]
-          setCurrentPrice(last.c)
-          // VWAP from today's RTH bars
-          const rthBars = mapped.filter((c: any) => {
-            const estT = new Date(new Date(c.t).toLocaleString('en-US', { timeZone: 'America/New_York' }))
-            return estT.getHours() > 9 || (estT.getHours() === 9 && estT.getMinutes() >= 30)
-          })
-          if (rthBars.length >= 1) {
-            let tpv = 0, tv = 0
-            rthBars.forEach((c: any) => { const tp=(c.h+c.l+c.c)/3; const v=c.v||1; tpv+=tp*v; tv+=v })
-            const vwap = tv > 0 ? tpv / tv : 0
-            if (vwap > 5000) setLevels((p: any) => ({ ...p, spyVwap: vwap, spxVwapDirect: vwap }))
-          }
-          // 200 EMA
-          const emas = calcEMA(mapped, 200)
-          const ema200 = emas[emas.length - 1]
-          if (ema200) setLevels((p: any) => ({ ...p, ema200: ema200 }))
-        }
-        // VIX price
-        const vixRes = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:VIX/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json()).catch(() => null)
-        const vixBars = vixRes?.results || []
-        if (vixBars.length > 0) {
-          setVixCandles(vixBars.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })))
-          setVixPrice(vixBars[vixBars.length - 1].c)
-        }
-        // SPY price
-        const spyRes = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/SPY/range/5/minute/${todayStr}/${todayStr}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json()).catch(() => null)
-        const spyBars = spyRes?.results || []
-        if (spyBars.length > 0) {
-          setSpyCandles(spyBars.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })))
-        }
+        // Price/candles/VWAP/EMA handled by useMarketData hook (60s refresh)
+        // fetchFreeData only handles options flow, tide, tiingo, skew
         const [intel, flow, tide, tiingo, skew] = await Promise.all([
           fetchMarketIntel(keys[POLY_KEY] || 'server'),
           fetchOptionsFlow(keys[UW_KEY] || 'server'),
@@ -3693,10 +3622,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     const v = parseFloat(vwapInput)
-                    if (v > 5000 && v < 15000) { setManualVwap(v); setLevels((p: any) => ({ ...p, spyVwap: v, spxVwapDirect: v })) }
+                    if (v > 5000 && v < 15000) { md.setManualVwap(v) }
                     setEditingVwap(false)
                   }
-                  if (e.key === 'Escape') { setEditingVwap(false); setManualVwap(null) }
+                  if (e.key === 'Escape') { setEditingVwap(false); md.setManualVwap(null) }
                 }}
                 onBlur={() => setEditingVwap(false)}
                 placeholder="e.g. 7126"
