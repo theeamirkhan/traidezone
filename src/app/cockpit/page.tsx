@@ -4186,7 +4186,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
                       // ── Log alert for outcome tracking ──
                       if ((result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone && result.stopLevel && result.target1) {
-                        const logged = logTradeAlert({
+                        const logged = await logTradeAlert({
                           signal:        result.signal,
                           entryZone:     result.entryZone,
                           stopLevel:     result.stopLevel,
@@ -4202,15 +4202,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           proximityBreakoutPct: levelProximity?.breakoutPct,
                           proximityFactors:     levelProximity?.factors,
                         })
-                        // Schedule outcome checks at 30m, 1h, 2h
-                        scheduleOutcomeChecks(logged.id, async () => {
-                          try {
-                            const today = new Date().toISOString().split('T')[0]
-                            const r = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${today}/${today}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json())
-                            const bars = r?.results || []
-                            return bars.length > 0 ? bars[bars.length - 1].c : null
-                          } catch { return null }
-                        })
+                        // Scoring handled by server-side agent at /api/agents/score-alerts (cron every 30min)
+                        console.log('[TradeAlertLogger] Alert logged to Supabase — agent will score at 30/60/120min')
                       }
                     }
                     setAiLoading(false)

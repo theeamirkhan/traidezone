@@ -15,6 +15,10 @@
     {
       "path": "/api/agents/usage-report",
       "schedule": "0 21 * * 1-5"
+    },
+    {
+      "path": "/api/agents/score-alerts",
+      "schedule": "*/30 14-22 * * 1-5"
     }
   ]
 }

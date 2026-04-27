@@ -4,7 +4,7 @@
  */
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { loadAlerts, getAlertAccuracy, getModelSuggestions, type TradeAlert, type AlertAccuracy } from '../agents/tradeAlertLogger'
+import { loadAlerts, computeAccuracy, getModelSuggestions, type TradeAlert, type AlertAccuracy } from '../agents/tradeAlertLogger'
 
 const font        = "'Share Tech Mono', monospace"
 const fontDisplay = "'Orbitron', sans-serif"
@@ -41,17 +41,24 @@ export default function AlertHistory({ onClose }: { onClose: () => void }) {
   const [alerts, setAlerts]           = useState<TradeAlert[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [tab, setTab]                 = useState<'log' | 'analytics'>('log')
+  const [loading, setLoading]         = useState(false)
 
-  const refresh = useCallback(() => {
-    const acc  = getAlertAccuracy(30)
-    const logs = loadAlerts().slice().reverse().slice(0, 50)
-    const sug  = getModelSuggestions()
-    setAccuracy(acc)
-    setAlerts(logs)
-    setSuggestions(sug)
+  const refresh = useCallback(async (force = false) => {
+    setLoading(true)
+    try {
+      const logs = await loadAlerts(30, force)
+      const acc  = computeAccuracy(logs)
+      const sug  = getModelSuggestions(acc)
+      setAlerts(logs.slice(0, 50))
+      setAccuracy(acc)
+      setSuggestions(sug)
+    } catch (e) {
+      console.error('AlertHistory refresh failed:', e)
+    }
+    setLoading(false)
   }, [])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { refresh() }, [refresh])  // eslint-disable-line
 
   return (
     <div style={{
@@ -73,7 +80,7 @@ export default function AlertHistory({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={refresh} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: `1px solid ${C.border}`, background: 'transparent', color: C.teal, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => refresh(true)} disabled={loading} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: `1px solid ${C.border}`, background: 'transparent', color: C.teal, cursor: 'pointer' }}>{loading ? '⟳' : '↻'}</button>
             <button onClick={onClose} style={{ fontSize: 11, padding: '3px 7px', borderRadius: 4, border: 'none', background: 'transparent', color: C.muted, cursor: 'pointer' }}>✕</button>
           </div>
         </div>
@@ -151,7 +158,7 @@ export default function AlertHistory({ onClose }: { onClose: () => void }) {
                       padding: '1px 6px', borderRadius: 3 }}>
                       {alert.signal === 'LONG' ? '📞 CALL' : '📉 PUT'}
                     </span>
-                    <span style={{ fontSize: 8, color: C.muted }}>@ {alert.priceAtSignal?.toFixed(0)}</span>
+                    <span style={{ fontSize: 8, color: C.muted }}>@ {alert.price_at_signal?.toFixed(0)}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 8, color: OUTCOME_COLOR[alert.outcome], fontWeight: 700 }}>
@@ -162,8 +169,8 @@ export default function AlertHistory({ onClose }: { onClose: () => void }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 5, marginBottom: 5 }}>
                   {[
-                    { label: 'Entry', value: `${alert.entryLow?.toFixed(0)}–${alert.entryHigh?.toFixed(0)}`, color: '#00e5ff' },
-                    { label: 'Stop',  value: alert.stopLevel?.toFixed(0), color: C.red },
+                    { label: 'Entry', value: `${alert.entry_low?.toFixed(0)}–${alert.entry_high?.toFixed(0)}`, color: '#00e5ff' },
+                    { label: 'Stop',  value: alert.stop_level?.toFixed(0), color: C.red },
                     { label: 'T1',    value: alert.target1?.toFixed(0),   color: C.green },
                     { label: 'T2',    value: alert.target2?.toFixed(0),   color: C.teal },
                   ].map(({ label, value, color }) => (
@@ -173,14 +180,14 @@ export default function AlertHistory({ onClose }: { onClose: () => void }) {
                     </div>
                   ))}
                 </div>
-                {alert.outcomeNote && (
-                  <div style={{ fontSize: 8, color: C.muted, fontStyle: 'italic' }}>{alert.outcomeNote}</div>
+                {alert.outcome_note && (
+                  <div style={{ fontSize: 8, color: C.muted, fontStyle: 'italic' }}>{alert.outcome_note}</div>
                 )}
                 <div style={{ display: 'flex', gap: 8, fontSize: 7, color: C.dim, marginTop: 4 }}>
                   <span>Conf {alert.confidence}%</span>
                   <span>·</span>
-                  <span>VIX {alert.vix?.toFixed(1) || '?'}</span>
-                  {alert.proximityLevel && <><span>·</span><span style={{ color: C.yellow }}>Near {alert.proximityLevel} {alert.proximityBreakoutPct}% BO</span></>}
+                  <span>VIX {alert.vix_at_signal?.toFixed(1) || '?'}</span>
+                  {alert.proximity_level && <><span>·</span><span style={{ color: C.yellow }}>Near {alert.proximity_level} {alert.proximity_breakout_pct}% BO</span></>}
                 </div>
               </div>
             ))}
