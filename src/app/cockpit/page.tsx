@@ -1586,11 +1586,12 @@ function ProbMeter({ value, color }: { value: number; color: string }) {
 // ── MAIN COCKPIT ───────────────────────────────────────────────────────────
 // Timeframe config: daysBack drives from-date, limit must cover all bars
 // 1m=1day(500bars) 5m=5days(500) 15m=10days(400) 1H=20days(200) 1D=1yr(500)
+// Deep Dive chart timeframes — pagination stops at targetTradingDays (see fetchAllPages)
 const TF_CONFIG: Record<string, {multiplier: number, timespan: string, daysBack: number, limit: number}> = {
   '1':  { multiplier: 1,  timespan: 'minute', daysBack: 3,   limit: 500 },  // 1 trading day
-  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days (~7 cal)
-  '15': { multiplier: 15, timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days (~7 cal)
-  '60': { multiplier: 60, timespan: 'minute', daysBack: 35,  limit: 500 },  // 20 trading days (~28 cal)
+  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days
+  '15': { multiplier: 15, timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days
+  '60': { multiplier: 60, timespan: 'minute', daysBack: 35,  limit: 500 },  // 20 trading days
   '1D': { multiplier: 1,  timespan: 'day',    daysBack: 400, limit: 500 },  // ~1 year
 }
 
@@ -5514,3 +5515,4 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 }
 
 
+// chart pagination fix - trading days based 20260427131644
