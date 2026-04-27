@@ -8,7 +8,7 @@ import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
 import { trackUsage } from './agents/usageTracker'
 import { buildCompanionContext } from './ai/buildContext'
-import { calcProbabilities as _calcProbs } from './lib/utils'
+import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
@@ -175,7 +175,7 @@ function calcEMA(candles: any[], period: number) {
 // ── PROBABILITY ENGINE ─────────────────────────────────────────────────────
 // Calculates reversal / continuation / chop probabilities from morning inputs
 // Based on historical SPX/SPY behavior patterns
-function _legacyCalcProbabilities({
+function __unusedCalcProbabilities({
   bias, gapDirection, gapSize, impliedMove, vixPrice, tiingoContext
 }: {
   bias: string, gapDirection: string, gapSize: string,
@@ -820,7 +820,7 @@ function _legacyAddMemory(entry: string): void {
   try {
     const existing = JSON.parse(localStorage.getItem(SESSION_MEMORY_KEY) || '[]')
     const dated = `[${new Date().toLocaleDateString()}] ${entry}`
-    saveSessionMemory([...existing, dated])
+    _legacySaveSessionMemory([...existing, dated])
   } catch {}
 }
 
@@ -1541,7 +1541,7 @@ function _LegacySettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voi
           </div>
 
           {/* Tone Tester */}
-          <ToneTester />
+          <_LegacyToneTester />
         </div>
 
         {/* Voice Speed */}
@@ -1625,7 +1625,9 @@ export default function CockpitPage() {
 
 
   // ── Market data — single source of truth via useMarketData hook ────────
-  const md = useMarketData(morningPlan?.impliedMove ? parseFloat(morningPlan.impliedMove) : undefined)
+  // Note: morningPlan is declared later in the component — can't pass impliedMove here
+  // useMarketData will update when impliedMove changes via useEffect in the hook
+  const md = useMarketData(undefined)
   const { candles, spyCandles, vixCandles, changes, connected, dataAge } = md
   const currentPrice    = md.currentPrice
   const spyPrice        = md.spyPrice
@@ -2454,7 +2456,6 @@ export default function CockpitPage() {
                         : 10.025
             return {
               ...p,
-              spyVwapRaw: rawSpyVwap,
               spyCurrentPrice: last.c,
               // Only use SPY-derived VWAP if no direct SPX VWAP available
               spyVwap: (p.spxVwapDirect && p.spxVwapDirect > 5000) ? p.spxVwapDirect : rawSpyVwap * ratio,
@@ -2647,7 +2648,7 @@ export default function CockpitPage() {
         candleSeries.setData(chartData)
 
         // VWAP — intraday only, RTH session (9:30 AM) to match TOS
-        if (isIntraday && levels.spyVwapRaw && spyCandles.length >= 3) {
+        if (isIntraday && levels.spyVwap && spyCandles.length >= 3) {
           const spyVwapLine = chart.addSeries(LineSeries, { color: '#e05000', lineWidth: 1, lineStyle: 1, title: 'VWAP' })
           // Filter to RTH only for chart display
           const rthSpy = spyCandles.filter((c: any) => {
@@ -2792,7 +2793,7 @@ export default function CockpitPage() {
           fetchMarketNews(),
           fetchEconomicCalendar(),
           fetchMacroRegime(),
-          fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY'),
+          fetchMultiTFConfluence('SPY'),
         ])
         localStorage.setItem('tz-news-date', todayKey)
         if (news) setMarketNews(news)
@@ -3831,7 +3832,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                   <button onClick={async () => {
                     setAiLoading(true)
-                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||'server'), fetchOptionsFlow(keys[UW_KEY]||'server'), fetchMarketTide(keys[UW_KEY]||'server'), fetchTiingoContext(keys[TIINGO_KEY]||'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
@@ -3861,7 +3862,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ fontSize: 7, color: C.textMuted }}>AI confidence</div>
                   <button onClick={async () => {
                     setAiLoading(true)
-                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||'server'), fetchOptionsFlow(keys[UW_KEY]||'server'), fetchMarketTide(keys[UW_KEY]||'server'), fetchTiingoContext(keys[TIINGO_KEY]||'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
