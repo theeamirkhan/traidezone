@@ -4007,9 +4007,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* ── OPTIMAL TRADE ZONE — gold, always first thing you see ── */}
               <div style={{ borderRadius: 10,
-                background: 'linear-gradient(135deg, rgba(255,183,0,0.07) 0%, rgba(255,140,0,0.03) 100%)',
-                border: '1px solid rgba(255,183,0,0.5)',
-                boxShadow: '0 0 24px rgba(255,183,0,0.1)',
+                background: 'linear-gradient(135deg, rgba(255,183,0,0.12) 0%, rgba(255,140,0,0.06) 100%)',
+                border: '2px solid rgba(255,183,0,0.7)',
+                boxShadow: '0 0 30px rgba(255,183,0,0.2), 0 2px 12px rgba(0,0,0,0.4)',
                 padding: '12px 14px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: '#ffb700' }}>🎯 OPTIMAL TRADE ZONE</span>
@@ -4056,12 +4056,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     },
                   ].map(({ label, value, sub, color }) => (
                     <div key={label} style={{
-                      background: value === '—' ? 'rgba(255,183,0,0.03)' : color + '0d',
-                      border: value === '—' ? '1px solid rgba(255,183,0,0.15)' : `1px solid ${color}35`,
+                      background: value === '—' ? 'rgba(255,183,0,0.08)' : color + '15',
+                      border: value === '—' ? '1px solid rgba(255,183,0,0.35)' : `1px solid ${color}50`,
                       borderRadius: 8, padding: '8px 10px' }}>
                       <div style={{ fontSize: 7, color: value === '—' ? '#ffb700' : '#6b7a9a', letterSpacing: 1, marginBottom: 4 }}>{label}</div>
                       <div style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 900,
-                        color: value === '—' ? 'rgba(255,255,255,0.18)' : color }}>{value}</div>
+                        color: value === '—' ? 'rgba(255,183,0,0.35)' : color }}>{value}</div>
                       <div style={{ fontSize: 7, color: value === '—' ? 'rgba(255,183,0,0.3)' : '#4a5568', marginTop: 3 }}>{sub}</div>
                     </div>
                   ))}
