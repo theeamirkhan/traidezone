@@ -1,8 +1,18 @@
 'use client'
 import TutorialModal from './TutorialModal'
+import SettingsModal from './components/SettingsModal'
+import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
 import { buildCompanionContext } from './ai/buildContext'
+import { calcProbabilities as _calcProbs } from './lib/utils'
+import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
+import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
+import {
+  fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
+  fetchOptionsFlow, fetchMarketTide, fetchMultiTFConfluence, fetchZeroDTESkew, fetchMarketIntel,
+  fetchTiingoContext
+} from './lib/marketData'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
@@ -162,7 +172,7 @@ function calcEMA(candles: any[], period: number) {
 // ── PROBABILITY ENGINE ─────────────────────────────────────────────────────
 // Calculates reversal / continuation / chop probabilities from morning inputs
 // Based on historical SPX/SPY behavior patterns
-function calcProbabilities({
+function _legacyCalcProbabilities({
   bias, gapDirection, gapSize, impliedMove, vixPrice, tiingoContext
 }: {
   bias: string, gapDirection: string, gapSize: string,
@@ -444,7 +454,7 @@ Flow: ${flowSection}${zeroDTESkew ? `\n0DTE: ${zeroDTESkew.skewLabel} P/C ${zero
 
 
 // ── #1 REAL-TIME NEWS ──────────────────────────────────────────────────────
-async function fetchMarketNews(anthKey: string): Promise<string> {
+async function _legacyFetchMarketNews(anthKey: string): Promise<string> {
   if (!anthKey) anthKey = 'server'
   try {
     const res = await fetch('/api/ai', {
@@ -469,7 +479,7 @@ No preamble, just the bullets.` }]
 }
 
 // ── #2 ECONOMIC CALENDAR ───────────────────────────────────────────────────
-async function fetchEconomicCalendar(anthKey: string): Promise<string> {
+async function _legacyFetchEconomicCalendar(anthKey: string): Promise<string> {
   if (!anthKey) anthKey = 'server'
   try {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -493,7 +503,7 @@ If no major events, say "No major catalysts today". No preamble.` }]
 }
 
 // ── #3 COMPOSITE MARKET SCORE (0-100) ──────────────────────────────────────
-function calcMarketScore({
+function _legacyCalcMarketScore({
   vixPrice, marketIntel, marketTide, optionsFlow, currentPrice, levels
 }: any): { score: number, label: string, color: string, breakdown: any } {
   let score = 50 // neutral baseline
@@ -546,7 +556,7 @@ function calcMarketScore({
 }
 
 // ── #4 MULTI-TIMEFRAME CONFLUENCE ──────────────────────────────────────────
-async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<any> {
+async function _legacyFetchMultiTFConfluence(polyKey: string, ticker: string): Promise<any> {
   if (!polyKey) return null
   try {
     const today = new Date()
@@ -598,7 +608,7 @@ async function fetchMultiTFConfluence(polyKey: string, ticker: string): Promise<
 }
 
 // ── #5 SPX 0DTE OPTIONS SKEW ───────────────────────────────────────────────
-async function fetchZeroDTESkew(uwKey: string): Promise<any> {
+async function _legacyFetchZeroDTESkew(uwKey: string): Promise<any> {
   // Always use server-side proxy
   uwKey = 'server'
   try {
@@ -640,7 +650,7 @@ async function fetchZeroDTESkew(uwKey: string): Promise<any> {
 }
 
 // ── #6 TRADE PATTERN ANALYSIS ──────────────────────────────────────────────
-function analyzeTradePatterns(trades: any[]): any {
+function _legacyAnalyzeTradePatterns(trades: any[]): any {
   if (!trades || trades.length < 5) return null
 
   const patterns: any = {
@@ -714,7 +724,7 @@ function analyzeTradePatterns(trades: any[]): any {
 }
 
 // ── #7 MACRO REGIME ────────────────────────────────────────────────────────
-async function fetchEarningsCalendar(): Promise<any[]> {
+async function _legacyFetchEarningsCalendar(): Promise<any[]> {
   try {
     // Fetch next 5 trading days of earnings
     const today = new Date()
@@ -747,7 +757,7 @@ async function fetchEarningsCalendar(): Promise<any[]> {
   } catch { return [] }
 }
 
-async function fetchMacroRegime(anthKey: string): Promise<any> {
+async function _legacyFetchMacroRegime(anthKey: string): Promise<any> {
   if (!anthKey) anthKey = 'server'
   // Only refresh once per day — cache in localStorage
   const cacheKey = 'tz-macro-regime'
@@ -789,21 +799,21 @@ Respond with ONLY valid JSON.` }]
 // ── #8 SESSION MEMORY ──────────────────────────────────────────────────────
 const SESSION_MEMORY_KEY = 'tz-session-memory'
 
-function loadSessionMemory(): string {
+function _legacyLoadSessionMemory(): string {
   try {
     const mem = localStorage.getItem(SESSION_MEMORY_KEY)
     return mem ? JSON.parse(mem).join('\n') : ''
   } catch { return '' }
 }
 
-function saveSessionMemory(memories: string[]): void {
+function _legacySaveSessionMemory(memories: string[]): void {
   try {
     // Keep last 20 memory entries
     localStorage.setItem(SESSION_MEMORY_KEY, JSON.stringify(memories.slice(-20)))
   } catch {}
 }
 
-function addMemory(entry: string): void {
+function _legacyAddMemory(entry: string): void {
   try {
     const existing = JSON.parse(localStorage.getItem(SESSION_MEMORY_KEY) || '[]')
     const dated = `[${new Date().toLocaleDateString()}] ${entry}`
@@ -811,7 +821,7 @@ function addMemory(entry: string): void {
   } catch {}
 }
 
-async function extractMemoryFromSession(anthKey: string, chatHistory: any[], tradePatterns: any, traderProfile: any): Promise<void> {
+async function _legacyExtractMemoryFromSession(anthKey: string, chatHistory: any[], tradePatterns: any, traderProfile: any): Promise<void> {
   if (!anthKey || chatHistory.length < 3) return
   try {
     const recentChat = chatHistory.slice(-8).map((m: any) => `${m.role}: ${m.content}`).join('\n')
@@ -880,7 +890,7 @@ Return {} if nothing notable. No markdown, no explanation.` }]
 }
 
 // ── MARKET INTEL ───────────────────────────────────────────────────────────
-async function fetchMarketIntel(polyKey: string) {
+async function _legacyFetchMarketIntel(polyKey: string) {
   if (!polyKey) return {}
   try {
     const est = getEST()
@@ -926,7 +936,7 @@ async function fetchMarketIntel(polyKey: string) {
   } catch { return {} }
 }
 
-async function fetchOptionsFlow(uwKey: string) {
+async function _legacyFetchOptionsFlow(uwKey: string) {
   try {
     const res = await fetch('/api/flow?path=/api/option-trades/flow-alerts?limit=50')
     if (!res.ok) return []
@@ -963,7 +973,7 @@ async function fetchOptionsFlow(uwKey: string) {
   } catch { return [] }
 }
 
-async function fetchMarketTide(uwKey: string) {
+async function _legacyFetchMarketTide(uwKey: string) {
   try {
     const res = await fetch('/api/flow?path=/api/market/market-tide', {
       headers: {}
@@ -988,7 +998,7 @@ async function fetchMarketTide(uwKey: string) {
 }
 
 // ── TIINGO HISTORICAL CONTEXT ──────────────────────────────────────────────
-async function fetchTiingoContext(tiingoKey: string, gapDirection: string, gapSize: string, impliedMove: string) {
+async function _legacyFetchTiingoContext(tiingoKey: string, gapDirection: string, gapSize: string, impliedMove: string) {
   if (!tiingoKey) return null
   try {
     const today = new Date()
@@ -1055,7 +1065,7 @@ async function fetchTiingoContext(tiingoKey: string, gapDirection: string, gapSi
     }
   } catch (e) { return null }
 }
-function parseBrokerCSV(text: string): any[] {
+function _legacyParseBrokerCSV(text: string): any[] {
   // Detect delimiter: TOS Account Statement uses tabs, generic CSVs use commas
   const firstDataLine = text.split('\n').find(l => l.trim() && !l.startsWith(' ') && l.includes('\t'))
   const delim = firstDataLine ? '\t' : ','
@@ -1168,7 +1178,7 @@ function parseBrokerCSV(text: string): any[] {
   trades.sort((a, b) => a.date.localeCompare(b.date))
   return trades
 }
-function analyzeTradeHistory(trades: any[]) {
+function _legacyAnalyzeTradeHistory(trades: any[]) {
   if (!trades.length) return null
   const winners = trades.filter(t => t.pnl > 0)
   const losers = trades.filter(t => t.pnl < 0)
@@ -1195,7 +1205,7 @@ const TZ = () => (
 )
 
 // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
-// ── TONE TESTER ─────────────────────────────────────────────────────────────
+// ── TONE TESTER (legacy — moved to components/ToneTester.tsx) ──────────────
 const TONE_SCENARIOS = [
   "I just revenge traded after hitting my daily loss limit. Took 3 extra trades and gave back everything.",
   "SPX is sitting right at VWAP. I want to go long but my checklist score is 4/13.",
@@ -1228,7 +1238,7 @@ const TONE_INSTRUCTIONS: Record<number, string> = {
   5: "You are a LIFE COACH. Lead with empathy and encouragement. Reframe mistakes as growth moments. Keep the trader confident and emotionally regulated. Celebrate small wins.",
 }
 
-function ToneTester() {
+function _LegacyToneTester() {
   const [scenario, setScenario] = useState('')
   const [customScenario, setCustomScenario] = useState('')
   const [results, setResults] = useState<Record<number, string>>({})
@@ -1348,7 +1358,7 @@ Trader says: "${activeScenario}"`
   )
 }
 
-function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
+function _LegacySettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const previewAudioRef = useRef<any>(null)
@@ -2733,11 +2743,11 @@ export default function CockpitPage() {
         // Price/candles/VWAP/EMA handled by useMarketData hook (60s refresh)
         // fetchFreeData only handles options flow, tide, tiingo, skew
         const [intel, flow, tide, tiingo, skew] = await Promise.all([
-          fetchMarketIntel(keys[POLY_KEY] || 'server'),
-          fetchOptionsFlow(keys[UW_KEY] || 'server'),
-          fetchMarketTide(keys[UW_KEY] || 'server'),
-          fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
-          fetchZeroDTESkew(keys[UW_KEY] || 'server'),
+          fetchMarketIntel(),
+          fetchOptionsFlow(),
+          fetchMarketTide(),
+          fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
+          fetchZeroDTESkew(),
         ])
         setMarketIntel(intel)
         setOptionsFlow(flow)
@@ -2754,9 +2764,9 @@ export default function CockpitPage() {
       if (localStorage.getItem('tz-news-date') === todayKey) return
       try {
         const [news, calendar, macro, mtf] = await Promise.all([
-          fetchMarketNews(keys[ANTH_KEY] || 'server'),
-          fetchEconomicCalendar(keys[ANTH_KEY] || 'server'),
-          fetchMacroRegime(keys[ANTH_KEY] || 'server'),
+          fetchMarketNews(),
+          fetchEconomicCalendar(),
+          fetchMacroRegime(),
           fetchMultiTFConfluence(keys[POLY_KEY] || 'server', 'SPY'),
         ])
         localStorage.setItem('tz-news-date', todayKey)
@@ -3566,7 +3576,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         </div>
       )}
 
-      {showSettings && <SettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} voiceEngine={voiceEngine} setVoiceEngine={setVoiceEngine} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
+      {showSettings && <_LegacySettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} voiceEngine={voiceEngine} setVoiceEngine={setVoiceEngine} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
 
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
@@ -4507,7 +4517,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ padding: '12px 16px' }}>
                   <button onClick={async () => {
                     setAiLoading(true)
-                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY]||''), fetchOptionsFlow(keys[UW_KEY]||''), fetchMarketTide(keys[UW_KEY]||''), fetchTiingoContext(keys[TIINGO_KEY]||'', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
@@ -4756,7 +4766,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                   <button onClick={async () => {
                     setAiLoading(true)
-                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(keys[POLY_KEY] || 'server'), fetchOptionsFlow(keys[UW_KEY] || 'server'), fetchMarketTide(keys[UW_KEY] || 'server'), fetchTiingoContext(keys[TIINGO_KEY] || 'server', morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
+                    const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
