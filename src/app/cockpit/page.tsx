@@ -1735,6 +1735,8 @@ export default function CockpitPage() {
   const [chatLoading, setChatLoading] = useState(false)
   const [editingVwap, setEditingVwap] = useState(false)
   const [showUsageReport, setShowUsageReport] = useState(false)
+  const [showTradeZone, setShowTradeZone] = useState(false)
+  const [levelProximity, setLevelProximity] = useState<any>(null)
   const [vwapInput, setVwapInput] = useState('')
   // effectiveVwap — hook handles manual override priority internally
   const effectiveVwap = md.manualVwap || levels?.spyVwap || null
@@ -1762,6 +1764,8 @@ export default function CockpitPage() {
     sessionMemory,
   })
   const [flowAlerts, setFlowAlerts] = useState<any[]>([])
+  const [volumeAlerts, setVolumeAlerts] = useState<any[]>([])
+  const volumeBaselineRef = useRef<number[]>([])  // rolling 20-bar volume baseline
   const flowAlertShownRef = useRef<Set<string>>(new Set())
   const [showTutorial, setShowTutorial] = useState(false)
   const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'none'>('loading')
@@ -2768,6 +2772,95 @@ export default function CockpitPage() {
       try {
         // Price/candles/VWAP/EMA handled by useMarketData hook (60s refresh)
         // fetchFreeData only handles options flow, tide, tiingo, skew
+        // ── Volume spike detection from SPY candles (Feature 1) ───────────────
+        if (spyCandles.length >= 5) {
+          const recentVols = spyCandles.slice(-21).map((c: any) => c.v).filter(Boolean)
+          if (recentVols.length >= 5) {
+            const baseline = recentVols.slice(0, -1)
+            const avgVol = baseline.reduce((a: number, b: number) => a + b, 0) / baseline.length
+            const currentVol = recentVols[recentVols.length - 1]
+            const multiplier = avgVol > 0 ? currentVol / avgVol : 0
+            const lastBar = spyCandles[spyCandles.length - 1]
+            const barDir = lastBar?.c > lastBar?.o ? 'BULL' : 'BEAR'
+            if (multiplier >= 2.5 && currentVol > 100000) {
+              const alertId = `vol-${lastBar.t}`
+              setVolumeAlerts(prev => {
+                if (prev.some(a => a.id === alertId)) return prev
+                const newAlert = {
+                  id: alertId,
+                  multiplier: multiplier.toFixed(1),
+                  volume: currentVol,
+                  direction: barDir,
+                  price: lastBar.c?.toFixed(2),
+                  ticker: 'SPY',
+                  time: new Date(lastBar.t).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' }),
+                }
+                return [newAlert, ...prev].slice(0, 4)
+              })
+            }
+          }
+        }
+
+        // ── Level proximity detection (Feature 3) ────────────────────────────
+        if (currentPrice && candles.length >= 3) {
+          const levels_check = [
+            { label: 'VWAP', price: levels?.spyVwap },
+            { label: '200 EMA', price: levels?.ema200 },
+            { label: 'PDH', price: levels?.pdh },
+            { label: 'PDL', price: levels?.pdl },
+          ].filter(l => l.price)
+
+          for (const lvl of levels_check) {
+            const dist = Math.abs((currentPrice - lvl.price!) / currentPrice)
+            if (dist < 0.003) {  // within 0.3% (~21pts on SPX 7100)
+              // Velocity: how fast approaching
+              const closes = candles.slice(-5).map((c: any) => c.c)
+              const approaching = lvl.price! > currentPrice
+                ? closes[closes.length-1] > closes[0]  // price moving toward higher level
+                : closes[closes.length-1] < closes[0]  // price moving toward lower level
+
+              // Volume confirmation: last 3 bars vs prior 10
+              const recent3Vol = candles.slice(-3).reduce((s: number, c: any) => s + (c.v||0), 0) / 3
+              const prior10Vol = candles.slice(-13, -3).reduce((s: number, c: any) => s + (c.v||0), 0) / 10
+              const volConfirm = prior10Vol > 0 ? recent3Vol / prior10Vol : 1
+
+              // Flow bias
+              const bullFlow = optionsFlow.filter((f: any) => f.sentiment === 'BULLISH').length
+              const bearFlow = optionsFlow.filter((f: any) => f.sentiment === 'BEARISH').length
+              const flowBias = bullFlow > bearFlow ? 'BULLISH' : bearFlow > bullFlow ? 'BEARISH' : 'NEUTRAL'
+
+              // Breakout probability
+              // Higher vol approaching = more likely breakout
+              // Flow confirming direction = more likely breakout
+              // VIX elevated = more likely rejection
+              const baseBreakout = approaching ? 52 : 48
+              const volAdj = volConfirm > 1.5 ? 12 : volConfirm > 1.2 ? 6 : volConfirm < 0.8 ? -8 : 0
+              const flowAdj = (approaching && flowBias === 'BULLISH' && lvl.price! > currentPrice) ||
+                              (approaching && flowBias === 'BEARISH' && lvl.price! < currentPrice) ? 10 : -5
+              const vixAdj = (vixPrice || 18) > 25 ? -10 : (vixPrice || 18) < 14 ? 5 : 0
+              const breakoutPct = Math.max(20, Math.min(80, baseBreakout + volAdj + flowAdj + vixAdj))
+
+              setLevelProximity({
+                level: lvl.label,
+                levelPrice: lvl.price,
+                currentPrice,
+                distPts: Math.abs(currentPrice - lvl.price!).toFixed(1),
+                distPct: (dist * 100).toFixed(2),
+                approaching,
+                breakoutPct: Math.round(breakoutPct),
+                bouncePct: 100 - Math.round(breakoutPct),
+                volConfirm: volConfirm.toFixed(1),
+                flowBias,
+              })
+              break
+            }
+          }
+          // Clear if no level close
+          if (!levels_check.some(l => l.price && Math.abs((currentPrice - l.price!) / currentPrice) < 0.003)) {
+            setLevelProximity(null)
+          }
+        }
+
         const [intel, flow, tide, tiingo, skew] = await Promise.all([
           fetchMarketIntel(),
           fetchOptionsFlow(),
@@ -3500,6 +3593,90 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </a>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── VOLUME SPIKE BANNERS ── */}
+      {volumeAlerts.length > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 950, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300 }}>
+          {volumeAlerts.map((alert) => (
+            <div key={alert.id} style={{
+              background: 'rgba(6,8,16,0.97)',
+              border: `1px solid ${alert.direction === 'BULL' ? 'rgba(0,255,136,0.4)' : 'rgba(255,26,74,0.4)'}`,
+              borderLeft: `3px solid ${alert.direction === 'BULL' ? '#00ff88' : '#ff1a4a'}`,
+              borderRadius: 6, padding: '10px 14px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.5)`,
+              animation: 'slideInLeft 0.3s ease', cursor: 'pointer',
+            }} onClick={() => setVolumeAlerts(prev => prev.filter(a => a.id !== alert.id))}>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ fontSize: 7, color: '#6b7a9a', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>📊 VOL SPIKE</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 900, color: alert.direction === 'BULL' ? '#00ff88' : '#ff1a4a' }}>
+                  {alert.multiplier}×
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#f0f4ff' }}>{alert.ticker}</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                    background: alert.direction === 'BULL' ? 'rgba(0,255,136,0.12)' : 'rgba(255,26,74,0.1)',
+                    color: alert.direction === 'BULL' ? '#00ff88' : '#ff1a4a'
+                  }}>{alert.direction === 'BULL' ? '▲ BULLISH' : '▼ BEARISH'}</span>
+                </div>
+                <div style={{ fontSize: 9, color: '#8899bb' }}>
+                  {(alert.volume / 1000).toFixed(0)}K shares · ${alert.price} · {alert.time}
+                </div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); setVolumeAlerts(prev => prev.filter(a => a.id !== alert.id)) }}
+                style={{ background: 'transparent', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── LEVEL PROXIMITY ALERT (Feature 3) ── */}
+      {levelProximity && (
+        <div style={{
+          position: 'fixed', top: 22, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 960, background: 'rgba(6,8,16,0.97)',
+          border: `1px solid ${levelProximity.breakoutPct > 55 ? 'rgba(0,229,255,0.5)' : 'rgba(255,183,0,0.5)'}`,
+          borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.6)', minWidth: 380, maxWidth: 520,
+          animation: 'slideInLeft 0.3s ease',
+        }}>
+          <div style={{ flexShrink: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1, marginBottom: 1 }}>⚡ LEVEL APPROACH</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 900, color: levelProximity.breakoutPct > 55 ? '#00e5ff' : '#ffb700' }}>
+              {levelProximity.level}
+            </div>
+            <div style={{ fontSize: 9, color: '#8899bb' }}>{levelProximity.levelPrice?.toFixed(2)}</div>
+          </div>
+          <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.08)' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 5 }}>
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1 }}>BREAKOUT</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: levelProximity.breakoutPct > 55 ? '#00ff88' : '#ff1a4a' }}>{levelProximity.breakoutPct}%</div>
+              </div>
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1 }}>BOUNCE</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: levelProximity.bouncePct > 55 ? '#00ff88' : '#ff1a4a' }}>{levelProximity.bouncePct}%</div>
+              </div>
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1 }}>DISTANCE</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, color: '#f0f4ff' }}>{levelProximity.distPts}pts</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, fontSize: 8, color: '#6b7a9a' }}>
+              <span>Vol {levelProximity.volConfirm}× avg</span>
+              <span>·</span>
+              <span style={{ color: levelProximity.flowBias === 'BULLISH' ? '#00ff88' : levelProximity.flowBias === 'BEARISH' ? '#ff1a4a' : '#8899bb' }}>Flow {levelProximity.flowBias}</span>
+              <span>·</span>
+              <span>{levelProximity.approaching ? '→ Approaching' : '← Moving Away'}</span>
+            </div>
+          </div>
+          <button onClick={() => setLevelProximity(null)}
+            style={{ background: 'transparent', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 16, padding: '0 2px', flexShrink: 0 }}>×</button>
         </div>
       )}
 
@@ -4506,7 +4683,48 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     )}
                     {aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && aiResult.entryZone && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
-                        <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Trade Levels</div>
+                        {/* ── OPTIMAL TRADE ZONE (Feature 2) ── */}
+                        <div style={{ marginBottom: 12, borderRadius: 10,
+                          background: 'linear-gradient(135deg, rgba(0,229,255,0.04), rgba(0,212,160,0.04))',
+                          border: `1px solid ${aiResult.signal === 'LONG' ? 'rgba(0,255,136,0.25)' : 'rgba(255,26,74,0.25)'}`,
+                          padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 2, color: '#6b7a9a' }}>🎯 OPTIMAL TRADE ZONE</span>
+                              <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
+                                background: aiResult.signal === 'LONG' ? 'rgba(0,255,136,0.15)' : 'rgba(255,26,74,0.15)',
+                                color: aiResult.signal === 'LONG' ? '#00ff88' : '#ff1a4a', fontFamily: fontDisplay }}>
+                                {aiResult.signal === 'LONG' ? '📞 CALL' : '📉 PUT'}
+                              </span>
+                            </div>
+                            {(aiResult.moveSize as number) > 0 && (
+                              <span style={{ fontSize: 10, fontWeight: 800, color: '#00e5ff', fontFamily: fontDisplay }}>{aiResult.moveSize}pt MOVE</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                            {[
+                              { label: 'BUY ZONE', value: aiResult.entryZone ? `${fmt(aiResult.entryZone.low)}–${fmt(aiResult.entryZone.high)}` : '—', color: '#00e5ff',
+                                sub: aiResult.entryZone && aiResult.stopLevel ? `${Math.abs(((aiResult.entryZone.low+aiResult.entryZone.high)/2) - aiResult.stopLevel).toFixed(0)}pt risk` : '' },
+                              { label: 'STOP', value: fmt(aiResult.stopLevel), color: '#ff1a4a', sub: 'VWAP / EMA' },
+                              { label: 'TARGET 1', value: fmt(aiResult.target1), color: '#00ff88',
+                                sub: aiResult.entryZone && aiResult.target1 ? `+${Math.abs(aiResult.target1 - (aiResult.entryZone.low+aiResult.entryZone.high)/2).toFixed(0)}pts` : 'scalp' },
+                              { label: 'TARGET 2', value: fmt(aiResult.target2), color: '#00d4a0',
+                                sub: aiResult.entryZone && aiResult.target2 ? `+${Math.abs(aiResult.target2 - (aiResult.entryZone.low+aiResult.entryZone.high)/2).toFixed(0)}pts` : 'swing' },
+                            ].map(({label, value, color, sub}) => (
+                              <div key={label} style={{ background: color + '0a', border: `1px solid ${color}30`, borderRadius: 6, padding: '7px 8px' }}>
+                                <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1, marginBottom: 3 }}>{label}</div>
+                                <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 900, color }}>{value}</div>
+                                {sub && <div style={{ fontSize: 8, color: '#4a5568', marginTop: 2 }}>{sub}</div>}
+                              </div>
+                            ))}
+                          </div>
+                          {aiResult.riskFlag && (
+                            <div style={{ marginTop: 8, fontSize: 9, color: '#ffb700', padding: '4px 8px', background: 'rgba(255,183,0,0.06)', borderRadius: 4, borderLeft: '2px solid rgba(255,183,0,0.4)' }}>
+                              ⚠ {aiResult.riskFlag}
+                            </div>
+                          )}
+                        </div>
+                        {/* Legacy compact grid kept for reference */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                           {[
                             {label:'Entry', value: aiResult.entryZone ? `${fmt(aiResult.entryZone.low)}–${fmt(aiResult.entryZone.high)}` : '—', color: signalColor},

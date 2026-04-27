@@ -217,7 +217,16 @@ Target: ${activePlaybook.target}`
   "target2": 0.00,
   "moveSize": 0,
   "buyZones": [{ "type": "buy", "high": 0.00, "low": 0.00 }, { "type": "nobuy", "high": 0.00, "low": 0.00 }]
-}`
+}
+
+TRADE ZONE RULES (enforce strictly):
+- entryZone: specific 3-5pt wide zone at key support/resistance relative to current price
+- stopLevel: below VWAP or 200 EMA (whichever is closer) — no wider than 12pts from entry
+- target1: minimum 10-15pts above entry (SCALP minimum — do not give less)
+- target2: minimum 25-30pts above entry (SWING target)
+- moveSize: target1 minus entry midpoint, rounded to nearest 5
+- signal LONG → call option, signal SHORT → put option
+- If you cannot identify a zone with 10pt+ potential, signal WAIT instead`
 
   const systemPrompt = [
     'You are an elite SPX intraday trading AI companion. Keep this trader disciplined, data-driven, and in their system.',
