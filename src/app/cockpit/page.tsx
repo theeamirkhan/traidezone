@@ -4627,6 +4627,34 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                 </div>
 
+                {/* ── OPTIMAL TRADE ZONE — always visible, gold card (Feature 2) ── */}
+                {(!aiResult || aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE' || !aiResult.entryZone) ? (
+                  <div style={{ margin: '0 0 8px 0', borderRadius: 10,
+                    background: 'linear-gradient(135deg, rgba(255,183,0,0.06), rgba(255,140,0,0.04))',
+                    border: '1px solid rgba(255,183,0,0.45)',
+                    boxShadow: '0 0 24px rgba(255,183,0,0.1), inset 0 1px 0 rgba(255,183,0,0.1)',
+                    padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 2, color: '#ffb700' }}>🎯 OPTIMAL TRADE ZONE</span>
+                      <span style={{ fontSize: 8, color: 'rgba(255,183,0,0.5)' }}>Run Get Signal to populate</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                      {[
+                        { label: 'BUY ZONE', icon: '📍' },
+                        { label: 'STOP', icon: '🛑' },
+                        { label: 'TARGET 1 (SCALP)', icon: '🎯' },
+                        { label: 'TARGET 2 (SWING)', icon: '🚀' },
+                      ].map(({ label, icon }) => (
+                        <div key={label} style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.18)', borderRadius: 8, padding: '10px 10px' }}>
+                          <div style={{ fontSize: 7, color: '#ffb700', letterSpacing: 1, marginBottom: 6 }}>{icon} {label}</div>
+                          <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: 'rgba(255,255,255,0.15)' }}>—</div>
+                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.15)', marginTop: 3 }}>min 10pt scalp</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {/* Signal badge */}
                 {aiResult ? (
                   <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
@@ -4686,27 +4714,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7 }}>{aiResult.riskFlag}</div>
                       </div>
                     )}
-                    {/* ── OPTIMAL TRADE ZONE — always visible, gold box ── */}
-                    <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.15)' }}>
-                      {(!aiResult || aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE' || !aiResult.entryZone) ? (
-                        <div style={{ borderRadius: 10,
-                          background: 'linear-gradient(135deg, rgba(255,183,0,0.06), rgba(255,140,0,0.04))',
-                          border: '1px solid rgba(255,183,0,0.4)',
-                          boxShadow: '0 0 20px rgba(255,183,0,0.08)',
-                          padding: '14px 16px', textAlign: 'center' }}>
-                          <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 2, color: '#ffb700', marginBottom: 8 }}>🎯 OPTIMAL TRADE ZONE</div>
-                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Run Get Signal to generate entry zone, stop &amp; targets</div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 10 }}>
-                            {['BUY ZONE','STOP','TARGET 1 (SCALP)','TARGET 2 (SWING)'].map(l => (
-                              <div key={l} style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.15)', borderRadius: 6, padding: '8px 6px' }}>
-                                <div style={{ fontSize: 7, color: '#ffb700', letterSpacing: 1, marginBottom: 4 }}>{l}</div>
-                                <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, color: 'rgba(255,255,255,0.2)' }}>—</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
+                    {/* Trade Zone placeholder now rendered below signal card — see standalone section */}
                     {aiResult && aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && aiResult.entryZone && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.15)' }}>
                         {/* ── OPTIMAL TRADE ZONE (Feature 2) ── */}
