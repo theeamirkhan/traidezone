@@ -323,3 +323,4 @@ ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}`
   return { systemPrompt, isValid: !!price, warnings }
 }
 // force redeploy Mon Apr 27 11:51:40 UTC 2026
+// deploy 1777295513
