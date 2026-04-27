@@ -4005,6 +4005,75 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             {/* Left — Dashboard */}
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
 
+              {/* ── OPTIMAL TRADE ZONE — gold, always first thing you see ── */}
+              <div style={{ borderRadius: 10,
+                background: 'linear-gradient(135deg, rgba(255,183,0,0.07) 0%, rgba(255,140,0,0.03) 100%)',
+                border: '1px solid rgba(255,183,0,0.5)',
+                boxShadow: '0 0 24px rgba(255,183,0,0.1)',
+                padding: '12px 14px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: '#ffb700' }}>🎯 OPTIMAL TRADE ZONE</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {aiResult && aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && (
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
+                        background: 'rgba(255,183,0,0.18)', color: '#ffb700', fontFamily: fontDisplay, letterSpacing: 1 }}>
+                        {aiResult.signal === 'LONG' ? '📞 CALL' : '📉 PUT'}
+                      </span>
+                    )}
+                    {aiResult && (aiResult.moveSize as number) > 0 && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#ffb700', fontFamily: fontDisplay }}>{aiResult.moveSize}pt POTENTIAL</span>
+                    )}
+                    {(!aiResult || aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE') && (
+                      <span style={{ fontSize: 7, color: 'rgba(255,183,0,0.4)', letterSpacing: 1 }}>RUN GET SIGNAL</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                  {[
+                    {
+                      label: 'BUY ZONE',
+                      value: (aiResult && aiResult.entryZone) ? `${(aiResult.entryZone.low||0).toFixed(0)}–${(aiResult.entryZone.high||0).toFixed(0)}` : '—',
+                      sub: (aiResult && aiResult.entryZone && aiResult.stopLevel) ? `${Math.abs(((aiResult.entryZone.low+aiResult.entryZone.high)/2) - aiResult.stopLevel).toFixed(0)}pt risk` : 'min 10pt scalp',
+                      color: '#00e5ff',
+                    },
+                    {
+                      label: 'STOP',
+                      value: (aiResult && aiResult.stopLevel) ? (aiResult.stopLevel as number).toFixed(0) : '—',
+                      sub: 'VWAP / 200 EMA',
+                      color: '#ff1a4a',
+                    },
+                    {
+                      label: 'TARGET 1',
+                      value: (aiResult && aiResult.target1) ? (aiResult.target1 as number).toFixed(0) : '—',
+                      sub: (aiResult && aiResult.entryZone && aiResult.target1) ? `+${Math.abs(aiResult.target1 - (aiResult.entryZone.low+aiResult.entryZone.high)/2).toFixed(0)}pts` : '≥10pt scalp',
+                      color: '#00ff88',
+                    },
+                    {
+                      label: 'TARGET 2',
+                      value: (aiResult && aiResult.target2) ? (aiResult.target2 as number).toFixed(0) : '—',
+                      sub: (aiResult && aiResult.entryZone && aiResult.target2) ? `+${Math.abs(aiResult.target2 - (aiResult.entryZone.low+aiResult.entryZone.high)/2).toFixed(0)}pts` : '≥25pt swing',
+                      color: '#00d4a0',
+                    },
+                  ].map(({ label, value, sub, color }) => (
+                    <div key={label} style={{
+                      background: value === '—' ? 'rgba(255,183,0,0.03)' : color + '0d',
+                      border: value === '—' ? '1px solid rgba(255,183,0,0.15)' : `1px solid ${color}35`,
+                      borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 7, color: value === '—' ? '#ffb700' : '#6b7a9a', letterSpacing: 1, marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 900,
+                        color: value === '—' ? 'rgba(255,255,255,0.18)' : color }}>{value}</div>
+                      <div style={{ fontSize: 7, color: value === '—' ? 'rgba(255,183,0,0.3)' : '#4a5568', marginTop: 3 }}>{sub}</div>
+                    </div>
+                  ))}
+                </div>
+                {aiResult && aiResult.riskFlag && (
+                  <div style={{ marginTop: 8, fontSize: 9, color: '#ffb700', padding: '5px 8px',
+                    background: 'rgba(255,183,0,0.06)', borderRadius: 5, borderLeft: '2px solid rgba(255,183,0,0.4)' }}>
+                    ⚠ {aiResult.riskFlag}
+                  </div>
+                )}
+              </div>
+
               {/* Manual Signal Trigger */}
               {!aiResult && !aiLoading && (
                 <div style={{ background: 'rgba(0,212,160,0.06)', border: '1px solid rgba(0,212,160,0.25)', borderRadius: 6, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
