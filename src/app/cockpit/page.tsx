@@ -8,7 +8,6 @@ import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
 import { trackUsage } from './agents/usageTracker'
-import { logTradeAlert, scheduleOutcomeChecks } from './agents/tradeAlertLogger'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
@@ -4184,26 +4183,38 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       setAiResult(result)
                       setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
                       setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
-                      // ── Log alert for outcome tracking ──
+                      // ── Log alert to Supabase — server agent scores at 30/60/120min ──
                       if ((result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone && result.stopLevel && result.target1) {
-                        const logged = await logTradeAlert({
-                          signal:        result.signal,
-                          entryZone:     result.entryZone,
-                          stopLevel:     result.stopLevel,
-                          target1:       result.target1,
-                          target2:       result.target2 || result.target1 + 15,
-                          currentPrice:  currentPrice || 0,
-                          vwap:          levels?.spyVwap || null,
-                          ema200:        levels?.ema200 || null,
-                          vix:           vixPrice,
-                          confidence:    result.confidence || 0,
-                          moveSize:      result.moveSize || 0,
-                          proximityLevel:       levelProximity?.level,
-                          proximityBreakoutPct: levelProximity?.breakoutPct,
-                          proximityFactors:     levelProximity?.factors,
+                        fetch('/api/trade-alerts', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            signal:               result.signal,
+                            entryZone:            result.entryZone,
+                            stopLevel:            result.stopLevel,
+                            target1:              result.target1,
+                            target2:              result.target2 || (result.target1 + 20),
+                            currentPrice:         currentPrice || 0,
+                            vwap:                 levels?.spyVwap || null,
+                            ema200:               levels?.ema200 || null,
+                            vix:                  vixPrice,
+                            confidence:           result.confidence || 0,
+                            moveSize:             result.moveSize || 0,
+                            proximityLevel:       levelProximity?.level,
+                            proximityBreakoutPct: levelProximity?.breakoutPct,
+                            proximityFactors:     levelProximity?.factors,
+                          })
                         })
-                        // Scoring handled by server-side agent at /api/agents/score-alerts (cron every 30min)
-                        console.log('[TradeAlertLogger] Alert logged to Supabase — agent will score at 30/60/120min')
+                        .then(r => r.json())
+                        .then(d => {
+                          if (d.needsMigration) {
+                            // Table not created yet — run migration silently
+                            fetch('/api/trade-alerts/migrate').catch(() => {})
+                          } else {
+                            console.log('[TradeAlertAgent] Logged to Supabase:', d.id, '— scoring cron runs every 30min')
+                          }
+                        })
+                        .catch(e => console.warn('[TradeAlertAgent] Log failed (non-critical):', e.message))
                       }
                     }
                     setAiLoading(false)
