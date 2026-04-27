@@ -2,11 +2,13 @@
 import TutorialModal from './TutorialModal'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
+import AlertHistory from './components/AlertHistory'
 import UsageReport from './components/UsageReport'
 import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
 import { trackUsage } from './agents/usageTracker'
+import { logTradeAlert, scheduleOutcomeChecks } from './agents/tradeAlertLogger'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
@@ -1735,6 +1737,7 @@ export default function CockpitPage() {
   const [chatLoading, setChatLoading] = useState(false)
   const [editingVwap, setEditingVwap] = useState(false)
   const [showUsageReport, setShowUsageReport] = useState(false)
+  const [showAlertHistory, setShowAlertHistory] = useState(false)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [vwapInput, setVwapInput] = useState('')
@@ -3621,6 +3624,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
       {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
+      {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
 
       {/* ── SUBSCRIPTION GATE ── */}
       {subStatus === 'loading' && (
@@ -3938,6 +3942,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ fontSize: 7, color: connected ? '#00ff88' : '#ff1a4a', fontWeight: 700, letterSpacing: 3, textShadow: connected ? '0 0 8px rgba(0,255,136,0.8)' : '0 0 8px rgba(255,26,74,0.8)' }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
             <AgentStatus />
             <button onClick={() => setShowUsageReport(true)} title="AI Usage & Cost Report" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(0,212,160,0.3)', background: 'rgba(0,212,160,0.07)', color: '#00d4a0', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>$</button>
+            <button onClick={() => setShowAlertHistory(true)} title="Trade Alert History" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(255,183,0,0.4)', background: 'rgba(255,183,0,0.08)', color: '#ffb700', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>📋</button>
             <button onClick={() => {
               setVolumeAlerts([{ id: `vol-demo-${Date.now()}`, multiplier: '3.8', volume: 820000, direction: 'BULL', price: currentPrice?.toFixed(2) || '7155.00', ticker: 'SPY', time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) }])
               if (currentPrice && levels?.spyVwap) setLevelProximity({ level: 'VWAP', levelPrice: levels.spyVwap, currentPrice, distPts: Math.abs(currentPrice - levels.spyVwap).toFixed(1), distPct: (Math.abs(currentPrice - levels.spyVwap)/currentPrice*100).toFixed(2), approaching: true, breakoutPct: 62, bouncePct: 38, volConfirm: '1.8', flowBias: 'BULLISH' })
@@ -4175,7 +4180,39 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
-                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
+                    if (result) {
+                      setAiResult(result)
+                      setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
+                      setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
+                      // ── Log alert for outcome tracking ──
+                      if ((result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone && result.stopLevel && result.target1) {
+                        const logged = logTradeAlert({
+                          signal:        result.signal,
+                          entryZone:     result.entryZone,
+                          stopLevel:     result.stopLevel,
+                          target1:       result.target1,
+                          target2:       result.target2 || result.target1 + 15,
+                          currentPrice:  currentPrice || 0,
+                          vwap:          levels?.spyVwap || null,
+                          ema200:        levels?.ema200 || null,
+                          vix:           vixPrice,
+                          confidence:    result.confidence || 0,
+                          moveSize:      result.moveSize || 0,
+                          proximityLevel:       levelProximity?.level,
+                          proximityBreakoutPct: levelProximity?.breakoutPct,
+                          proximityFactors:     levelProximity?.factors,
+                        })
+                        // Schedule outcome checks at 30m, 1h, 2h
+                        scheduleOutcomeChecks(logged.id, async () => {
+                          try {
+                            const today = new Date().toISOString().split('T')[0]
+                            const r = await fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/5/minute/${today}/${today}?adjusted=true&sort=asc&limit=500`)}`).then(r => r.json())
+                            const bars = r?.results || []
+                            return bars.length > 0 ? bars[bars.length - 1].c : null
+                          } catch { return null }
+                        })
+                      }
+                    }
                     setAiLoading(false)
                   }} style={{ fontFamily: font, fontSize: 13, fontWeight: 700, padding: '10px 20px', borderRadius: 6, background: 'rgba(0,212,160,0.12)', border: '1px solid rgba(0,212,160,0.4)', color: '#00d4a0', cursor: 'pointer', letterSpacing: 0.5, whiteSpace: 'nowrap' as const }}>
                     ▶ Get Signal
