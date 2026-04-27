@@ -3640,9 +3640,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           position: 'fixed', top: 22, left: '50%', transform: 'translateX(-50%)',
           zIndex: 960, background: 'rgba(6,8,16,0.97)',
           border: '1px solid rgba(255,183,0,0.6)',
-          boxShadow: '0 0 24px rgba(255,183,0,0.15)',
+          boxShadow: '0 0 24px rgba(255,183,0,0.15), 0 4px 24px rgba(0,0,0,0.6)',
           borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 12,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.6)', minWidth: 380, maxWidth: 520,
+          minWidth: 380, maxWidth: 520,
           animation: 'slideInLeft 0.3s ease',
         }}>
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
