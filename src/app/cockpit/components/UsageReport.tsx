@@ -231,16 +231,18 @@ export default function UsageReport({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Setup instructions if no admin key */}
+        {/* Data source note */}
         {!adminData && (
           <div style={{ background: 'rgba(124,106,255,0.06)', border: `1px solid rgba(124,106,255,0.15)`, borderRadius: 8, padding: '12px 14px' }}>
-            <div style={{ fontSize: 9, color: C.violet, letterSpacing: 1, marginBottom: 8 }}>🔑 UNLOCK EXACT FIGURES</div>
+            <div style={{ fontSize: 9, color: C.violet, letterSpacing: 1, marginBottom: 8 }}>📊 ABOUT THIS DATA</div>
             <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.6 }}>
-              Add an Anthropic Admin API key for real token counts and exact billing data.<br/>
-              1. Go to <span style={{ color: C.text }}>platform.claude.com → Organization → Admin API Keys</span><br/>
-              2. Create a key starting with <span style={{ color: C.text }}>sk-ant-admin...</span><br/>
-              3. Add <span style={{ color: C.text }}>ANTHROPIC_ADMIN_KEY</span> to Vercel env vars<br/>
-              4. Redeploy — this report will show exact figures automatically
+              Costs calculated from actual token counts in each API response — same data Anthropic bills from.<br/>
+              Tracking starts from first use after today's page load. Historical data accumulates over time.<br/>
+              <br/>
+              For full billing history → <span style={{ color: C.text, cursor: 'pointer' }}
+                onClick={() => window.open('https://platform.claude.com/cost', '_blank')}>
+                platform.claude.com/cost ↗
+              </span>
             </div>
           </div>
         )}
