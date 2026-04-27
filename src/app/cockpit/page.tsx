@@ -1585,10 +1585,10 @@ function ProbMeter({ value, color }: { value: number; color: string }) {
 // Timeframe config: daysBack drives from-date, limit must cover all bars
 // 1m=1day(500bars) 5m=5days(500) 15m=10days(400) 1H=20days(200) 1D=1yr(500)
 const TF_CONFIG: Record<string, {multiplier: number, timespan: string, daysBack: number, limit: number}> = {
-  '1':  { multiplier: 1,  timespan: 'minute', daysBack: 2,   limit: 500 },  // 1 trading day + buffer
-  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 10,  limit: 500 },  // ~5 trading days
-  '15': { multiplier: 15, timespan: 'minute', daysBack: 21,  limit: 500 },  // ~15 trading days
-  '60': { multiplier: 60, timespan: 'minute', daysBack: 42,  limit: 500 },  // ~30 trading days
+  '1':  { multiplier: 1,  timespan: 'minute', daysBack: 2,   limit: 500 },  // 1 trading day
+  '5':  { multiplier: 5,  timespan: 'minute', daysBack: 10,  limit: 500 },  // 5 trading days
+  '15': { multiplier: 15, timespan: 'minute', daysBack: 9,   limit: 500 },  // 5 trading days (7 cal + buffer)
+  '60': { multiplier: 60, timespan: 'minute', daysBack: 30,  limit: 500 },  // 20 trading days (28 cal + buffer)
   '1D': { multiplier: 1,  timespan: 'day',    daysBack: 400, limit: 500 },  // ~1 year
 }
 
@@ -2260,18 +2260,20 @@ export default function CockpitPage() {
       // Fetch candles with pagination for Deep Dive chart
       // Caps at tfCfg.limit total bars to avoid infinite loops
       const fetchAllPages = async (initialPath: string): Promise<any[]> => {
-        const maxBars = (TF_CONFIG[key === 'spx' ? (chartTfRef.current || '5') : '5']?.limit) || 500
+        // Target bars per timeframe (to know when we have enough)
+        const tf2 = key === 'spx' ? (chartTfRef.current || '5') : '5'
+        const targetBars = tf2 === '1' ? 400 : tf2 === '5' ? 300 : tf2 === '15' ? 130 : tf2 === '60' ? 130 : 400
         let all: any[] = []
         let nextPath: string | null = initialPath
         let pages = 0
-        const maxPages = 6  // safety cap — 6 pages × 500 = 3000 bars max
-        while (nextPath && pages < maxPages && all.length < maxBars) {
+        const maxPages = 20  // safety cap
+        while (nextPath && pages < maxPages && all.length < targetBars) {
           try {
             const text = await proxyFetch(nextPath).then(r => r.text())
             if (!text || !text.trim()) break
             const data = JSON.parse(text)
             if (data.results?.length) all = all.concat(data.results)
-            if (data.next_url && all.length < maxBars) {
+            if (data.next_url) {
               try { const u = new URL(data.next_url); nextPath = u.pathname + u.search }
               catch { break }
             } else { break }
