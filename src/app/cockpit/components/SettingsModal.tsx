@@ -3,7 +3,22 @@ import { useState, useRef } from 'react'
 import ToneTester from './ToneTester'
 
 const VOICE_ID = 'tz-voice-id'
-const font = "'SF Mono', 'Fira Code', monospace"
+const font = "'Share Tech Mono', monospace"
+const fontDisplay = "'Orbitron', sans-serif"
+
+const C = {
+  bg: '#060810', deep: '#030408', surface: '#0c0f1a', surface2: '#111827', surface3: '#1a2235',
+  border: 'rgba(0,212,160,0.10)', border2: 'rgba(0,212,160,0.25)',
+  text: '#f0f4ff', textDim: '#8899bb', textMuted: '#4a5568',
+  teal: '#00e5ff', tealDim: 'rgba(0,229,255,0.08)', tealBorder: 'rgba(0,229,255,0.25)', tealGlow: 'rgba(0,229,255,0.20)',
+  violet: '#00d4a0', violetDim: 'rgba(0,212,160,0.08)', violetBorder: 'rgba(0,212,160,0.25)', violetGlow: 'rgba(0,212,160,0.15)',
+  pink: '#ff2d78', pinkDim: 'rgba(255,45,120,0.08)', pinkBorder: 'rgba(255,45,120,0.25)',
+  synapse: '#00ff88', fire: '#ff6b00', fireDim: 'rgba(255,107,0,0.08)', fireBorder: 'rgba(255,107,0,0.25)',
+  red: '#ff1a4a', redDim: 'rgba(255,26,74,0.08)', redBorder: 'rgba(255,26,74,0.25)',
+  yellow: '#ffb700', yellowDim: 'rgba(255,183,0,0.08)', blue: '#1a5fa8',
+  purple: '#00d4a0', purpleDim: 'rgba(0,212,160,0.08)', purpleBorder: 'rgba(0,212,160,0.25)', purpleGlow: 'rgba(0,212,160,0.10)',
+}
+
 
 export default function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
