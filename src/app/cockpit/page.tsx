@@ -3602,15 +3602,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           {volumeAlerts.map((alert) => (
             <div key={alert.id} style={{
               background: 'rgba(6,8,16,0.97)',
-              border: `1px solid ${alert.direction === 'BULL' ? 'rgba(0,255,136,0.4)' : 'rgba(255,26,74,0.4)'}`,
-              borderLeft: `3px solid ${alert.direction === 'BULL' ? '#00ff88' : '#ff1a4a'}`,
+              border: '1px solid rgba(255,183,0,0.5)',
+              borderLeft: '3px solid #ffb700',
               borderRadius: 6, padding: '10px 14px',
               display: 'flex', alignItems: 'center', gap: 10,
               boxShadow: `0 4px 20px rgba(0,0,0,0.5)`,
               animation: 'slideInLeft 0.3s ease', cursor: 'pointer',
             }} onClick={() => setVolumeAlerts(prev => prev.filter(a => a.id !== alert.id))}>
               <div style={{ flexShrink: 0 }}>
-                <div style={{ fontSize: 7, color: '#6b7a9a', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>📊 VOL SPIKE</div>
+                <div style={{ fontSize: 7, color: '#ffb700', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>📊 VOL SPIKE</div>
                 <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 900, color: alert.direction === 'BULL' ? '#00ff88' : '#ff1a4a' }}>
                   {alert.multiplier}×
                 </div>
@@ -3639,14 +3639,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         <div style={{
           position: 'fixed', top: 22, left: '50%', transform: 'translateX(-50%)',
           zIndex: 960, background: 'rgba(6,8,16,0.97)',
-          border: `1px solid ${levelProximity.breakoutPct > 55 ? 'rgba(0,229,255,0.5)' : 'rgba(255,183,0,0.5)'}`,
+          border: '1px solid rgba(255,183,0,0.6)',
+          boxShadow: '0 0 24px rgba(255,183,0,0.15)',
           borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 12,
           boxShadow: '0 4px 24px rgba(0,0,0,0.6)', minWidth: 380, maxWidth: 520,
           animation: 'slideInLeft 0.3s ease',
         }}>
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <div style={{ fontSize: 7, color: '#6b7a9a', letterSpacing: 1, marginBottom: 1 }}>⚡ LEVEL APPROACH</div>
-            <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 900, color: levelProximity.breakoutPct > 55 ? '#00e5ff' : '#ffb700' }}>
+            <div style={{ fontSize: 7, color: '#ffb700', fontWeight: 700, letterSpacing: 1, marginBottom: 1 }}>⚡ LEVEL APPROACH</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 900, color: '#ffb700' }}>
               {levelProximity.level}
             </div>
             <div style={{ fontSize: 9, color: '#8899bb' }}>{levelProximity.levelPrice?.toFixed(2)}</div>
@@ -3848,6 +3849,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ fontSize: 7, color: connected ? '#00ff88' : '#ff1a4a', fontWeight: 700, letterSpacing: 3, textShadow: connected ? '0 0 8px rgba(0,255,136,0.8)' : '0 0 8px rgba(255,26,74,0.8)' }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
             <AgentStatus />
             <button onClick={() => setShowUsageReport(true)} title="AI Usage & Cost Report" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(0,212,160,0.3)', background: 'rgba(0,212,160,0.07)', color: '#00d4a0', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>$</button>
+            <button onClick={() => {
+              setVolumeAlerts([{ id: `vol-demo-${Date.now()}`, multiplier: '3.8', volume: 820000, direction: 'BULL', price: currentPrice?.toFixed(2) || '7155.00', ticker: 'SPY', time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) }])
+              if (currentPrice && levels?.spyVwap) setLevelProximity({ level: 'VWAP', levelPrice: levels.spyVwap, currentPrice, distPts: Math.abs(currentPrice - levels.spyVwap).toFixed(1), distPct: (Math.abs(currentPrice - levels.spyVwap)/currentPrice*100).toFixed(2), approaching: true, breakoutPct: 62, bouncePct: 38, volConfirm: '1.8', flowBias: 'BULLISH' })
+            }} title="Test new feature alerts" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(255,183,0,0.4)', background: 'rgba(255,183,0,0.08)', color: '#ffb700', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>⚡ TEST</button>
           </div>
         </div>
 
@@ -4681,24 +4686,46 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7 }}>{aiResult.riskFlag}</div>
                       </div>
                     )}
-                    {aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && aiResult.entryZone && (
-                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
+                    {/* ── OPTIMAL TRADE ZONE — always visible, gold box ── */}
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.15)' }}>
+                      {(!aiResult || aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE' || !aiResult.entryZone) ? (
+                        <div style={{ borderRadius: 10,
+                          background: 'linear-gradient(135deg, rgba(255,183,0,0.06), rgba(255,140,0,0.04))',
+                          border: '1px solid rgba(255,183,0,0.4)',
+                          boxShadow: '0 0 20px rgba(255,183,0,0.08)',
+                          padding: '14px 16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 2, color: '#ffb700', marginBottom: 8 }}>🎯 OPTIMAL TRADE ZONE</div>
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Run Get Signal to generate entry zone, stop &amp; targets</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginTop: 10 }}>
+                            {['BUY ZONE','STOP','TARGET 1 (SCALP)','TARGET 2 (SWING)'].map(l => (
+                              <div key={l} style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.15)', borderRadius: 6, padding: '8px 6px' }}>
+                                <div style={{ fontSize: 7, color: '#ffb700', letterSpacing: 1, marginBottom: 4 }}>{l}</div>
+                                <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 900, color: 'rgba(255,255,255,0.2)' }}>—</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    {aiResult && aiResult.signal !== 'WAIT' && aiResult.signal !== 'NO TRADE' && aiResult.entryZone && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.15)' }}>
                         {/* ── OPTIMAL TRADE ZONE (Feature 2) ── */}
                         <div style={{ marginBottom: 12, borderRadius: 10,
-                          background: 'linear-gradient(135deg, rgba(0,229,255,0.04), rgba(0,212,160,0.04))',
-                          border: `1px solid ${aiResult.signal === 'LONG' ? 'rgba(0,255,136,0.25)' : 'rgba(255,26,74,0.25)'}`,
+                          background: 'linear-gradient(135deg, rgba(255,183,0,0.06), rgba(255,140,0,0.04))',
+                          border: '1px solid rgba(255,183,0,0.5)',
+                          boxShadow: '0 0 20px rgba(255,183,0,0.08)',
                           padding: '10px 12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 2, color: '#6b7a9a' }}>🎯 OPTIMAL TRADE ZONE</span>
+                              <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 2, color: '#ffb700' }}>🎯 OPTIMAL TRADE ZONE</span>
                               <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
-                                background: aiResult.signal === 'LONG' ? 'rgba(0,255,136,0.15)' : 'rgba(255,26,74,0.15)',
-                                color: aiResult.signal === 'LONG' ? '#00ff88' : '#ff1a4a', fontFamily: fontDisplay }}>
+                                background: 'rgba(255,183,0,0.15)',
+                                color: '#ffb700', fontFamily: fontDisplay, letterSpacing: 1 }}>
                                 {aiResult.signal === 'LONG' ? '📞 CALL' : '📉 PUT'}
                               </span>
                             </div>
                             {(aiResult.moveSize as number) > 0 && (
-                              <span style={{ fontSize: 10, fontWeight: 800, color: '#00e5ff', fontFamily: fontDisplay }}>{aiResult.moveSize}pt MOVE</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: '#ffb700', fontFamily: fontDisplay }}>{aiResult.moveSize}pt POTENTIAL</span>
                             )}
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
