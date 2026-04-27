@@ -2,9 +2,11 @@
 import TutorialModal from './TutorialModal'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
+import UsageReport from './components/UsageReport'
 import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
+import { trackUsage } from './agents/usageTracker'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities as _calcProbs } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
@@ -1729,6 +1731,7 @@ export default function CockpitPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([])
   const [chatLoading, setChatLoading] = useState(false)
   const [editingVwap, setEditingVwap] = useState(false)
+  const [showUsageReport, setShowUsageReport] = useState(false)
   const [vwapInput, setVwapInput] = useState('')
   // effectiveVwap — hook handles manual override priority internally
   const effectiveVwap = md.manualVwap || levels?.spyVwap || null
@@ -3310,6 +3313,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       })
       const data = await res.json()
 
+      // Track usage
+      trackUsage('claude-sonnet-4-20250514', 'companion', data)
+
       // Handle overloaded / error responses
       if (data?.error?.type === 'overloaded_error' || data?.error === 'Rate limit exceeded') {
         if (retryCount < 2) {
@@ -3446,6 +3452,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       `}</style>
 
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
+      {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
 
       {/* ── SUBSCRIPTION GATE ── */}
       {subStatus === 'loading' && (
@@ -3656,6 +3663,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <div style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? '#00ff88' : '#ff1a4a', boxShadow: connected ? '0 0 10px rgba(0,255,136,0.8)' : '0 0 10px rgba(255,26,74,0.6)', animation: connected ? 'pulse 2s infinite' : 'none' }} />
             <span style={{ fontSize: 7, color: connected ? '#00ff88' : '#ff1a4a', fontWeight: 700, letterSpacing: 3, textShadow: connected ? '0 0 8px rgba(0,255,136,0.8)' : '0 0 8px rgba(255,26,74,0.8)' }}>{connected ? 'LIVE' : 'OFFLINE'}</span>
             <AgentStatus />
+            <button onClick={() => setShowUsageReport(true)} title="AI Usage & Cost Report" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(0,212,160,0.3)', background: 'rgba(0,212,160,0.07)', color: '#00d4a0', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>$</button>
           </div>
         </div>
 

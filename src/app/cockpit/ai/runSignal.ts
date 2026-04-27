@@ -8,6 +8,7 @@
  */
 
 import { buildSignalContext, type SignalInput } from './buildContext'
+import { trackUsage } from '../agents/usageTracker'
 
 export interface SignalResult {
   signal:           'LONG' | 'SHORT' | 'WAIT' | 'NO TRADE'
@@ -84,6 +85,9 @@ export async function runSignal(input: SignalInput): Promise<SignalResult | null
     if (!text) return null
 
     const parsed = JSON.parse(text)
+
+    // Track usage for daily cost report
+    trackUsage('claude-sonnet-4-20250514', 'signal', data)
 
     return {
       ...parsed,
