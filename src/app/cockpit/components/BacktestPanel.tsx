@@ -45,7 +45,7 @@ export default function BacktestPanel({ onClose }: { onClose: () => void }) {
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const [days, setDays]       = useState(60)
+  const [days, setDays]       = useState(90)
   const [tab, setTab]         = useState<'summary' | 'log'>('summary')
   const [filter, setFilter]   = useState<'all' | 'LONG' | 'SHORT' | 'WAIT'>('all')
 
@@ -128,7 +128,7 @@ export default function BacktestPanel({ onClose }: { onClose: () => void }) {
         {/* Controls */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 18 }}>
           <div style={{ fontSize: 9, color: C.muted }}>Lookback:</div>
-          {[30, 60, 90, 180].map(d => (
+          {[60, 90, 180, 300].map(d => (
             <button key={d} onClick={() => setDays(d)} style={{
               padding: '3px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700,
               border: `1px solid ${days === d ? C.yellow : C.border}`,

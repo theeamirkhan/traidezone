@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
   const proto = host.includes('localhost') ? 'http' : 'https'
   const originUrl = `${proto}://${host}`
 
-  const days = parseInt(req.nextUrl.searchParams.get('days') || '90')
+  const days = Math.min(parseInt(req.nextUrl.searchParams.get('days') || '90'), 400)
 
   // Fetch backtest data
   const backtestData = await runBacktest(originUrl, days)

@@ -14,7 +14,7 @@ export default function EdgeDiscovery({ onClose }: { onClose: () => void }) {
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const [days, setDays]       = useState(90)
+  const [days, setDays]       = useState(300)
 
   const run = async () => {
     setLoading(true)
@@ -67,7 +67,7 @@ export default function EdgeDiscovery({ onClose }: { onClose: () => void }) {
         {/* Controls */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 18 }}>
           <div style={{ fontSize: 9, color: C.muted }}>Analyze:</div>
-          {[60, 90, 180].map(d => (
+          {[90, 180, 300].map(d => (
             <button key={d} onClick={() => setDays(d)} style={{
               padding: '3px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700,
               border: `1px solid ${days === d ? C.violet : C.border}`,

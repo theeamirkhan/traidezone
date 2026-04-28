@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'No Polygon key' }, { status: 500 })
 
   const { searchParams } = new URL(req.url)
-  const days = Math.min(parseInt(searchParams.get('days') || '60'), 180)
+  const days = Math.min(parseInt(searchParams.get('days') || '90'), 400)  // Polygon goes back 2+ years
 
   const toDate   = new Date()
   toDate.setHours(0, 0, 0, 0)
