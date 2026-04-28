@@ -191,13 +191,14 @@ export async function GET(req: NextRequest) {
   const origin       = req.headers.get('origin') || req.headers.get('referer') || ''
   const isFromApp    = origin.includes('traidezone.ai') || origin.includes('localhost')
 
-  // For cron runs (no user session), update all active users
-  // For on-demand (from browser), update just the calling user
-  const isCron = isVercelCron || (isCronSecret && !isFromApp)
-
+  // Block entirely if no valid auth
   if (!isVercelCron && !isCronSecret && !isFromApp) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // isCron = server-initiated (Vercel cron OR cron secret without browser session)
+  // When cron secret is present from the browser, still run in single-user mode
+  const isCron = isVercelCron  // only true Vercel cron runs update all users
 
   const startTime = Date.now()
   const host      = req.headers.get('host') || 'www.traidezone.ai'
@@ -219,17 +220,38 @@ export async function GET(req: NextRequest) {
   let userIds: string[] = []
 
   if (isCron) {
-    // Update all users who have recent alert activity
+    // Vercel cron: update all users with recent activity
     const { data: activeUsers } = await supabaseAdmin
       .from('trade_alerts')
       .select('user_id')
       .gte('logged_at', new Date(Date.now() - 30 * 86400000).toISOString())
       .limit(500)
-
     userIds = [...new Set((activeUsers || []).map((u: any) => u.user_id))]
-    console.log(`[update-edge] Updating ${userIds.length} active users`)
+    console.log(`[update-edge] Cron: updating ${userIds.length} active users`)
+  } else if (isCronSecret) {
+    // Called with cron secret from browser — try to get user from session first,
+    // fall back to all active users if no session (e.g. called from BacktestPanel)
+    const { userId } = await auth().catch(() => ({ userId: null }))
+    if (userId) {
+      userIds = [userId]
+      console.log(`[update-edge] On-demand: updating user ${userId}`)
+    } else {
+      // No session but valid cron secret — update all active users
+      const { data: activeUsers } = await supabaseAdmin
+        .from('trade_alerts')
+        .select('user_id')
+        .gte('logged_at', new Date(Date.now() - 30 * 86400000).toISOString())
+        .limit(500)
+      userIds = [...new Set((activeUsers || []).map((u: any) => u.user_id))]
+      if (!userIds.length) {
+        // No trades yet — still create a placeholder profile from backtest
+        // Use a sentinel so the backtest data is available even before first trade
+        console.log('[update-edge] No active users yet — skipping (no trade alerts to associate with)')
+        return NextResponse.json({ status: 'complete', users: 0, message: 'No active users with trade alerts', backtest: { winRate: backtestSummary.winRate, days: backtestSummary.totalDays }, timestamp: new Date().toISOString() })
+      }
+    }
   } else {
-    // On-demand: update just the calling user
+    // From app without cron secret — use session auth
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userIds = [userId]

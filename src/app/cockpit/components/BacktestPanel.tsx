@@ -61,15 +61,33 @@ export default function BacktestPanel({ onClose }: { onClose: () => void }) {
       if (json.error) { setError(json.error) }
       else {
         setData(json)
-        // Seed the Supabase edge profile so the companion has it immediately
-        fetch('/api/agents/update-edge', {
-          headers: { authorization: 'Bearer traidezone-cron' }
+        // Seed the edge profile directly to Supabase via userdata API
+        const s = json.summary
+        const bestDays = Object.entries(s.byDow||{}).filter(([,v]:any)=>v.total>=3&&v.rate>=55).sort((a:any,b:any)=>b[1].rate-a[1].rate).slice(0,3).map(([d])=>d)
+        const bestVix = Object.entries(s.byVix||{}).filter(([,v]:any)=>v.total>=3).sort((a:any,b:any)=>b[1].rate-a[1].rate)[0]
+        const vixLabel = bestVix ? (bestVix[0] as string).replace('Low<14','Low <14').replace('Normal14-20','Normal 14-20').replace('Elevated20-28','Elevated 20-28').replace('High>28','High >28') : null
+        fetch('/api/userdata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'edge_profile',
+            data: {
+              backtest_win_rate:   s.winRate,
+              backtest_pf:         s.profitFactor,
+              long_win_rate:       s.longWinRate,
+              short_win_rate:      s.shortWinRate,
+              best_days:           bestDays,
+              best_vix_regime:     vixLabel,
+              avg_win_mins:        s.avgWinMins,
+              avg_loss_mins:       s.avgLossMins,
+              backtest_days:       s.totalDays,
+              backtest_date_range: s.dateRange ? `${s.dateRange.from} → ${s.dateRange.to}` : null,
+            }
+          })
         })
         .then(r => r.json())
-        .then(d => {
-          if (d.status === 'complete') console.log('[BacktestPanel] Edge profile seeded in Supabase:', d.backtest?.winRate + '% win rate')
-        })
-        .catch(() => {})
+        .then(d => console.log('[BacktestPanel] Edge profile saved:', d))
+        .catch(e => console.warn('[BacktestPanel] Edge profile save failed:', e.message))
       }
     } catch (e: any) {
       setError(e.message)
