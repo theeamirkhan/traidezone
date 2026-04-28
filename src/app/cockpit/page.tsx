@@ -1867,31 +1867,25 @@ export default function CockpitPage() {
     return () => { clearTimeout(init); clearInterval(interval) }
   }, [])
 
-  // Safety: unlock speakLock only when audio source is confirmed finished
+  // Watchdog: force-unlock speaking state if stuck > 90s (onended should handle normal cases)
   const speakLockTimerRef = useRef<number>(0)
   useEffect(() => {
     const watchdog = setInterval(() => {
       if (speakLockRef.current) {
-        const src = audioSourceRef.current
-        if (src && (src as any).playbackState === 'finished') {
-          // Audio done — unlock
+        if (!speakLockTimerRef.current) {
+          speakLockTimerRef.current = Date.now()
+        } else if (Date.now() - speakLockTimerRef.current > 90000) {
+          // Stuck for 90s — force unlock
+          console.warn('[TZ] speak watchdog: force-unlocking after 90s')
           speakLockRef.current = false
           audioSourceRef.current = null
           setSpeaking(false)
           speakLockTimerRef.current = 0
-        } else if (src) {
-          // Audio playing — force unlock after 60s max
-          if (!speakLockTimerRef.current) speakLockTimerRef.current = Date.now()
-          else if (Date.now() - speakLockTimerRef.current > 60000) {
-            speakLockRef.current = false; audioSourceRef.current = null
-            setSpeaking(false); speakLockTimerRef.current = 0
-          }
         }
-        // !src + speakLock = audio hasn't started yet, leave it alone
       } else {
-        speakLockTimerRef.current = 0
+        speakLockTimerRef.current = 0  // reset timer when not speaking
       }
-    }, 5000)
+    }, 3000)
     return () => clearInterval(watchdog)
   }, [])
   const [systemCheck, setSystemCheck] = useState<any>(null)
@@ -4254,7 +4248,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         )}
 
         {speaking && (
-          <div onClick={() => { speakLockRef.current = false; audioSourceRef.current = null; setSpeaking(false); if (audioCtxRef.current) try { audioCtxRef.current.suspend() } catch {} }} title="Click to stop speaking" style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', opacity: 0.9 }}>
+          <div onClick={() => { speakLockRef.current = false; audioSourceRef.current = null; setSpeaking(false); try { window.speechSynthesis.cancel() } catch {} ; try { if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') audioCtxRef.current.close().catch(()=>{}) } catch {} }} title="Click to stop speaking" style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', opacity: 0.9 }}>
             {[0,1,2,3,4].map(i => (
               <div key={i} style={{ width: 2, borderRadius: 1, background: C.teal, animation: `waveAnim ${0.4 + i * 0.1}s ease-in-out infinite`, animationDelay: `${i * 0.08}s`, '--wh': `${8 + i * 2}px` } as any} />
             ))}
@@ -4782,11 +4776,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 {/* Speaking waveform */}
                 {speaking && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '5px 0', background: 'rgba(248,248,255,0.8)', borderTop: `1px solid rgba(0,212,160,0.08)` }}>
+                  <div onClick={() => {
+                    speakLockRef.current = false; audioSourceRef.current = null; setSpeaking(false)
+                    try { window.speechSynthesis.cancel() } catch {}
+                    try { if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') audioCtxRef.current.close().catch(()=>{}) } catch {}
+                  }} title="Click to stop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '5px 0', background: 'rgba(0,229,255,0.06)', borderTop: `1px solid rgba(0,212,160,0.08)`, cursor: 'pointer' }}>
                     {[...Array(18)].map((_, i) => (
                       <div key={i} style={{ width: 2, borderRadius: 1, background: C.teal, animation: `waveAnim ${0.4+(i%5)*0.1}s ease-in-out infinite`, animationDelay: `${(i%4)*0.08}s`, '--wh': `${6+(i%6)*2}px` } as any} />
                     ))}
-                    <span style={{ fontSize: 8, color: C.teal, marginLeft: 8, letterSpacing: 1 }}>SPEAKING</span>
+                    <span style={{ fontSize: 8, color: C.teal, marginLeft: 8, letterSpacing: 1 }}>SPEAKING · tap to stop</span>
                   </div>
                 )}
 
