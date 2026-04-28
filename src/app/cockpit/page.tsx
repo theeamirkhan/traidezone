@@ -3641,7 +3641,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
       {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
       {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
-      {showBacktest && <BacktestPanel onClose={() => setShowBacktest(false)} />}
+      {showBacktest && <BacktestPanel onClose={() => {
+        setShowBacktest(false)
+        // Reload edge profile from Supabase after backtest seeds it
+        setTimeout(() => {
+          loadEdgeProfile(true).then(p => { if (p) setEdgeProfile(p) }).catch(() => {})
+        }, 3000)  // give the seed a moment to write
+      }} />}
 
       {/* ── SUBSCRIPTION GATE ── */}
       {subStatus === 'loading' && (

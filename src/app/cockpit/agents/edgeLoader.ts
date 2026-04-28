@@ -46,28 +46,10 @@ export async function loadEdgeProfile(forceRefresh = false): Promise<EdgeProfile
       return mapRow(row)
     }
 
-    // ── Step 2: No profile yet or force refresh — trigger agent ─────────────
-    console.log('[edgeLoader] No profile in Supabase — triggering update agent...')
-    const updateRes = await fetch('/api/agents/update-edge', {
-      headers: { authorization: 'Bearer traidezone-cron' },
-      signal: AbortSignal.timeout(60000),
-    })
-    const updateData = await updateRes.json()
-
-    if (updateData.status !== 'complete') {
-      console.warn('[edgeLoader] Update agent failed:', updateData.error)
-      return null
-    }
-
-    // Re-read from Supabase after update
-    const res2  = await fetch('/api/userdata?table=edge_profile')
-    const data2 = await res2.json()
-
-    if (data2.data) {
-      console.log('[edgeLoader] Fresh profile loaded after agent update')
-      return mapRow(data2.data)
-    }
-
+    // ── Step 2: No profile yet — return null gracefully ─────────────────────
+    // The daily cron (4:30pm ET) populates this automatically.
+    // First-time: click 🔬 to run the backtest manually, which triggers the agent.
+    console.log('[edgeLoader] No edge profile in Supabase yet — run backtest via 🔬 button to seed it')
     return null
 
   } catch (e: any) {

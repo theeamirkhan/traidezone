@@ -58,8 +58,19 @@ export default function BacktestPanel({ onClose }: { onClose: () => void }) {
         headers: { authorization: 'Bearer traidezone-cron' }
       })
       const json = await res.json()
-      if (json.error) setError(json.error)
-      else setData(json)
+      if (json.error) { setError(json.error) }
+      else {
+        setData(json)
+        // Seed the Supabase edge profile so the companion has it immediately
+        fetch('/api/agents/update-edge', {
+          headers: { authorization: 'Bearer traidezone-cron' }
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'complete') console.log('[BacktestPanel] Edge profile seeded in Supabase:', d.backtest?.winRate + '% win rate')
+        })
+        .catch(() => {})
+      }
     } catch (e: any) {
       setError(e.message)
     }
