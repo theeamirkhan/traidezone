@@ -3,6 +3,7 @@ import TutorialModal from './TutorialModal'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
+import BacktestPanel from './components/BacktestPanel'
 import UsageReport from './components/UsageReport'
 import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
@@ -1737,6 +1738,7 @@ export default function CockpitPage() {
   const [editingVwap, setEditingVwap] = useState(false)
   const [showUsageReport, setShowUsageReport] = useState(false)
   const [showAlertHistory, setShowAlertHistory] = useState(false)
+  const [showBacktest, setShowBacktest] = useState(false)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [vwapInput, setVwapInput] = useState('')
@@ -3624,6 +3626,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
       {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
       {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
+      {showBacktest && <BacktestPanel onClose={() => setShowBacktest(false)} />}
 
       {/* ── SUBSCRIPTION GATE ── */}
       {subStatus === 'loading' && (
@@ -3942,6 +3945,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <AgentStatus />
             <button onClick={() => setShowUsageReport(true)} title="AI Usage & Cost Report" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(0,212,160,0.3)', background: 'rgba(0,212,160,0.07)', color: '#00d4a0', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>$</button>
             <button onClick={() => setShowAlertHistory(true)} title="Trade Alert History" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(255,183,0,0.4)', background: 'rgba(255,183,0,0.08)', color: '#ffb700', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>📋</button>
+            <button onClick={() => setShowBacktest(true)} title="AI Signal Backtest" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(124,106,255,0.4)', background: 'rgba(124,106,255,0.08)', color: '#7c6aff', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>🔬</button>
             <button onClick={() => {
               setVolumeAlerts([{ id: `vol-demo-${Date.now()}`, multiplier: '3.8', volume: 820000, direction: 'BULL', price: currentPrice?.toFixed(2) || '7155.00', ticker: 'SPY', time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) }])
               if (currentPrice && levels?.spyVwap) setLevelProximity({ level: 'VWAP', levelPrice: levels.spyVwap, currentPrice, distPts: Math.abs(currentPrice - levels.spyVwap).toFixed(1), distPct: (Math.abs(currentPrice - levels.spyVwap)/currentPrice*100).toFixed(2), approaching: true, breakoutPct: 62, bouncePct: 38, volConfirm: '1.8', flowBias: 'BULLISH' })
