@@ -201,6 +201,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
+    if (table === 'edge_profile') {
+      const profileData = { ...data, user_id: userId, updated_at: new Date().toISOString() }
+      const { error } = await supabase
+        .from('user_edge_profiles')
+        .upsert(profileData, { onConflict: 'user_id' })
+      if (error) throw error
+      return NextResponse.json({ saved: true })
+    }
+
     return NextResponse.json({ error: 'Unknown table' }, { status: 400 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
@@ -243,15 +252,6 @@ export async function DELETE(req: NextRequest) {
         .eq('user_id', userId)
       if (error) throw error
       return NextResponse.json({ success: true })
-    }
-
-    if (table === 'edge_profile') {
-      const profileData = { ...data, user_id: userId, updated_at: new Date().toISOString() }
-      const { error } = await supabase
-        .from('user_edge_profiles')
-        .upsert(profileData, { onConflict: 'user_id' })
-      if (error) throw error
-      return NextResponse.json({ saved: true })
     }
 
     return NextResponse.json({ error: 'Unknown table or missing id' }, { status: 400 })
