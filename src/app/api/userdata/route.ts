@@ -75,6 +75,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: data || null })
     }
 
+    if (table === 'edge_profile') {
+      const { data, error } = await supabase
+        .from('user_edge_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+      if (error && error.code !== 'PGRST116') throw error
+      return NextResponse.json({ data: data || null })
+    }
+
     return NextResponse.json({ error: 'Unknown table' }, { status: 400 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
