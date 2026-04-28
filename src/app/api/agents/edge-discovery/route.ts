@@ -93,6 +93,57 @@ Be specific, cite actual numbers from the data, and be honest about small sample
   return data.content?.[0]?.text || 'Analysis failed'
 }
 
+// ── Extract structured alert rules from Claude's analysis ────────────────────
+async function extractStructuredRules(analysis: string, summary: any): Promise<any[]> {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: `Extract the trading edge rules from this analysis into structured JSON.
+
+Analysis:
+${analysis}
+
+Return ONLY a JSON array of rules, no markdown:
+[
+  {
+    "type": "HIGH_EDGE" | "AVOID",
+    "signal": "LONG" | "SHORT" | "ANY",
+    "conditions": {
+      "gapDirection": "large_up" | "large_dn" | "small_up" | "small_dn" | "flat" | "any",
+      "dayOfWeek": "Monday"|"Tuesday"|"Wednesday"|"Thursday"|"Friday"|"any",
+      "vixRegime": "low"|"normal"|"elevated"|"high"|"any",
+      "vwapPosition": "above"|"below"|"any"
+    },
+    "winRate": 60,
+    "sampleSize": 5,
+    "description": "SHORT on large gap down days"
+  }
+]
+
+Only include rules with clear win rate data mentioned in the analysis. Max 6 rules.`
+        }]
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    const data = await res.json()
+    const text = data.content?.[0]?.text?.replace(/\`\`\`json|\`\`\`/g, '').trim() || '[]'
+    return JSON.parse(text)
+  } catch (e) {
+    console.warn('[edge-discovery] Rules extraction failed:', e)
+    return []
+  }
+}
+
 export async function GET(req: NextRequest) {
   const isCronSecret = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET || 'traidezone-cron'}`
   const origin       = req.headers.get('origin') || req.headers.get('referer') || ''
@@ -116,8 +167,12 @@ export async function GET(req: NextRequest) {
   // Run AI analysis
   const analysis = await analyzeWithClaude(backtestData.results || [], backtestData.summary)
 
+  // ── Extract structured rules from Claude's analysis for alert engine ─────
+  const rules = await extractStructuredRules(analysis, backtestData.summary)
+
   return NextResponse.json({
     analysis,
+    rules,
     summary:     backtestData.summary,
     signalCount: backtestData.results?.filter((r: any) => r.signal !== 'WAIT').length,
     days,

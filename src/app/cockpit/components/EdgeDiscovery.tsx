@@ -10,7 +10,7 @@ const C = {
   dim: 'rgba(255,255,255,0.2)', violet: '#7c6aff',
 }
 
-export default function EdgeDiscovery({ onClose }: { onClose: () => void }) {
+export default function EdgeDiscovery({ onClose, onRulesUpdated }: { onClose: () => void; onRulesUpdated?: (rules: any[]) => void }) {
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -25,8 +25,20 @@ export default function EdgeDiscovery({ onClose }: { onClose: () => void }) {
         headers: { authorization: 'Bearer traidezone-cron' }
       })
       const json = await res.json()
-      if (json.error) setError(json.error)
-      else setData(json)
+      if (json.error) { setError(json.error) }
+      else {
+        setData(json)
+        // Save discovered rules to Supabase so condition checker can use them
+        if (json.rules?.length) {
+          fetch('/api/userdata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table: 'discovered_rules', data: { rules: json.rules } })
+          }).then(() => {
+            if (onRulesUpdated) onRulesUpdated(json.rules)
+          }).catch(() => {})
+        }
+      }
     } catch (e: any) {
       setError(e.message)
     }

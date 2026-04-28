@@ -1745,8 +1745,11 @@ export default function CockpitPage() {
   const [showEdgeDiscovery, setShowEdgeDiscovery] = useState(false)
   const [edgeProfile, setEdgeProfile] = useState<EdgeProfile | null>(null)
   const [edgeLoading, setEdgeLoading] = useState(false)
+  const [discoveredRules, setDiscoveredRules] = useState<any[]>([])
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
+  const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
+  const edgeAlertShownRef = useRef<Set<string>>(new Set())
   const [vwapInput, setVwapInput] = useState('')
   // effectiveVwap — hook handles manual override priority internally
   const effectiveVwap = md.manualVwap || levels?.spyVwap || null
@@ -1789,6 +1792,11 @@ export default function CockpitPage() {
       .then(p => { if (p) setEdgeProfile(p) })
       .catch(e => console.warn('[EdgeLoader] Failed:', e))
       .finally(() => setEdgeLoading(false))
+    // Load discovered rules from Supabase
+    fetch('/api/userdata?table=discovered_rules')
+      .then(r => r.json())
+      .then(d => { if (d.data?.rules?.length) setDiscoveredRules(d.data.rules) })
+      .catch(() => {})
   }, [])
 
   // Check subscription access on load
@@ -2949,6 +2957,70 @@ export default function CockpitPage() {
           }
         }
 
+        // ── Edge Condition Alert Checker ─────────────────────────────────────
+        if (discoveredRules.length > 0 && currentPrice && candles.length > 0) {
+          const estHour = parseInt(new Date().toLocaleTimeString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }))
+          const estMin  = new Date().getMinutes()
+          const isMarketHours = (estHour > 9 || (estHour === 9 && estMin >= 30)) && estHour < 16
+          if (isMarketHours) {
+            // Current conditions
+            const todayDow = new Date().toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' })
+            const vwap_now = levels?.spyVwap
+            const vwapPos  = currentPrice && vwap_now ? (currentPrice > vwap_now ? 'above' : 'below') : 'any'
+            const vixNow   = vixPrice || 18
+            const vixReg   = vixNow < 14 ? 'low' : vixNow < 20 ? 'normal' : vixNow < 28 ? 'elevated' : 'high'
+            // Gap vs yesterday's close
+            const prevClose = levels?.prevClose
+            const gapPts    = prevClose && currentPrice ? currentPrice - prevClose : 0
+            const gapDir    = gapPts > 8 ? 'large_up' : gapPts > 3 ? 'small_up' : gapPts < -8 ? 'large_dn' : gapPts < -3 ? 'small_dn' : 'flat'
+            // Current signal direction from VWAP+EMA
+            const ema200now  = levels?.ema200
+            const signalNow  = currentPrice && vwap_now && ema200now
+              ? (currentPrice > vwap_now && currentPrice > ema200now ? 'LONG' : currentPrice < vwap_now && currentPrice < ema200now ? 'SHORT' : 'MIXED')
+              : 'UNKNOWN'
+
+            for (const rule of discoveredRules) {
+              const matchGap   = rule.conditions?.gapDirection === 'any' || rule.conditions?.gapDirection === gapDir
+              const matchDay   = rule.conditions?.dayOfWeek === 'any'    || rule.conditions?.dayOfWeek === todayDow
+              const matchVix   = rule.conditions?.vixRegime === 'any'    || rule.conditions?.vixRegime === vixReg
+              const matchVwap  = rule.conditions?.vwapPosition === 'any' || rule.conditions?.vwapPosition === vwapPos
+              const matchSig   = rule.signal === 'ANY' || rule.signal === signalNow
+              const allMatch   = matchGap && matchDay && matchVix && matchVwap && matchSig
+
+              if (allMatch) {
+                const alertId = `edge-${rule.type}-${rule.signal}-${gapDir}-${todayDow.substring(0,3)}`
+                if (!edgeAlertShownRef.current.has(alertId)) {
+                  edgeAlertShownRef.current.add(alertId)
+                  const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
+                  setEdgeAlerts(prev => [{
+                    id: alertId,
+                    type: rule.type,
+                    signal: rule.signal,
+                    description: rule.description,
+                    winRate: rule.winRate,
+                    sampleSize: rule.sampleSize,
+                    conditions: { gapDir, todayDow, vixReg, vwapPos, signalNow },
+                    detectedAt: timeNow,
+                  }, ...prev].slice(0, 3))
+                }
+              }
+            }
+            // Clear edge alerts when conditions no longer match any HIGH_EDGE rule
+            const anyHighEdgeMatch = discoveredRules
+              .filter(r => r.type === 'HIGH_EDGE')
+              .some(rule => {
+                const matchGap  = rule.conditions?.gapDirection === 'any' || rule.conditions?.gapDirection === gapDir
+                const matchDay  = rule.conditions?.dayOfWeek === 'any'    || rule.conditions?.dayOfWeek === todayDow
+                const matchVix  = rule.conditions?.vixRegime === 'any'    || rule.conditions?.vixRegime === vixReg
+                const matchSig  = rule.signal === 'ANY' || rule.signal === signalNow
+                return matchGap && matchDay && matchVix && matchSig
+              })
+            if (!anyHighEdgeMatch) {
+              setEdgeAlerts(prev => prev.filter(a => a.type === 'AVOID'))
+            }
+          }
+        }
+
         const [intel, flow, tide, tiingo, skew] = await Promise.all([
           fetchMarketIntel(),
           fetchOptionsFlow(),
@@ -3643,7 +3715,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
       {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
       {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
-      {showEdgeDiscovery && <EdgeDiscovery onClose={() => setShowEdgeDiscovery(false)} />}
+      {showEdgeDiscovery && <EdgeDiscovery 
+        onClose={() => setShowEdgeDiscovery(false)} 
+        onRulesUpdated={(rules) => {
+          setDiscoveredRules(rules)
+          console.log('[EdgeDiscovery] Rules updated:', rules.length, 'rules saved to Supabase')
+        }}
+      />}
       {showBacktest && <BacktestPanel onClose={() => {
         setShowBacktest(false)
         // Reload edge profile from Supabase after backtest seeds it
@@ -3691,6 +3769,70 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </a>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── EDGE CONDITION ALERTS ── */}
+      {edgeAlerts.length > 0 && (
+        <div style={{ position: 'fixed', top: 52, left: '50%', transform: 'translateX(-50%)', zIndex: 965, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 480 }}>
+          {edgeAlerts.map(alert => (
+            <div key={alert.id} style={{
+              background: 'rgba(6,8,16,0.97)',
+              border: `2px solid ${alert.type === 'HIGH_EDGE' ? 'rgba(255,183,0,0.7)' : 'rgba(255,26,74,0.7)'}`,
+              boxShadow: `0 0 30px ${alert.type === 'HIGH_EDGE' ? 'rgba(255,183,0,0.2)' : 'rgba(255,26,74,0.2)'}`,
+              borderRadius: 8, padding: '10px 16px',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                <div style={{ fontSize: 18 }}>{alert.type === 'HIGH_EDGE' ? '⚡' : '🚫'}</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 900,
+                  color: alert.type === 'HIGH_EDGE' ? '#ffb700' : '#ff4d6d', marginTop: 2 }}>
+                  {alert.type === 'HIGH_EDGE' ? 'EDGE' : 'AVOID'}
+                </div>
+              </div>
+              <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 900,
+                    color: alert.type === 'HIGH_EDGE' ? '#ffb700' : '#ff4d6d' }}>
+                    {alert.type === 'HIGH_EDGE' ? 'HIGH EDGE SETUP' : 'AVOID THIS SETUP'}
+                  </span>
+                  {alert.signal !== 'ANY' && (
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 3,
+                      background: alert.signal === 'LONG' ? 'rgba(0,255,136,0.15)' : 'rgba(255,26,74,0.15)',
+                      color: alert.signal === 'LONG' ? '#00ff88' : '#ff4d6d' }}>
+                      {alert.signal === 'LONG' ? '📞 CALL' : '📉 PUT'}
+                    </span>
+                  )}
+                  {alert.winRate && (
+                    <span style={{ fontSize: 9, fontWeight: 700,
+                      color: alert.type === 'HIGH_EDGE' ? '#ffb700' : '#ff4d6d' }}>
+                      {alert.winRate}% win rate
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.7)', marginBottom: 3 }}>
+                  {alert.description}
+                </div>
+                <div style={{ display: 'flex', gap: 8, fontSize: 7, color: 'rgba(255,255,255,0.35)' }}>
+                  <span>Gap: {alert.conditions?.gapDir}</span>
+                  <span>·</span>
+                  <span>{alert.conditions?.todayDow}</span>
+                  <span>·</span>
+                  <span>VIX: {alert.conditions?.vixReg}</span>
+                  <span>·</span>
+                  <span>{alert.conditions?.signalNow}</span>
+                  <span>·</span>
+                  <span style={{ color: alert.type === 'HIGH_EDGE' ? 'rgba(255,183,0,0.5)' : 'rgba(255,77,109,0.5)' }}>
+                    ⏱ {alert.detectedAt} ET
+                  </span>
+                  {alert.sampleSize && <><span>·</span><span>{alert.sampleSize} sample</span></>}
+                </div>
+              </div>
+              <button onClick={() => setEdgeAlerts(prev => prev.filter(a => a.id !== alert.id))}
+                style={{ background: 'transparent', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 18, padding: '0 2px', flexShrink: 0 }}>×</button>
+            </div>
+          ))}
         </div>
       )}
 

@@ -75,6 +75,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: data || null })
     }
 
+    if (table === 'discovered_rules') {
+      const { data, error } = await supabase
+        .from('user_discovered_rules')
+        .select('rules')
+        .eq('user_id', userId)
+        .single()
+      if (error && error.code !== 'PGRST116') throw error
+      return NextResponse.json({ data: data || null })
+    }
+
     if (table === 'edge_profile') {
       const { data, error } = await supabase
         .from('user_edge_profiles')
@@ -206,6 +216,14 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase
         .from('user_edge_profiles')
         .upsert(profileData, { onConflict: 'user_id' })
+      if (error) throw error
+      return NextResponse.json({ saved: true })
+    }
+
+    if (table === 'discovered_rules') {
+      const { error } = await supabase
+        .from('user_discovered_rules')
+        .upsert({ user_id: userId, rules: data.rules, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
       if (error) throw error
       return NextResponse.json({ saved: true })
     }
