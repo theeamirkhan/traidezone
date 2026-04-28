@@ -5,8 +5,13 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/pricing(.*)',
-  '/api/polygon(.*)',      // Polygon proxy — key is server-side, no user data
-  '/api/webhooks(.*)',     // Stripe webhooks — verified by signature
+  '/api/polygon(.*)',              // Polygon proxy — server-side key
+  '/api/webhooks(.*)',             // Stripe webhooks — signature verified
+  '/api/agents/backtest(.*)',      // Agent routes use cron secret auth
+  '/api/agents/update-edge(.*)',
+  '/api/agents/score-alerts(.*)',
+  '/api/agents/health-check(.*)',
+  '/api/reference-price(.*)',      // Yahoo Finance proxy
 ])
 
 export default clerkMiddleware(async (auth, request) => {
