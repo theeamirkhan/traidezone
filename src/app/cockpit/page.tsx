@@ -5392,38 +5392,18 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
                   {/* ── AI Signal Analysis Sections — redesigned for readability ── */}
-                  {aiResult?.marketConditions && (
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(0,229,255,0.08)', background: 'rgba(0,229,255,0.02)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                        <span style={{ fontSize: 9, color: '#00e5ff', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 2 }}>📊 Market Conditions</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: '#e8f0ff', lineHeight: 1.7, fontFamily: "'SF Pro Display', 'Inter', sans-serif", fontWeight: 400 }}>{aiResult.marketConditions}</div>
+                  {/* AI Signal sections — clean readable layout */}
+                  {[
+                    { key: 'marketConditions', label: '📊 Market Conditions', color: '#00e5ff', bg: 'rgba(0,229,255,0.05)', border: 'rgba(0,229,255,0.12)', text: aiResult?.marketConditions, textColor: '#dce8ff' },
+                    { key: 'todaysEdge',       label: '⚡ Today's Edge',      color: '#00ff88', bg: 'rgba(0,255,136,0.05)', border: 'rgba(0,255,136,0.12)', text: aiResult?.todaysEdge,       textColor: '#dce8ff' },
+                    { key: 'accountability',   label: '🎯 Accountability',     color: '#ff8c42', bg: 'rgba(255,140,66,0.05)', border: 'rgba(255,140,66,0.12)', text: aiResult?.accountability,   textColor: '#dce8ff' },
+                    { key: 'riskFlag',         label: '⚠ Risk Flag',          color: '#ff4d6d', bg: 'rgba(255,77,109,0.06)', border: 'rgba(255,77,109,0.14)', text: aiResult?.riskFlag,         textColor: '#ffb3c0' },
+                  ].filter(s => s.text).map(s => (
+                    <div key={s.key} style={{ margin: '0 12px 8px', borderRadius: 8, background: s.bg, border: `1px solid ${s.border}`, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 9, color: s.color, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
+                      <div style={{ fontSize: 13, color: s.textColor, lineHeight: 1.75, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontWeight: 400 }}>{s.text}</div>
                     </div>
-                  )}
-                  {aiResult?.todaysEdge && (
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(0,255,136,0.08)', background: 'rgba(0,255,136,0.02)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                        <span style={{ fontSize: 9, color: '#00ff88', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 2 }}>⚡ Today's Edge</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: '#e8f0ff', lineHeight: 1.7, fontFamily: "'SF Pro Display', 'Inter', sans-serif", fontWeight: 400 }}>{aiResult.todaysEdge}</div>
-                    </div>
-                  )}
-                  {aiResult?.accountability && (
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,107,0,0.08)', background: 'rgba(255,107,0,0.02)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                        <span style={{ fontSize: 9, color: '#ff6b00', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 2 }}>🎯 Accountability</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: '#e8f0ff', lineHeight: 1.7, fontFamily: "'SF Pro Display', 'Inter', sans-serif", fontWeight: 400 }}>{aiResult.accountability}</div>
-                    </div>
-                  )}
-                  {aiResult?.riskFlag && (
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,26,74,0.12)', background: 'rgba(255,26,74,0.03)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                        <span style={{ fontSize: 9, color: '#ff4d6d', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 2 }}>⚠ Risk Flag</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: '#ffb3c0', lineHeight: 1.7, fontFamily: "'SF Pro Display', 'Inter', sans-serif", fontWeight: 400 }}>{aiResult.riskFlag}</div>
-                    </div>
-                  )}
+                  ))}
 
                   {/* Positioning */}
                   {aiResult && (
