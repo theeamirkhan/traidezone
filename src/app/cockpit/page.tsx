@@ -5395,7 +5395,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {/* AI Signal sections — clean readable layout */}
                   {[
                     { key: 'marketConditions', label: '📊 Market Conditions', color: '#00e5ff', bg: 'rgba(0,229,255,0.05)', border: 'rgba(0,229,255,0.12)', text: aiResult?.marketConditions, textColor: '#dce8ff' },
-                    { key: 'todaysEdge',       label: '⚡ Today's Edge',      color: '#00ff88', bg: 'rgba(0,255,136,0.05)', border: 'rgba(0,255,136,0.12)', text: aiResult?.todaysEdge,       textColor: '#dce8ff' },
+                    { key: 'todaysEdge',       label: "⚡ Today's Edge",      color: '#00ff88', bg: 'rgba(0,255,136,0.05)', border: 'rgba(0,255,136,0.12)', text: aiResult?.todaysEdge,       textColor: '#dce8ff' },
                     { key: 'accountability',   label: '🎯 Accountability',     color: '#ff8c42', bg: 'rgba(255,140,66,0.05)', border: 'rgba(255,140,66,0.12)', text: aiResult?.accountability,   textColor: '#dce8ff' },
                     { key: 'riskFlag',         label: '⚠ Risk Flag',          color: '#ff4d6d', bg: 'rgba(255,77,109,0.06)', border: 'rgba(255,77,109,0.14)', text: aiResult?.riskFlag,         textColor: '#ffb3c0' },
                   ].filter(s => s.text).map(s => (
