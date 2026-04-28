@@ -246,7 +246,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (table === 'edge_profile') {
-      const profileData = { ...body.data, user_id: userId, updated_at: new Date().toISOString() }
+      const profileData = { ...data, user_id: userId, updated_at: new Date().toISOString() }
       const { error } = await supabase
         .from('user_edge_profiles')
         .upsert(profileData, { onConflict: 'user_id' })
