@@ -19,9 +19,32 @@ import { validateMarketData } from '../agents/dataValidator'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface EdgeProfile {
+  // From backtest (historical baseline)
+  backtestWinRate:    number | null  // e.g. 61
+  backtestPF:         number | null  // profit factor e.g. 1.8
+  longWinRate:        number | null  // e.g. 67
+  shortWinRate:       number | null  // e.g. 48
+  bestDays:           string[]       // e.g. ['Monday','Tuesday']
+  bestVixRegime:      string | null  // e.g. 'Normal 14-20'
+  avgWinMins:         number | null  // avg time for winners
+  avgLossMins:        number | null  // avg time for losers
+  backtestDays:       number | null  // how many days backtest covers
+  backtestDateRange:  string | null  // e.g. '2025-11-01 → 2026-04-25'
+  // From live alert accuracy (Supabase)
+  liveWinRate:        number | null
+  livePF:             number | null
+  liveScoredAlerts:   number | null
+  liveRecentForm:     string | null  // 'Hot 🔥' | 'Solid' etc
+  modelSuggestions:   string[]
+}
+
 export interface SignalInput {
   // From useMarketData hook
   market: Pick<MarketData, 'currentPrice' | 'levels' | 'candles' | 'vixPrice' | 'changes'>
+
+  // Historical edge profile
+  edgeProfile:     EdgeProfile | null
 
   // From session state
   morningPlan:     any
@@ -136,6 +159,53 @@ function buildRecentCandles(candles: any[]): string {
   ).join(' | ')
 }
 
+// ── Edge profile section ─────────────────────────────────────────────────────
+
+function buildEdgeSection(edge: EdgeProfile | null, vixPrice: number | null): string {
+  if (!edge) return ''
+
+  const lines: string[] = []
+
+  // Baseline
+  if (edge.backtestWinRate !== null) {
+    lines.push(`SYSTEM BASELINE (${edge.backtestDays || '?'} day backtest, ${edge.backtestDateRange || ''}):`)
+    lines.push(`  Overall: ${edge.backtestWinRate}% win rate | ${edge.backtestPF}× profit factor`)
+    lines.push(`  LONG: ${edge.longWinRate}% | SHORT: ${edge.shortWinRate}%`)
+    if (edge.bestDays?.length) lines.push(`  Best days: ${edge.bestDays.join(', ')}`)
+    if (edge.bestVixRegime) lines.push(`  Best VIX regime: ${edge.bestVixRegime}`)
+    if (edge.avgWinMins && edge.avgLossMins) {
+      lines.push(`  Avg winner: ${edge.avgWinMins}min | Avg loser: ${edge.avgLossMins}min`)
+    }
+  }
+
+  // Live accuracy
+  if (edge.liveScoredAlerts && edge.liveScoredAlerts >= 5) {
+    lines.push(`LIVE ACCURACY (last 30 days, ${edge.liveScoredAlerts} signals):`)
+    lines.push(`  Win rate: ${edge.liveWinRate}% | PF: ${edge.livePF}× | Form: ${edge.liveRecentForm || '?'}`)
+  }
+
+  // Current conditions vs baseline
+  if (vixPrice && edge.bestVixRegime) {
+    const vixBucket = vixPrice < 14 ? 'Low <14' : vixPrice < 20 ? 'Normal 14-20' : vixPrice < 28 ? 'Elevated 20-28' : 'High >28'
+    const isOptimal = edge.bestVixRegime.includes(vixBucket.split(' ')[0])
+    lines.push(`CONDITIONS VS BASELINE:`)
+    lines.push(`  VIX ${vixPrice.toFixed(1)} = ${vixBucket} regime${isOptimal ? ' ✓ (your best regime)' : ' (sub-optimal)'}`)
+  }
+
+  const todayDow = new Date().toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' })
+  if (edge.bestDays?.length) {
+    const isGoodDay = edge.bestDays.includes(todayDow)
+    lines.push(`  Today is ${todayDow}${isGoodDay ? ' ✓ (historically strong day)' : ' (not your peak day)'}`)
+  }
+
+  // Model suggestions
+  if (edge.modelSuggestions?.length) {
+    lines.push(`MODEL INSIGHTS: ${edge.modelSuggestions[0]}`)
+  }
+
+  return lines.join('\n')
+}
+
 // ── buildSignalContext ────────────────────────────────────────────────────────
 
 export async function buildSignalContext(input: SignalInput): Promise<SignalContext> {
@@ -190,6 +260,8 @@ Target: ${activePlaybook.target}`
     ? `Win rate: ${tradeStats.winRate}% (${tradeStats.totalTrades} trades) | In-system: ${tradeStats.inSystemWinRate}% | Best setup: ${tradeStats.bestSetup || 'Unknown'}`
     : 'No trade history'
 
+  const edgeSection = buildEdgeSection(input.edgeProfile ?? null, market.vixPrice ?? null)
+
   const macroLine = macroRegime
     ? `MACRO: ${macroRegime.regime||''} — ${macroRegime.keyRisk||''}`
     : ''
@@ -234,6 +306,7 @@ TRADE ZONE RULES (enforce strictly):
     morningSection,
     playbookSection,
     `TRADER STATS: ${statsSection}`,
+    edgeSection ? `═══ HISTORICAL EDGE PROFILE ═══\n${edgeSection}` : '',
     tiingoLine,
     macroLine,
     newsLine,
@@ -327,7 +400,10 @@ UNMET: ${input.unmetChecks || 'All clear'}
 ═══ ACTIVE PLAYBOOK ═══
 ${input.activePlaybook ? `${input.activePlaybook.name}\nEntry: ${input.activePlaybook.entry}\nStop: ${input.activePlaybook.stop}` : 'No playbook selected'}
 
-${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}`
+${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
+
+${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
+${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}`
 
   return { systemPrompt, isValid: !!price, warnings }
 }

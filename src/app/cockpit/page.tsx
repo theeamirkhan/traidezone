@@ -9,6 +9,8 @@ import ToneTesterComponent from './components/ToneTester'
 import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
 import { trackUsage } from './agents/usageTracker'
+import { loadEdgeProfile, clearEdgeCache } from './agents/edgeLoader'
+import type { EdgeProfile } from './ai/buildContext'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
@@ -1739,6 +1741,8 @@ export default function CockpitPage() {
   const [showUsageReport, setShowUsageReport] = useState(false)
   const [showAlertHistory, setShowAlertHistory] = useState(false)
   const [showBacktest, setShowBacktest] = useState(false)
+  const [edgeProfile, setEdgeProfile] = useState<EdgeProfile | null>(null)
+  const [edgeLoading, setEdgeLoading] = useState(false)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [vwapInput, setVwapInput] = useState('')
@@ -1748,6 +1752,7 @@ export default function CockpitPage() {
   // Build validated SignalInput for runSignal calls
   const buildSignalInput = (overrides?: { flow?: any[]; tide?: any; intel?: any; tiingo?: any }) => ({
     market:           { currentPrice, levels, candles, vixPrice, changes },
+    edgeProfile,
     morningPlan,
     activePlaybook:   playbooks.find((p: any) => p.id === activePlaybookId) || null,
     tradeStats,
@@ -1774,6 +1779,15 @@ export default function CockpitPage() {
   const [showTutorial, setShowTutorial] = useState(false)
   const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'none'>('loading')
   const [subPlan, setSubPlan] = useState<string | null>(null)
+
+  // Load edge profile on mount (backtest baseline + live accuracy)
+  useEffect(() => {
+    setEdgeLoading(true)
+    loadEdgeProfile()
+      .then(p => { if (p) setEdgeProfile(p) })
+      .catch(e => console.warn('[EdgeLoader] Failed:', e))
+      .finally(() => setEdgeLoading(false))
+  }, [])
 
   // Check subscription access on load
   useEffect(() => {
@@ -3463,6 +3477,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     const _unmet = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
     const companionCtx = buildCompanionContext({
       market: { currentPrice, levels, candles, vixPrice, changes },
+      edgeProfile,
       morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
       tradeStats, aiTone, aiResult,
       optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew, marketScore,
@@ -3946,6 +3961,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <button onClick={() => setShowUsageReport(true)} title="AI Usage & Cost Report" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(0,212,160,0.3)', background: 'rgba(0,212,160,0.07)', color: '#00d4a0', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>$</button>
             <button onClick={() => setShowAlertHistory(true)} title="Trade Alert History" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(255,183,0,0.4)', background: 'rgba(255,183,0,0.08)', color: '#ffb700', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>📋</button>
             <button onClick={() => setShowBacktest(true)} title="AI Signal Backtest" style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(124,106,255,0.4)', background: 'rgba(124,106,255,0.08)', color: '#7c6aff', cursor: 'pointer', fontFamily: font, marginLeft: 2 }}>🔬</button>
+            {edgeProfile?.backtestWinRate && (
+              <span title={`Edge loaded: ${edgeProfile.backtestWinRate}% win rate (${edgeProfile.backtestDays}d backtest)`}
+                style={{ fontSize: 7, color: 'rgba(124,106,255,0.6)', marginLeft: 2, cursor: 'default' }}>
+                {edgeProfile.backtestWinRate}%
+              </span>
+            )}
             <button onClick={() => {
               setVolumeAlerts([{ id: `vol-demo-${Date.now()}`, multiplier: '3.8', volume: 820000, direction: 'BULL', price: currentPrice?.toFixed(2) || '7155.00', ticker: 'SPY', time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) }])
               if (currentPrice && levels?.spyVwap) setLevelProximity({ level: 'VWAP', levelPrice: levels.spyVwap, currentPrice, distPts: Math.abs(currentPrice - levels.spyVwap).toFixed(1), distPct: (Math.abs(currentPrice - levels.spyVwap)/currentPrice*100).toFixed(2), approaching: true, breakoutPct: 62, bouncePct: 38, volConfirm: '1.8', flowBias: 'BULLISH' })
