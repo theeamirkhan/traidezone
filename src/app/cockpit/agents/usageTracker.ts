@@ -23,13 +23,13 @@ export interface UsageEntry {
 
 // Pricing (per million tokens)
 const RATES: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
-  'claude-sonnet-4-20250514':  { input: 3.00,  output: 15.00, cacheRead: 0.30,  cacheWrite: 3.75 },
+  'claude-sonnet-4-6':  { input: 3.00,  output: 15.00, cacheRead: 0.30,  cacheWrite: 3.75 },
   'claude-haiku-4-5-20251001': { input: 1.00,  output: 5.00,  cacheRead: 0.10,  cacheWrite: 1.25 },
 }
 const SEARCH_COST = 0.010
 
 function estimateCost(model: string, inputTokens: number, outputTokens: number, cacheRead = 0, cacheWrite = 0, searches = 0): number {
-  const r = RATES[model] || RATES['claude-sonnet-4-20250514']
+  const r = RATES[model] || RATES['claude-sonnet-4-6']
   return (inputTokens  / 1e6) * r.input
        + (outputTokens / 1e6) * r.output
        + (cacheRead    / 1e6) * r.cacheRead
@@ -129,11 +129,11 @@ export function getUsageSummary(days = 7) {
 
     // Cache savings
     const costWithoutCache = recent.reduce((s, e) => {
-      const r = RATES[e.model] || RATES['claude-sonnet-4-20250514']
+      const r = RATES[e.model] || RATES['claude-sonnet-4-6']
       return s + ((e.inputTokens + e.cacheRead) / 1e6) * r.input
     }, 0)
     const cacheSavings = Math.max(0, costWithoutCache - recent.reduce((s, e) => {
-      const r = RATES[e.model] || RATES['claude-sonnet-4-20250514']
+      const r = RATES[e.model] || RATES['claude-sonnet-4-6']
       return s + (e.inputTokens / 1e6) * r.input + (e.cacheRead / 1e6) * r.cacheRead
     }, 0))
 

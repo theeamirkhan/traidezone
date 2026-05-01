@@ -51,7 +51,7 @@ export async function runSignal(input: SignalInput): Promise<SignalResult | null
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 700,
         system: [{
           type: 'text',
@@ -87,7 +87,7 @@ export async function runSignal(input: SignalInput): Promise<SignalResult | null
     const parsed = JSON.parse(text)
 
     // Track usage for daily cost report
-    trackUsage('claude-sonnet-4-20250514', 'signal', data)
+    trackUsage('claude-sonnet-4-6', 'signal', data)
 
     return {
       ...parsed,

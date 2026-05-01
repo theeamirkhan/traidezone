@@ -443,7 +443,7 @@ Flow: ${flowSection}${zeroDTESkew ? `\n0DTE: ${zeroDTESkew.skewLabel} P/C ${zero
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 700,
           system: [{ type: 'text', text: systemPromptSafe, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: liveContextSafe }],
@@ -3559,7 +3559,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 150,
           system: [{ type: 'text', text: context, cache_control: { type: 'ephemeral' } }],
           messages: [...chatMessages, { role: 'user', content: text }].slice(-10).map(m => ({ role: m.role, content: m.content }))
@@ -3569,7 +3569,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       const data = await res.json()
 
       // Track usage
-      trackUsage('claude-sonnet-4-20250514', 'companion', data)
+      trackUsage('claude-sonnet-4-6', 'companion', data)
 
       // Handle overloaded / error responses
       if (data?.error?.type === 'overloaded_error' || data?.error === 'Rate limit exceeded') {
@@ -5872,7 +5872,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       const avgW = wins.length ? wins.reduce((s: number, t: any) => s + parseFloat(t.pnl), 0) / wins.length : 0
                       const avgL = losses.length ? Math.abs(losses.reduce((s: number, t: any) => s + parseFloat(t.pnl), 0) / losses.length) : 0
                       const prompt = `Analyze SPX options trader data. Win rate: ${tradeStats?.winRate}%, Total P&L: $${tradeStats?.totalPnl}, Profit factor: ${tradeStats?.profitFactor}x, Avg win: $${Math.round(avgW)}, Avg loss: $${Math.round(avgL)}, In-system win rate: ${tradeStats?.inSystemWinRate}%, Total trades: ${trades.length}. Give 3 specific, actionable insights to improve edge. Be direct and quantitative. Format: 1. [insight] 2. [insight] 3. [insight]`
-                      const resp = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }) })
+                      const resp = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }) })
                       const dat = await resp.json()
                       const analysis = dat.content?.[0]?.text || 'No analysis available'
                       setChatMessages([{ role: 'assistant', content: '🧠 Pattern Analysis:\n\n' + analysis }])

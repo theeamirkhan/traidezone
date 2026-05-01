@@ -23,7 +23,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Current pricing per million tokens (as of 2026)
 const PRICING = {
-  'claude-sonnet-4-20250514': { input: 3.00, output: 15.00, cacheWrite: 3.75, cacheRead: 0.30 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00, cacheWrite: 3.75, cacheRead: 0.30 },
   'claude-haiku-4-5-20251001': { input: 1.00, output: 5.00, cacheWrite: 1.25, cacheRead: 0.10 },
   'web_search': { perSearch: 0.010 },
 } as const
@@ -104,8 +104,8 @@ function buildAdminReport(data: any, today: string) {
   const todayCost      = Object.values(byModel).reduce((s, m) => s + m.cost,         0)
 
   // Cache efficiency
-  const withoutCache  = calcCost('claude-sonnet-4-20250514', totalTokensIn + totalCacheRead, 0)
-  const withCache     = calcCost('claude-sonnet-4-20250514', totalTokensIn, 0, totalCacheRead, 0)
+  const withoutCache  = calcCost('claude-sonnet-4-6', totalTokensIn + totalCacheRead, 0)
+  const withCache     = calcCost('claude-sonnet-4-6', totalTokensIn, 0, totalCacheRead, 0)
   const cacheSavings  = Math.max(0, withoutCache - withCache)
   const cacheHitRate  = totalTokensIn + totalCacheRead > 0
     ? Math.round((totalCacheRead / (totalTokensIn + totalCacheRead)) * 100)
@@ -203,7 +203,7 @@ export async function GET(req: NextRequest) {
   let totalCost = 0
 
   logs.forEach((log: any) => {
-    const model = log.model || 'claude-sonnet-4-20250514'
+    const model = log.model || 'claude-sonnet-4-6'
     if (!byModel[model]) byModel[model] = { requests: 0, inputTokens: 0, outputTokens: 0, cacheRead: 0, cost: 0 }
     byModel[model].requests++
     byModel[model].inputTokens  += log.inputTokens  || 0
