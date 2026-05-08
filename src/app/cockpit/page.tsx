@@ -11,6 +11,7 @@ import { useMarketData } from './hooks/useMarketData'
 import { runSignal } from './ai/runSignal'
 import { trackUsage } from './agents/usageTracker'
 import { loadEdgeProfile, clearEdgeCache } from './agents/edgeLoader'
+import { analyzePatterns, type PatternAnalysis } from './lib/patternRecognition'
 import type { EdgeProfile } from './ai/buildContext'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
@@ -1746,6 +1747,7 @@ export default function CockpitPage() {
   const [edgeProfile, setEdgeProfile] = useState<EdgeProfile | null>(null)
   const [edgeLoading, setEdgeLoading] = useState(false)
   const [discoveredRules, setDiscoveredRules] = useState<any[]>([])
+  const [patternAnalysis, setPatternAnalysis] = useState<PatternAnalysis | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
@@ -1758,6 +1760,7 @@ export default function CockpitPage() {
   const buildSignalInput = (overrides?: { flow?: any[]; tide?: any; intel?: any; tiingo?: any }) => ({
     market:           { currentPrice, levels, candles, vixPrice, changes },
     edgeProfile,
+    patternAnalysis,
     morningPlan,
     activePlaybook:   playbooks.find((p: any) => p.id === activePlaybookId) || null,
     tradeStats,
@@ -2794,7 +2797,36 @@ export default function CockpitPage() {
       try {
         // Price/candles/VWAP/EMA handled by useMarketData hook (60s refresh)
         // fetchFreeData only handles options flow, tide, tiingo, skew
-        // ── Volume spike detection from SPY candles (Feature 1) ───────────────
+        // ── Pattern Recognition + Fibonacci Analysis ────────────────────────────
+      if (candles.length >= 20 && currentPrice) {
+        try {
+          const today   = new Date().toISOString().split('T')[0]
+          const from90d = new Date(Date.now() - 95 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+          const dailyRes  = await proxyFetch(`/v2/aggs/ticker/I:SPX/range/1/day/${from90d}/${today}?adjusted=true&sort=asc&limit=100`)
+          const dailyData = await dailyRes.json()
+          const dailyBars = (dailyData.results || []).map((r: any) => ({
+            t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0
+          }))
+          if (dailyBars.length >= 10) {
+            const analysis = analyzePatterns(
+              candles,
+              dailyBars,
+              currentPrice,
+              {
+                vwap:  levels?.spyVwap  || undefined,
+                ema200: levels?.ema200  || undefined,
+                pdh:   levels?.pdh      || undefined,
+                pdl:   levels?.pdl      || undefined,
+              }
+            )
+            setPatternAnalysis(analysis)
+          }
+        } catch (e) {
+          console.warn('[PatternRecognition] Daily bars fetch failed:', e)
+        }
+      }
+
+      // ── Volume spike detection from SPY candles (Feature 1) ───────────────
         if (spyCandles.length >= 5) {
           const recentVols = spyCandles.slice(-21).map((c: any) => c.v).filter(Boolean)
           if (recentVols.length >= 5) {
@@ -3546,6 +3578,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     const companionCtx = buildCompanionContext({
       market: { currentPrice, levels, candles, vixPrice, changes },
       edgeProfile,
+      patternAnalysis,
       morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
       tradeStats, aiTone, aiResult,
       optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew, marketScore,

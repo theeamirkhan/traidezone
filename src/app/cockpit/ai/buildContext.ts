@@ -16,6 +16,7 @@
 
 import type { MarketData } from '../hooks/useMarketData'
 import { validateMarketData } from '../agents/dataValidator'
+import type { PatternAnalysis } from '../lib/patternRecognition'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,9 @@ export interface SignalInput {
   marketScore:     any | null
   tradePatterns:   any | null
   multiTFData:     any | null
+
+  // From chart pattern recognition engine
+  patternAnalysis: PatternAnalysis | null
 
   // From daily AI cache
   marketNews:       string
@@ -213,7 +217,8 @@ export async function buildSignalContext(input: SignalInput): Promise<SignalCont
   const { market, morningPlan, activePlaybook, tradeStats, aiTone,
           optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew,
           marketScore, tradePatterns, multiTFData,
-          marketNews, economicCalendar, macroRegime, earningsCalendar, sessionMemory } = input
+          marketNews, economicCalendar, macroRegime, earningsCalendar, sessionMemory,
+          patternAnalysis } = input
 
   // ── Step 1: basic validation ────────────────────────────────────────────────
   const price = validatePrice(market.currentPrice, 'SPX price', warnings)
@@ -314,6 +319,8 @@ TRADE ZONE RULES (enforce strictly):
     earningsSection ? `EARNINGS:\n${earningsSection}` : '',
     memLine,
     warnings.length ? `DATA WARNINGS: ${warnings.join('; ')}` : '',
+    patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${patternAnalysis.aiContext}` : '',
+    patternAnalysis?.structureSummary ? `PATTERN BIAS: ${patternAnalysis.structureSummary}` : '',
     JSON_SCHEMA,
   ].filter(Boolean).join('\n\n')
 
@@ -401,6 +408,8 @@ UNMET: ${input.unmetChecks || 'All clear'}
 ${input.activePlaybook ? `${input.activePlaybook.name}\nEntry: ${input.activePlaybook.entry}\nStop: ${input.activePlaybook.stop}` : 'No playbook selected'}
 
 ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
+
+${(input as any).patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${(input as any).patternAnalysis.aiContext}` : ''}
 
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}`
