@@ -2802,7 +2802,8 @@ export default function CockpitPage() {
         try {
           const today   = new Date().toISOString().split('T')[0]
           const from90d = new Date(Date.now() - 95 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-          const dailyRes  = await proxyFetch(`/v2/aggs/ticker/I:SPX/range/1/day/${from90d}/${today}?adjusted=true&sort=asc&limit=100`)
+          const polyKey  = keys[POLY_KEY] || 'env'
+          const dailyRes  = await fetch(`/api/polygon?apiKey=${polyKey}&path=${encodeURIComponent(`/v2/aggs/ticker/I:SPX/range/1/day/${from90d}/${today}?adjusted=true&sort=asc&limit=100`)}`)
           const dailyData = await dailyRes.json()
           const dailyBars = (dailyData.results || []).map((r: any) => ({
             t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0
