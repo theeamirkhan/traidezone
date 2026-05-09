@@ -4437,7 +4437,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               if (result.entryZone && result.stopLevel && result.target1) {
                                 setOutcomeModal({
                                   alertId:   d.id,
-                                  signal:    result.signal,
+                                  signal:    result.signal as 'LONG' | 'SHORT',
                                   entryLow:  result.entryZone.low,
                                   entryHigh: result.entryZone.high,
                                   stopLevel: result.stopLevel,
