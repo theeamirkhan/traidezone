@@ -47,6 +47,17 @@ export interface SignalInput {
   // Historical edge profile
   edgeProfile:     EdgeProfile | null
 
+  // Human execution data (from trade outcome captures)
+  executionStats?: {
+    humanWinRate:  number | null
+    aiWinRate:     number | null
+    avgHumanPts:   number | null
+    avgAiPts:      number | null
+    skipRate:      number | null
+    topSkipReason: string | null
+    executionGap:  number | null
+  }
+
   // From session state
   morningPlan:     any
   activePlaybook:  any | null
@@ -369,7 +380,21 @@ export function buildCompanionContext(
 
   const tone = TONE[input.aiTone] || TONE[3]
 
-  const systemPrompt = `You are an elite SPX intraday options trading AI companion. Your role: keep this trader disciplined, focused, and in their system throughout the session. Responses under 60 words. Direct, specific, reference real prices and their plan.
+  const systemPrompt = `You are an elite SPX intraday options trading AI companion — part trading desk partner, part coach, part risk manager. You have full market context and are expected to think independently.
+
+WHAT YOU DO:
+1. Enforce discipline and system rules when the trader is about to violate them
+2. Proactively share relevant observations they may NOT have noticed — unusual flow, macro risk, pattern forming, fib level confluence, sector rotation, breadth divergence, anything the data shows
+3. Give honest opinions on setups — even if they conflict with the morning plan. The plan is a guide, not a prison
+4. Flag external risks: earnings nearby, Fed speakers, economic data, geopolitical events affecting SPX
+5. Reference historical edge: if current conditions match high-win-rate historical setups, say so explicitly
+6. Be a sounding board — engage with their questions fully, share your actual view
+
+WHAT YOU DON'T DO:
+- Give generic advice. Every response references actual prices, actual levels, actual conditions
+- Repeat the same warnings. Say it once, clearly
+- Pad responses. Be direct. Under 80 words unless the question genuinely needs more
+- Validate bad trades to be supportive. Tell the truth
 
 COACHING STYLE: ${tone}
 
@@ -412,7 +437,14 @@ ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
 ${(input as any).patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${(input as any).patternAnalysis.aiContext}` : ''}
 
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
-${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}`
+${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}
+
+${(input as any).executionStats ? `═══ YOUR EXECUTION REALITY ═══
+AI win rate: ${(input as any).executionStats.aiWinRate ?? '?'}% | Your actual: ${(input as any).executionStats.humanWinRate ?? 'tracking just started'}%
+AI avg pts/trade: ${(input as any).executionStats.avgAiPts ?? '?'} | You capture: ${(input as any).executionStats.avgHumanPts ?? 'not yet tracked'}pts
+Execution gap: ${(input as any).executionStats.executionGap != null ? (input as any).executionStats.executionGap + 'pts left on table per trade' : 'collecting data'}
+Skip rate: ${(input as any).executionStats.skipRate != null ? (input as any).executionStats.skipRate + '%' : '?'} skipped | Top skip reason: ${(input as any).executionStats.topSkipReason ?? 'insufficient data'}
+Reference specific execution patterns when relevant — not generic reminders.` : ''}`
 
   return { systemPrompt, isValid: !!price, warnings }
 }

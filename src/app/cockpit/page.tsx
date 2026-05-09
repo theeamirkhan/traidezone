@@ -1763,6 +1763,7 @@ export default function CockpitPage() {
   const buildSignalInput = (overrides?: { flow?: any[]; tide?: any; intel?: any; tiingo?: any }) => ({
     market:           { currentPrice, levels, candles, vixPrice, changes },
     edgeProfile,
+    executionStats,
     patternAnalysis,
     morningPlan,
     activePlaybook:   playbooks.find((p: any) => p.id === activePlaybookId) || null,
@@ -1802,6 +1803,34 @@ export default function CockpitPage() {
     fetch('/api/userdata?table=discovered_rules')
       .then(r => r.json())
       .then(d => { if (d.data?.rules?.length) setDiscoveredRules(d.data.rules) })
+      .catch(() => {})
+  }, [])
+
+  // Compute execution stats from trade alert history (human vs AI)
+  const [executionStats, setExecutionStats] = useState<any>(null)
+  useEffect(() => {
+    fetch('/api/trade-alerts?days=30')
+      .then(r => r.json())
+      .then(d => {
+        const alerts    = d.alerts || []
+        const withHuman = alerts.filter((a: any) => a.human_took_trade != null)
+        if (withHuman.length < 3) return
+        const took    = withHuman.filter((a: any) => a.human_took_trade)
+        const skipped = withHuman.filter((a: any) => !a.human_took_trade)
+        const scored  = alerts.filter((a: any) => a.outcome !== 'PENDING')
+        const aiWins  = scored.filter((a: any) => a.outcome === 'HIT_T1' || a.outcome === 'HIT_T2')
+        const aiWinRate   = scored.length ? Math.round(aiWins.length / scored.length * 100) : null
+        const avgAiPts    = aiWins.length ? parseFloat((aiWins.reduce((s: number, a: any) => s + Math.abs(a.pts_to_t1 || 0), 0) / aiWins.length).toFixed(1)) : null
+        const humanWins   = took.filter((a: any) => a.human_outcome === 'HIT_T1' || a.human_outcome === 'HIT_T2')
+        const humanWinRate = took.length ? Math.round(humanWins.length / took.length * 100) : null
+        const avgHumanPts  = took.length ? parseFloat((took.reduce((s: number, a: any) => s + Math.abs(a.human_pts || 0), 0) / took.length).toFixed(1)) : null
+        const executionGap = avgAiPts && avgHumanPts ? parseFloat((avgAiPts - avgHumanPts).toFixed(1)) : null
+        const skipRate    = withHuman.length ? Math.round(skipped.length / withHuman.length * 100) : null
+        const reasons: Record<string, number> = {}
+        skipped.forEach((a: any) => { if (a.skip_reason) reasons[a.skip_reason] = (reasons[a.skip_reason] || 0) + 1 })
+        const topSkipReason = Object.entries(reasons).sort((a,b) => b[1]-a[1])[0]?.[0]?.replace(/_/g, ' ') || null
+        setExecutionStats({ humanWinRate, aiWinRate, avgHumanPts, avgAiPts, skipRate, topSkipReason, executionGap })
+      })
       .catch(() => {})
   }, [])
 
@@ -2556,13 +2585,12 @@ export default function CockpitPage() {
           `Trader name: ${name}. SPX at ${currentPrice?.toFixed(2)}, VIX at ${vixPrice?.toFixed(1) || 'unknown'}.`,
           `Keep it under 2 sentences. Speak it exactly as written but feel free to adapt tense.`,
         ] : [
-          `Generate a brief, natural trading companion greeting (2-3 sentences max, spoken aloud).`,
+          `Generate a brief natural greeting (2-3 sentences, spoken aloud). You are a proactive trading companion — not just a rule enforcer.`,
           `Trader name: ${name}. ${isReturning ? `Session #${sessionNum + 1} together.` : 'First session.'}`,
-          `Time: ${timeOfDay}. SPX at ${currentPrice?.toFixed(2)}.`,
-          `VIX: ${vixPrice?.toFixed(1) || 'unknown'}.`,
-          lastWeakness ? `Last session note: ${lastWeakness}` : '',
-          `Be warm but direct. Get them focused. Reference real prices. No generic fluff.`,
-          `${isReturning ? 'You know this trader — reference your relationship naturally.' : 'Introduce yourself as their AI trading companion.'}`,
+          `Time: ${timeOfDay}. SPX at ${currentPrice?.toFixed(2)}. VIX: ${vixPrice?.toFixed(1) || 'unknown'}.`,
+          lastWeakness ? `Last session weakness to address: ${lastWeakness}` : '',
+          `Greet them, mention 1 specific thing you see in the market right now worth watching (price level, VIX context, or setup forming). Be direct, no fluff.`,
+          `${isReturning ? 'You know this trader — reference your history naturally.' : 'Introduce yourself briefly.'}`,
         ]
         const promptStr = promptLines.filter(Boolean).join(' ')
 
@@ -3582,6 +3610,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     const companionCtx = buildCompanionContext({
       market: { currentPrice, levels, candles, vixPrice, changes },
       edgeProfile,
+      executionStats,
       patternAnalysis,
       morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
       tradeStats, aiTone, aiResult,
