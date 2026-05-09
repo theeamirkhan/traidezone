@@ -3,6 +3,7 @@ import TutorialModal from './TutorialModal'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
+import TradeOutcomeModal from './components/TradeOutcomeModal'
 import BacktestPanel from './components/BacktestPanel'
 import EdgeDiscovery from './components/EdgeDiscovery'
 import UsageReport from './components/UsageReport'
@@ -1742,6 +1743,8 @@ export default function CockpitPage() {
   const [editingVwap, setEditingVwap] = useState(false)
   const [showUsageReport, setShowUsageReport] = useState(false)
   const [showAlertHistory, setShowAlertHistory] = useState(false)
+  const [outcomeModal, setOutcomeModal] = useState<{ alertId: string; signal: 'LONG'|'SHORT'; entryLow: number; entryHigh: number; stopLevel: number; target1: number; target2: number } | null>(null)
+  const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showBacktest, setShowBacktest] = useState(false)
   const [showEdgeDiscovery, setShowEdgeDiscovery] = useState(false)
   const [edgeProfile, setEdgeProfile] = useState<EdgeProfile | null>(null)
@@ -3743,6 +3746,18 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
       {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
       {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
+      {outcomeModal && (
+        <TradeOutcomeModal
+          alertId={outcomeModal.alertId}
+          signal={outcomeModal.signal}
+          entryLow={outcomeModal.entryLow}
+          entryHigh={outcomeModal.entryHigh}
+          stopLevel={outcomeModal.stopLevel}
+          target1={outcomeModal.target1}
+          target2={outcomeModal.target2}
+          onClose={() => { setOutcomeModal(null); if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current) }}
+        />
+      )}
       {showEdgeDiscovery && <EdgeDiscovery 
         onClose={() => setShowEdgeDiscovery(false)} 
         onRulesUpdated={(rules) => {
@@ -4413,10 +4428,24 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         .then(r => r.json())
                         .then(d => {
                           if (d.needsMigration) {
-                            // Table not created yet — run migration silently
                             fetch('/api/trade-alerts/migrate').catch(() => {})
                           } else {
-                            console.log('[TradeAlertAgent] Logged to Supabase:', d.id, '— scoring cron runs every 30min')
+                            console.log('[TradeAlertAgent] Logged:', d.id)
+                            // Show outcome capture modal 30s after signal
+                            if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current)
+                            outcomeTimerRef.current = setTimeout(() => {
+                              if (result.entryZone && result.stopLevel && result.target1) {
+                                setOutcomeModal({
+                                  alertId:   d.id,
+                                  signal:    result.signal,
+                                  entryLow:  result.entryZone.low,
+                                  entryHigh: result.entryZone.high,
+                                  stopLevel: result.stopLevel,
+                                  target1:   result.target1,
+                                  target2:   result.target2 || result.target1 + 20,
+                                })
+                              }
+                            }, 30000)  // 30 seconds
                           }
                         })
                         .catch(e => console.warn('[TradeAlertAgent] Log failed (non-critical):', e.message))

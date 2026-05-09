@@ -275,11 +275,43 @@ export default function AlertHistory({ onClose }: { onClose: () => void }) {
                 {a.outcome_note && (
                   <div style={{ fontSize: 8, color: C.muted, fontStyle: 'italic', marginBottom: 3 }}>{a.outcome_note}</div>
                 )}
+                {/* Human vs AI outcome comparison */}
+                {a.human_took_trade != null && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '4px 8px',
+                    borderRadius: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span style={{ fontSize: 7, color: C.muted }}>YOU:</span>
+                    {a.human_took_trade ? (
+                      <>
+                        <span style={{ fontSize: 8, fontWeight: 700,
+                          color: a.human_outcome === 'HIT_T1' || a.human_outcome === 'HIT_T2' ? C.green
+                            : a.human_outcome === 'STOPPED_OUT' ? C.red : C.yellow }}>
+                          {a.human_outcome?.replace('_', ' ')}
+                        </span>
+                        {a.human_pts != null && (
+                          <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 11, fontWeight: 900,
+                            color: a.human_pts > 0 ? C.green : C.red, marginLeft: 4 }}>
+                            {a.human_pts > 0 ? '+' : ''}{a.human_pts}pt
+                          </span>
+                        )}
+                        {a.pts_to_t1 != null && a.human_pts != null && (
+                          <span style={{ fontSize: 7, color: C.dim, marginLeft: 4 }}>
+                            (AI: {a.pts_to_t1 > 0 ? '+' : ''}{a.pts_to_t1}pt)
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 8, color: C.muted }}>Skipped</span>
+                        {a.skip_reason && <span style={{ fontSize: 7, color: C.dim }}>— {a.skip_reason.replace(/_/g, ' ')}</span>}
+                      </>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, fontSize: 7, color: C.dim }}>
                   <span>Conf {a.confidence}%</span>
                   <span>·</span>
                   <span>VIX {parseFloat(a.vix_at_signal||0).toFixed(1)}</span>
-                  {a.pts_to_t1 != null && <><span>·</span><span style={{ color: a.pts_to_t1 > 0 ? C.green : C.red }}>{a.pts_to_t1 > 0 ? '+' : ''}{a.pts_to_t1}pts</span></>}
+                  {a.pts_to_t1 != null && <><span>·</span><span style={{ color: a.pts_to_t1 > 0 ? C.green : C.red }}>AI: {a.pts_to_t1 > 0 ? '+' : ''}{a.pts_to_t1}pts</span></>}
                   {a.proximity_level && <><span>·</span><span style={{ color: C.yellow }}>Near {a.proximity_level} {a.proximity_breakout_pct}% BO</span></>}
                 </div>
               </div>

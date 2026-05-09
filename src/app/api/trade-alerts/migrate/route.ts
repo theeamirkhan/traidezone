@@ -27,7 +27,19 @@ CREATE TABLE IF NOT EXISTS trade_alerts (
   proximity_level       text,
   proximity_breakout_pct integer,
   proximity_factors     jsonb,
-  outcome               text NOT NULL DEFAULT 'PENDING'
+  outcome               text NOT NULL DEFAULT 'PENDING',
+  outcome_at            timestamptz,
+  pts_to_t1             numeric,
+  outcome_note          text,
+  -- Human trade tracking
+  human_took_trade      boolean,
+  human_entry_price     numeric,
+  human_exit_price      numeric,
+  human_outcome         text,
+  human_pts             numeric,
+  skip_reason           text,
+  human_notes           text,
+  human_updated_at      timestamptz
                         CHECK (outcome IN ('PENDING','HIT_T1','HIT_T2','STOPPED_OUT','PARTIAL','EXPIRED')),
   outcome_at            timestamptz,
   pts_to_t1             numeric,
@@ -51,6 +63,24 @@ export async function GET(req: NextRequest) {
   try {
     // Use rpc to run raw SQL
     const { error } = await supabaseAdmin.rpc('exec_sql', { sql: CREATE_TABLE })
+
+  // Add human outcome columns to existing tables (ALTER IF NOT EXISTS — safe)
+  const humanCols = [
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_took_trade boolean',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_entry_price numeric',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_exit_price numeric',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_outcome text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_pts numeric',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS skip_reason text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_notes text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS human_updated_at timestamptz',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS outcome_at timestamptz',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS pts_to_t1 numeric',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS outcome_note text',
+  ]
+  for (const sql of humanCols) {
+    try { await supabaseAdmin.rpc('exec_sql', { sql }) } catch {}
+  }
 
     if (error && !error.message?.includes('already exists')) {
       // Try direct insert to check if table already exists

@@ -80,3 +80,32 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ alerts: data || [] })
 }
+
+// ── PATCH: update human trade outcome ────────────────────────────────────────
+export async function PATCH(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const { id, ...updates } = body
+
+  if (!id) return NextResponse.json({ error: 'Missing alert id' }, { status: 400 })
+
+  // Only allow updating human-side fields
+  const allowed = [
+    'human_took_trade', 'human_entry_price', 'human_exit_price',
+    'human_outcome', 'human_pts', 'skip_reason', 'human_notes',
+  ]
+  const safeUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([k]) => allowed.includes(k))
+  )
+
+  const { error } = await supabaseAdmin
+    .from('trade_alerts')
+    .update({ ...safeUpdates, human_updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', userId)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ updated: true })
+}
