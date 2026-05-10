@@ -4,6 +4,7 @@ import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
 import TradeOutcomeModal from './components/TradeOutcomeModal'
+import AvatarCompanion, { type AvatarCompanionHandle } from './components/AvatarCompanion'
 import BacktestPanel from './components/BacktestPanel'
 import EdgeDiscovery from './components/EdgeDiscovery'
 import UsageReport from './components/UsageReport'
@@ -1808,6 +1809,11 @@ export default function CockpitPage() {
 
   // Compute execution stats from trade alert history (human vs AI)
   const [executionStats, setExecutionStats] = useState<any>(null)
+
+  // Avatar companion
+  const [avatarMode, setAvatarMode]     = useState(() => localStorage.getItem('tz-avatar-mode') === 'true')
+  const [avatarId, setAvatarId]         = useState(() => localStorage.getItem('tz-avatar-id') || '')
+  const avatarRef                        = useRef<AvatarCompanionHandle>(null)
   useEffect(() => {
     fetch('/api/trade-alerts?days=30')
       .then(r => r.json())
@@ -3669,8 +3675,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         return
       }
 
-      // Speak FIRST (locks mic via speakLockRef), then update state
-      speak(reply)
+      // Speak FIRST — via avatar if active, else TTS
+      if (avatarMode && avatarRef.current?.isReady) {
+        avatarRef.current.speak(reply).catch(() => speak(reply))
+      } else {
+        speak(reply)
+      }
       setChatMessages(p => {
         const updated = [...p, { role: 'assistant', content: reply }]
         if (updated.length % 10 === 0) {
@@ -4897,12 +4907,52 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <button key={v} onClick={() => { setVoiceId(v); localStorage.setItem(VOICE_ID, v) }} style={{ padding: '2px 7px', borderRadius: 3, background: voiceId === v ? 'rgba(0,212,160,0.12)' : 'transparent', border: `1px solid ${voiceId === v ? 'rgba(0,212,160,0.35)' : 'rgba(0,229,255,0.08)'}`, color: voiceId === v ? '#00d4a0' : '#6b7a9a', fontSize: 10, cursor: 'pointer', fontFamily: font, fontWeight: voiceId === v ? 700 : 400 }}>{v}</button>
                     ))}
                     <button onClick={() => setShowSettings(true)} style={{ fontSize: 8, color: '#4a5568', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px', marginLeft: 2 }}>⚙</button>
-                  </div>
-                </div>
-              </div>
-            )}
+                    <button
+                      title={avatarMode ? 'Avatar ON — click to disable' : 'Enable Avatar Companion (Elite)'}
+                      onClick={() => {
+                        if (!avatarId) { setShowSettings(true); return }
+                        const next = !avatarMode
+                        setAvatarMode(next)
+                        localStorage.setItem('tz-avatar-mode', String(next))
+                      }}
+                      style={{
+                        fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, marginLeft: 4,
+                        border: `1px solid ${avatarMode ? 'rgba(0,212,160,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                        background: avatarMode ? 'rgba(0,212,160,0.1)' : 'transparent',
+                        color: avatarMode ? '#00d4a0' : '#4a5568',
+                        cursor: 'pointer', fontFamily: font,
+                      }}>🤖</button>
 
-            {/* Collapsed companion button */}
+                  </div>{/* end voice row */}
+
+                  {/* Avatar ID input — shown when avatar mode enabled */}
+                  {avatarMode && (
+                    <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(0,212,160,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 7, color: '#4a5568', whiteSpace: 'nowrap' }}>AVATAR ID</span>
+                      <input
+                        value={avatarId}
+                        onChange={e => { setAvatarId(e.target.value); localStorage.setItem('tz-avatar-id', e.target.value) }}
+                        placeholder="Paste HeyGen avatar ID..."
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 4, padding: '3px 8px', color: '#00d4a0', fontSize: 9, fontFamily: font, outline: 'none' }}
+                      />
+                    </div>
+                  )}
+                </div>{/* end voice/avatar row container */}
+
+              {/* Avatar panel — shown above chat when active */}
+              {avatarMode && avatarId && (
+                <div style={{ padding: '10px', borderBottom: '1px solid rgba(0,212,160,0.1)', display: 'flex', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
+                  <AvatarCompanion
+                    ref={avatarRef}
+                    avatarId={avatarId}
+                    width={280}
+                    height={210}
+                    onSpeakingChange={isSpeaking => setSpeaking(isSpeaking)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
             {!companionOpen && (
               <button onClick={() => setCompanionOpen(true)} title="Open AI Companion" style={{ position: 'fixed', bottom: 20, right: 20, width: 52, height: 52, borderRadius: '50%', background: 'rgba(0,212,160,0.15)', border: '2px solid rgba(0,212,160,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(0,212,160,0.25)', zIndex: 500 }}>
                 🧠
