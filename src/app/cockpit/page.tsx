@@ -1816,8 +1816,8 @@ export default function CockpitPage() {
   const [executionStats, setExecutionStats] = useState<any>(null)
 
   // Avatar companion
-  const [avatarMode, setAvatarMode]     = useState(() => localStorage.getItem('tz-avatar-mode') === 'true')
-  const [avatarId, setAvatarId]         = useState(() => localStorage.getItem('tz-avatar-id') || '')
+  const [avatarMode, setAvatarMode]     = useState(() => typeof window !== 'undefined' && localStorage.getItem('tz-avatar-mode') === 'true')
+  const [avatarId, setAvatarId]         = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('tz-avatar-id') || '') : '')
   const avatarRef                        = useRef<AvatarCompanionHandle>(null)
   useEffect(() => {
     fetch('/api/trade-alerts?days=30')
