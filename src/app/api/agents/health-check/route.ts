@@ -69,23 +69,27 @@ async function checkAnthropicCredits(): Promise<HealthCheck> {
 async function checkPolygon(): Promise<HealthCheck> {
   try {
     const key = process.env.POLYGON_API_KEY
-    const today = new Date().toISOString().split('T')[0]
-    const url = `https://api.polygon.io/v2/aggs/ticker/SPY/range/1/day/${today}/${today}?adjusted=true&apiKey=${key}`
+    // Use 5-minute bars — always real-time, no DELAYED status during market hours
+    const now  = new Date()
+    const from = new Date(now.getTime() - 2 * 86400000).toISOString().split('T')[0]
+    const to   = now.toISOString().split('T')[0]
+    const url  = `https://api.polygon.io/v2/aggs/ticker/I:SPX/range/5/minute/${from}/${to}?adjusted=true&sort=desc&limit=1&apiKey=${key}`
 
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+    const res  = await fetch(url, { signal: AbortSignal.timeout(6000) })
     const data = await res.json()
 
-    if (data.status === 'ERROR') {
-      return { name: 'Polygon Data', status: 'error', message: data.error || 'Polygon error' }
-    }
-    if (data.status === 'DELAYED') {
-      return { name: 'Polygon Data', status: 'warn', message: 'Data is delayed (normal outside market hours)' }
+    if (!res.ok || data.status === 'ERROR' || data.status === 'NOT_AUTHORIZED') {
+      return { name: 'Polygon Data', status: 'error', message: data.message || data.error || `HTTP ${res.status}` }
     }
 
-    const price = data.results?.[0]?.c
+    const bar   = data.results?.[0]
+    const price = bar?.c
+    const ageMs = bar ? Date.now() - bar.t : null
+    const ageMin = ageMs ? Math.round(ageMs / 60000) : null
+
     return {
       name: 'Polygon Data', status: 'ok',
-      message: `Responding — SPY last: ${price ? '$' + price.toFixed(2) : 'no bars today'}`,
+      message: `SPX: ${price ? price.toFixed(2) : 'no data'}${ageMin !== null ? ` (${ageMin}m ago)` : ''}`,
       value: price
     }
   } catch (e: any) {
@@ -95,14 +99,27 @@ async function checkPolygon(): Promise<HealthCheck> {
 
 async function checkUnusualWhales(): Promise<HealthCheck> {
   try {
+    // Use same endpoint format as cockpit — direct to UW API
     const res = await fetch('https://phx.unusualwhales.com/api/option-trades/flow-alerts?limit=1', {
-      headers: { Authorization: `Bearer ${process.env.UW_API_KEY || ''}` },
+      headers: {
+        Authorization: `Bearer ${process.env.UW_API_KEY || ''}`,
+        'Content-Type': 'application/json',
+      },
       signal: AbortSignal.timeout(6000),
     })
-    if (!res.ok) {
-      return { name: 'Unusual Whales', status: 'warn', message: `HTTP ${res.status} — flow data may be unavailable` }
+    const data = await res.json().catch(() => ({}))
+
+    // 404 = no flow data right now (normal pre-market / post-market)
+    // 401/403 = auth issue = real problem
+    if (res.status === 401 || res.status === 403) {
+      return { name: 'Unusual Whales', status: 'error', message: `Auth failed (${res.status}) — check UW_API_KEY` }
     }
-    return { name: 'Unusual Whales', status: 'ok', message: 'Flow API responding' }
+    if (!res.ok) {
+      return { name: 'Unusual Whales', status: 'warn', message: `HTTP ${res.status} — no flow data (normal pre/post market)` }
+    }
+
+    const count = Array.isArray(data) ? data.length : (data?.data?.length || 0)
+    return { name: 'Unusual Whales', status: 'ok', message: `Flow API ok — ${count} alert(s)` }
   } catch (e: any) {
     return { name: 'Unusual Whales', status: 'warn', message: e?.message || 'Fetch failed' }
   }
