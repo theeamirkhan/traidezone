@@ -6262,7 +6262,29 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   <span style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px', textTransform: 'uppercase' }}>Voice</span>
                   {speaking && <span style={{ fontSize: 8, color: C.teal, animation: 'pulse 0.8s infinite' }}>✏ speaking</span>}
                   <button onClick={() => setShowSettings(true)} style={{ marginLeft: 'auto', fontSize: 8, color: C.textDim, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>+ more voices</button>
+                  <button
+                    title={avatarMode ? 'Avatar ON — click to disable' : 'Enable Avatar Companion'}
+                    onClick={() => {
+                      const next = !avatarMode
+                      setAvatarMode(next)
+                      localStorage.setItem('tz-avatar-mode', String(next))
+                    }}
+                    style={{
+                      fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
+                      border: `1px solid ${avatarMode ? 'rgba(0,212,160,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                      background: avatarMode ? 'rgba(0,212,160,0.1)' : 'transparent',
+                      color: avatarMode ? '#00d4a0' : '#4a5568',
+                      cursor: 'pointer', fontFamily: font,
+                    }}>🤖</button>
                 </div>
+                {avatarMode && (
+                  <input
+                    value={avatarId}
+                    onChange={e => { setAvatarId(e.target.value); localStorage.setItem('tz-avatar-id', e.target.value) }}
+                    placeholder="Paste HeyGen avatar ID..."
+                    style={{ width: '100%', marginBottom: 5, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,212,160,0.2)', borderRadius: 4, padding: '3px 8px', color: '#00d4a0', fontSize: 9, fontFamily: font, outline: 'none', boxSizing: 'border-box' as const }}
+                  />
+                )}
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   {[
                     { name: 'Rachel', id: '21m00Tcm4TlvDq8ikWAM' },
