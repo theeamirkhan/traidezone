@@ -1,3 +1,4 @@
+'use client'
 /**
  * AvatarCompanion — HeyGen LiveAvatar streaming companion
  *

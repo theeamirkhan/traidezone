@@ -4,7 +4,11 @@ import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
 import TradeOutcomeModal from './components/TradeOutcomeModal'
-import AvatarCompanion, { type AvatarCompanionHandle } from './components/AvatarCompanion'
+// Dynamic import — AvatarCompanion uses WebRTC/LiveKit which are browser-only
+// This prevents Next.js from attempting SSR of this component
+import dynamic from 'next/dynamic'
+import type { AvatarCompanionHandle } from './components/AvatarCompanion'
+const AvatarCompanion = dynamic(() => import('./components/AvatarCompanion'), { ssr: false })
 import BacktestPanel from './components/BacktestPanel'
 import EdgeDiscovery from './components/EdgeDiscovery'
 import UsageReport from './components/UsageReport'
