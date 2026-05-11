@@ -88,8 +88,8 @@ async function fetchBars(ticker: string, from: string, to: string, multiplier: n
   let pages = 0
 
   while (nextUrl && pages < 10) {
-    const res = await fetch(nextUrl, { signal: AbortSignal.timeout(15000) })
-    const data = await res.json()
+    const res: Response = await fetch(nextUrl, { signal: AbortSignal.timeout(15000) })
+    const data: any = await res.json()
     if (data.results?.length) {
       allBars = allBars.concat(data.results.map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0 })))
     }

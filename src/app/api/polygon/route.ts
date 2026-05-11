@@ -30,15 +30,15 @@ export async function GET(req: NextRequest) {
   let pages = 0
 
   while (nextPath && pages < 25) {
-    const url = `${base}${nextPath}${nextPath.includes('?') ? '&' : '?'}apiKey=${apiKey}`
-    const res = await fetch(url, { cache: 'no-store' })
-    const data = await res.json()
+    const url: string = `${base}${nextPath}${nextPath.includes('?') ? '&' : '?'}apiKey=${apiKey}`
+    const res: Response = await fetch(url, { cache: 'no-store' })
+    const data: any = await res.json()
 
     if (data.results?.length) allResults = allResults.concat(data.results)
 
     if (data.next_url) {
       try {
-        const u = new URL(data.next_url)
+        const u: URL = new URL(data.next_url)
         nextPath = u.pathname + u.search
       } catch { break }
     } else {

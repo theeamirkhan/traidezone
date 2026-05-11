@@ -1663,7 +1663,8 @@ export default function CockpitPage() {
   const setConnected  = (_: any) => {}
 
   // Morning plan
-  const [morningPlan, setMorningPlan] = useState(() => {
+  type MorningPlan = { bias: string; impliedMove: string; keyLevels: string; gapDirection: string; gapSize: string; notes: string }
+  const [morningPlan, setMorningPlan] = useState<MorningPlan>(() => {
     // Initialize directly from localStorage — runs once, synchronously
     if (typeof window !== 'undefined') {
       try {
@@ -4222,8 +4223,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <span style={{ fontSize: 7, fontWeight: 700, color: C.textMuted, letterSpacing: 2, textTransform: 'uppercase' as const }}>{label}</span>
             <span id={label === 'SPX' ? 'tz-spx-price' : undefined} style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 700, color: '#f0f4ff', letterSpacing: '0.5px', textShadow: '0 0 20px rgba(240,244,255,0.15)' }}>{fmt(price)}</span>
             {change !== undefined && (
-              <span style={{ fontSize: 9, fontWeight: 700, color: change >= 0 ? '#00ff88' : '#ff1a4a', textShadow: change >= 0 ? '0 0 10px rgba(0,255,136,0.7)' : '0 0 10px rgba(255,26,74,0.7)', letterSpacing: '0.5px' }}>
-                {change >= 0 ? '▲' : '▼'} {Math.abs(open ? change / open * 100 : 0).toFixed(2)}%
+              <span style={{ fontSize: 9, fontWeight: 700, color: (change ?? 0) >= 0 ? '#00ff88' : '#ff1a4a', textShadow: (change ?? 0) >= 0 ? '0 0 10px rgba(0,255,136,0.7)' : '0 0 10px rgba(255,26,74,0.7)', letterSpacing: '0.5px' }}>
+                {(change ?? 0) >= 0 ? '▲' : '▼'} {Math.abs(open ? (change ?? 0) / open * 100 : 0).toFixed(2)}%
               </span>
             )}
           </div>
@@ -4980,21 +4981,21 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               {/* Implied Move */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Implied Move (±PTS)</div>
-                <input value={morningPlan.impliedMove} onChange={e => setMorningPlan(p => ({ ...p, impliedMove: e.target.value }))}
+                <input value={morningPlan.impliedMove} onChange={e => setMorningPlan((p: MorningPlan) => ({ ...p, impliedMove: e.target.value }))}
                   placeholder="e.g. 50" style={{ width: '100%', background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
 
               {/* Key Levels */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Key Levels</div>
-                <input value={morningPlan.keyLevels} onChange={e => setMorningPlan(p => ({ ...p, keyLevels: e.target.value }))}
+                <input value={morningPlan.keyLevels} onChange={e => setMorningPlan((p: MorningPlan) => ({ ...p, keyLevels: e.target.value }))}
                   placeholder="e.g. 5840, 5820, 5800" style={{ width: '100%', background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
 
               {/* Gap Size */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Gap Size (PTS)</div>
-                <input value={morningPlan.gapSize} onChange={e => setMorningPlan(p => ({ ...p, gapSize: e.target.value }))}
+                <input value={morningPlan.gapSize} onChange={e => setMorningPlan((p: MorningPlan) => ({ ...p, gapSize: e.target.value }))}
                   placeholder="e.g. 60" style={{ width: '100%', background: 'rgba(20,26,40,0.95)', border: '1px solid rgba(100,140,220,0.2)', borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', fontFamily: font, boxSizing: 'border-box' as const }} />
               </div>
 
@@ -5003,7 +5004,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Directional Bias</div>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {[['long', C.synapse], ['short', C.red], ['neutral', C.violet]].map(([b, col]) => (
-                    <button key={b} onClick={() => setMorningPlan(p => ({ ...p, bias: b }))} style={{
+                    <button key={b} onClick={() => setMorningPlan((p: MorningPlan) => ({ ...p, bias: b }))} style={{
                       flex: 1, background: morningPlan.bias === b ? col + '15' : 'transparent',
                       border: `1.5px solid ${morningPlan.bias === b ? col : 'rgba(100,140,220,0.2)'}`,
                       borderRadius: 6, padding: '7px 0', color: morningPlan.bias === b ? col : C.textMuted,
@@ -5018,7 +5019,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Gap Direction</div>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {[['gap up', C.synapse], ['gap down', C.red], ['flat', C.violet]].map(([g, col]) => (
-                    <button key={g} onClick={() => setMorningPlan(p => ({ ...p, gapDirection: g }))} style={{
+                    <button key={g} onClick={() => setMorningPlan((p: MorningPlan) => ({ ...p, gapDirection: g }))} style={{
                       flex: 1, background: morningPlan.gapDirection === g ? col + '15' : 'transparent',
                       border: `1.5px solid ${morningPlan.gapDirection === g ? col : 'rgba(100,140,220,0.2)'}`,
                       borderRadius: 6, padding: '7px 0', color: morningPlan.gapDirection === g ? col : C.textMuted,
@@ -5033,7 +5034,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ fontSize: 9, color: '#8899bb', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, fontWeight: 700 }}>Morning Plan / Notes</div>
                 <textarea
                   value={morningPlan.notes}
-                  onChange={e => setMorningPlan(p => ({ ...p, notes: e.target.value }))}
+                  onChange={e => setMorningPlan((p: MorningPlan) => ({ ...p, notes: e.target.value }))}
                   placeholder={'e.g. Gap up on CPI. Fade the open if we reject VWAP in first 30 min. Look for continuation if we reclaim PDH with volume...'}
                   rows={5}
                   style={{ width: '100%', background: 'rgba(10,14,24,0.95)', border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 6, padding: '10px 12px', color: C.text, fontSize: 12, outline: 'none', fontFamily: font, resize: 'vertical' as const, lineHeight: 1.6, boxSizing: 'border-box' as const }}
