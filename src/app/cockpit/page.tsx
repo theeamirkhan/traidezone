@@ -4937,7 +4937,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       />
                     </div>
                   )}
-                </div>{/* end voice/avatar row container */}
+                </div>{/* end input area */}
 
               {/* Avatar panel — shown above chat when active */}
               {avatarMode && avatarId && (
