@@ -2,7 +2,7 @@ import { SignIn } from '@clerk/nextjs'
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#060810' }}>
       <SignIn forceRedirectUrl="/cockpit" fallbackRedirectUrl="/cockpit" />
     </div>
   )

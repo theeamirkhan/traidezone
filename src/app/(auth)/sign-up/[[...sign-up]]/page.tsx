@@ -2,8 +2,8 @@ import { SignUp } from '@clerk/nextjs'
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <SignUp forceRedirectUrl="/onboarding" fallbackRedirectUrl="/onboarding" />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#060810' }}>
+      <SignUp forceRedirectUrl="/cockpit" fallbackRedirectUrl="/cockpit" />
     </div>
   )
 }

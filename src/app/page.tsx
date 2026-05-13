@@ -11,7 +11,7 @@ export default function LandingPage() {
   const [tick, setTick] = useState(true)
 
   useEffect(() => {
-    fetch('/api/polygon?apiKey=server&path=/v2/aggs/ticker/I:SPX/range/1/day/2026-04-01/2026-04-15?adjusted=true&sort=desc&limit=2')
+    fetch(`/api/polygon?apiKey=server&path=/v2/aggs/ticker/I:SPX/range/5/minute/${new Date(Date.now()-86400000).toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}?adjusted=true&sort=desc&limit=1`)
       .then(r => r.json()).then(d => {
         if (d.results?.[0]) {
           const c = d.results[0]
@@ -20,7 +20,7 @@ export default function LandingPage() {
           setSpxChange((parseFloat(chg) >= 0 ? '+' : '') + chg + '%')
         }
       }).catch(() => {})
-    fetch('/api/polygon?apiKey=server&path=/v2/aggs/ticker/I:VIX/range/1/day/2026-04-01/2026-04-15?adjusted=true&sort=desc&limit=1')
+    fetch(`/api/polygon?apiKey=server&path=/v2/aggs/ticker/I:VIX/range/1/day/${new Date(Date.now()-86400000).toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}?adjusted=true&sort=desc&limit=1`)
       .then(r => r.json()).then(d => {
         if (d.results?.[0]) setVix(d.results[0].c.toFixed(2))
       }).catch(() => {})
@@ -29,7 +29,7 @@ export default function LandingPage() {
   }, [])
 
   const handleGetAccess = () => {
-    router.push(email ? `/sign-up?email=${encodeURIComponent(email)}` : '/sign-up')
+    router.push('/sign-up')
   }
 
   const isUp = spxChange.startsWith('+')
@@ -212,7 +212,7 @@ export default function LandingPage() {
                   <div style={{ color:tier.popular?'#00e5ff':'#4a5568' }}>Overage: {tier.overage}</div>
                 </div>
                 <button onClick={() => router.push('/sign-up')} style={{ width:'100%', fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, padding:'10px 0', borderRadius:2, cursor:'pointer', letterSpacing:1.5, transition:'all 0.15s', background:tier.popular?'#00e5ff':'transparent', border:tier.popular?'none':'1px solid rgba(0,229,255,0.18)', color:tier.popular?'#020408':'#6b7a9a' }}>
-                  GET STARTED
+                  START FREE TRIAL
                 </button>
               </div>
             ))}
