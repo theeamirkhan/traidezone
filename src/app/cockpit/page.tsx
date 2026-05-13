@@ -2875,10 +2875,10 @@ export default function CockpitPage() {
       // ── Market Microstructure — cumulative delta, dark pool, vol spike ──────
       try {
         const micro1mRes = await fetch(`/api/polygon?apiKey=${keys[POLY_KEY] || 'env'}&path=${encodeURIComponent(
-          `/v2/aggs/ticker/SPY/range/1/minute/${new Date(Date.now()-86400000).toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}?adjusted=true&sort=desc&limit=25`
+          `/v2/aggs/ticker/SPY/range/1/minute/${new Date(Date.now()-2*86400000).toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}?adjusted=true&sort=asc&limit=60`
         )}`)
         const micro1mData: any = await micro1mRes.json()
-        const bars1m = ((micro1mData.results || []) as any[]).reverse().map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0, vw: r.vw }))
+        const bars1m = ((micro1mData.results || []) as any[]).map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0, vw: r.vw }))
 
         const dpRes  = await fetch('/api/flow?path=/api/darkpool/recent?limit=50')
         const dpData: any = await dpRes.json()

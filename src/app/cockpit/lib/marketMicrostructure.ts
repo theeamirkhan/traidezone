@@ -100,19 +100,18 @@ export function computeCumulativeDelta(bars: Bar[]): MicrostructureResult['cumul
 
   bars.forEach(bar => {
     const range = bar.h - bar.l
-    if (range === 0) return
+    if (!range || range < 0.01) return
+
+    const vol = bar.v || 0
+    if (!vol || !isFinite(vol)) return
 
     if (bar.c > bar.o) {
-      // Bullish bar — estimate buying volume
-      const buyPct = (bar.c - bar.l) / range
-      delta += bar.v * (buyPct - 0.5) * 2  // normalized to contribution
-      bullBars++
+      const buyPct = Math.min(1, Math.max(0, (bar.c - bar.l) / range))
+      if (isFinite(buyPct)) { delta += vol * (buyPct - 0.5) * 2; bullBars++ }
     } else if (bar.c < bar.o) {
-      // Bearish bar — estimate selling volume
-      const sellPct = (bar.h - bar.c) / range
-      delta -= bar.v * (sellPct - 0.5) * 2
+      const sellPct = Math.min(1, Math.max(0, (bar.h - bar.c) / range))
+      if (isFinite(sellPct)) delta -= vol * (sellPct - 0.5) * 2
     }
-    // Doji bars contribute near 0
   })
 
   const pct = Math.round((bullBars / bars.length) * 100)
@@ -129,8 +128,11 @@ export function computeCumulativeDelta(bars: Bar[]): MicrostructureResult['cumul
 
 // ── Dark Pool Analysis ────────────────────────────────────────────────────────
 
-const MARKET_PROXIES = new Set(['SPY', 'QQQ', 'IWM', 'SPX', 'SPXW', 'ES', 'NQ'])
-const MIN_NOTIONAL   = 500_000  // $500K minimum block size
+// Broad market proxies — index ETFs and leveraged versions
+const MARKET_PROXIES = new Set(['SPY', 'QQQ', 'IWM', 'SPX', 'SPXW', 'ES', 'NQ',
+  'SSO', 'UPRO', 'SDS', 'SPXS', 'SPXU', 'QLD', 'TQQQ', 'SQQQ',
+  'XLF', 'XLE', 'XLK', 'XLY', 'GLD', 'TLT', 'HYG', 'VIX'])
+const MIN_NOTIONAL   = 250_000  // $250K minimum — lower to catch more blocks
 
 export function analyzeDarkPool(prints: DarkPoolPrint[]): MicrostructureResult['darkPool'] {
   const summaries: DarkPoolSummary[] = []
@@ -281,14 +283,21 @@ export function analyzeMicrostructure(
   lines.push('')
 
   // Dark pool
-  if (dp.prints.length > 0) {
+  // If no proxy blocks, show top 3 largest blocks of any ticker for context
+  const allBlocks = prints.filter(p => !p.canceled && p.size * parseFloat(p.price) >= 250_000)
+    .map(p => {
+      const notional = p.size * parseFloat(p.price)
+      return { ...p, notional }
+    }).sort((a, b) => b.notional - a.notional).slice(0, 3)
+
+  if (dp.prints.length > 0 || allBlocks.length > 0) {
     lines.push('DARK POOL BLOCKS (SPY/QQQ/IWM $500K+):')
     lines.push(`  Net bias: ${dp.netBias} | Buy notional: ${fmtM(dp.totalBuyNotional)} | Sell notional: ${fmtM(dp.totalSellNotional)}`)
     dp.prints.slice(0, 3).forEach(p => {
       lines.push(`  ${p.time} ${p.ticker} ${fmtM(p.notional)} ${p.vsNBBO} @ $${p.price}`)
     })
   } else {
-    lines.push('DARK POOL: No significant blocks in market proxies recently.')
+    lines.push('DARK POOL: No significant blocks detected in market proxies recently.')
   }
 
   lines.push('')
