@@ -91,7 +91,7 @@ export default function AgentStatus() {
       {/* Expanded panel */}
       {expanded && (
         <div style={{
-          position: 'absolute', top: 14, left: -20, zIndex: 1000,
+          position: 'fixed', top: 52, left: 120, zIndex: 9999,
           background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 8, padding: '10px 12px', width: 280,
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
