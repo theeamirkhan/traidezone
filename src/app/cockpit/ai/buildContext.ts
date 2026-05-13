@@ -78,6 +78,16 @@ export interface SignalInput {
   // From chart pattern recognition engine
   patternAnalysis: PatternAnalysis | null
 
+  // Market microstructure (cumulative delta, dark pool, volume, options imbalance)
+  microstructure?: {
+    aiContext:  string
+    summary:    string
+    cumulativeDelta: { strength: string; pct: number; value: number }
+    darkPool:        { netBias: string; totalBuyNotional: number; totalSellNotional: number }
+    volumeSpike?:    { detected: boolean; multiplier: number; direction: string } | null
+    optionsImbalance: { bias: string; ratio: number; sweepCount: number; floorCount: number }
+  } | null
+
   // From daily AI cache
   marketNews:       string
   economicCalendar: string
@@ -331,6 +341,7 @@ TRADE ZONE RULES (enforce strictly):
     memLine,
     warnings.length ? `DATA WARNINGS: ${warnings.join('; ')}` : '',
     patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${patternAnalysis.aiContext}` : '',
+    (input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nMICROSTRUCTURE SUMMARY: ${(input as any).microstructure.summary}` : '',
     patternAnalysis?.structureSummary ? `PATTERN BIAS: ${patternAnalysis.structureSummary}` : '',
     JSON_SCHEMA,
   ].filter(Boolean).join('\n\n')
@@ -435,6 +446,8 @@ ${input.activePlaybook ? `${input.activePlaybook.name}\nEntry: ${input.activePla
 ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
 
 ${(input as any).patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${(input as any).patternAnalysis.aiContext}` : ''}
+
+${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
 
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}

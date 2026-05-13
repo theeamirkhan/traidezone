@@ -18,6 +18,7 @@ import { runSignal } from './ai/runSignal'
 import { trackUsage } from './agents/usageTracker'
 import { loadEdgeProfile, clearEdgeCache } from './agents/edgeLoader'
 import { analyzePatterns, type PatternAnalysis } from './lib/patternRecognition'
+import { analyzeMicrostructure, type MicrostructureResult } from './lib/marketMicrostructure'
 import type { EdgeProfile } from './ai/buildContext'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
@@ -1757,6 +1758,7 @@ export default function CockpitPage() {
   const [edgeLoading, setEdgeLoading] = useState(false)
   const [discoveredRules, setDiscoveredRules] = useState<any[]>([])
   const [patternAnalysis, setPatternAnalysis] = useState<PatternAnalysis | null>(null)
+  const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
@@ -1771,6 +1773,7 @@ export default function CockpitPage() {
     edgeProfile,
     executionStats,
     patternAnalysis,
+    microstructure,
     morningPlan,
     activePlaybook:   playbooks.find((p: any) => p.id === activePlaybookId) || null,
     tradeStats,
@@ -2869,6 +2872,29 @@ export default function CockpitPage() {
         }
       }
 
+      // ── Market Microstructure — cumulative delta, dark pool, vol spike ──────
+      try {
+        const micro1mRes = await fetch(`/api/polygon?apiKey=${keys[POLY_KEY] || 'env'}&path=${encodeURIComponent(
+          `/v2/aggs/ticker/SPY/range/1/minute/${new Date(Date.now()-86400000).toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}?adjusted=true&sort=desc&limit=25`
+        )}`)
+        const micro1mData: any = await micro1mRes.json()
+        const bars1m = ((micro1mData.results || []) as any[]).reverse().map((r: any) => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0, vw: r.vw }))
+
+        const dpRes  = await fetch('/api/flow?path=/api/darkpool/recent?limit=50')
+        const dpData: any = await dpRes.json()
+        const darkPoolPrints = dpData?.data || []
+
+        const micro = analyzeMicrostructure(
+          candles.map((c: any) => ({ t: c.t, o: c.o, h: c.h, l: c.l, c: c.c, v: c.v || 0 })),
+          bars1m,
+          darkPoolPrints,
+          optionsFlow,
+        )
+        setMicrostructure(micro)
+      } catch (e) {
+        console.warn('[Microstructure] analysis failed:', e)
+      }
+
       // ── Volume spike detection from SPY candles (Feature 1) ───────────────
         if (spyCandles.length >= 5) {
           const recentVols = spyCandles.slice(-21).map((c: any) => c.v).filter(Boolean)
@@ -3623,6 +3649,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       edgeProfile,
       executionStats,
       patternAnalysis,
+      microstructure,
       morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
       tradeStats, aiTone, aiResult,
       optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew, marketScore,
