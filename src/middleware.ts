@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/agents/score-alerts(.*)',
   '/api/agents/health-check(.*)',
   '/api/agents/edge-discovery(.*)',
+  '/api/agents/learn-from-outcomes(.*)',
   '/api/heygen-token(.*)',
   '/api/reference-price(.*)',      // Yahoo Finance proxy
 ])

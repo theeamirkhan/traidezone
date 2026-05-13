@@ -305,10 +305,14 @@ Target: ${activePlaybook.target}`
 {
   "signal": "LONG" | "SHORT" | "WAIT" | "NO TRADE",
   "confidence": 0-100,
-  "marketConditions": "2-3 sentences",
-  "todaysEdge": "1-2 sentences specific to playbook",
-  "accountability": "1 sentence on rule violation risk",
-  "riskFlag": "1 sentence on biggest risk",
+  "marketConditions": "2-3 sentences on what the market is doing right now",
+  "aiView": "YOUR independent read — what do YOU see beyond the trader's plan? Cite specific data: microstructure, patterns, flow, fib levels, macro. Be direct even if it diverges from the plan.",
+  "systemAlignment": "aligned" | "partial" | "divergent",
+  "systemAlignmentNote": "1 sentence — where does your view match or differ from the morning plan/playbook?",
+  "todaysEdge": "1-2 sentences on the specific edge present right now",
+  "accountability": "1 sentence on the biggest rule violation risk",
+  "riskFlag": "1 sentence on the single biggest risk to this trade",
+  "waitReason": "if WAIT or NO TRADE — exactly what you are waiting for",
   "entryZone": { "high": 0.00, "low": 0.00 },
   "stopLevel": 0.00,
   "target1": 0.00,
@@ -317,17 +321,18 @@ Target: ${activePlaybook.target}`
   "buyZones": [{ "type": "buy", "high": 0.00, "low": 0.00 }, { "type": "nobuy", "high": 0.00, "low": 0.00 }]
 }
 
-TRADE ZONE RULES (enforce strictly):
-- entryZone: specific 3-5pt wide zone at key support/resistance relative to current price
-- stopLevel: below VWAP or 200 EMA (whichever is closer) — no wider than 12pts from entry
-- target1: minimum 10-15pts above entry (SCALP minimum — do not give less)
-- target2: minimum 25-30pts above entry (SWING target)
-- moveSize: target1 minus entry midpoint, rounded to nearest 5
-- signal LONG → call option, signal SHORT → put option
-- If you cannot identify a zone with 10pt+ potential, signal WAIT instead`
+CRITICAL RULES:
+- aiView MUST cite specific numbers you actually see — never generic. This is your voice, not a summary of the plan.
+- systemAlignment: "aligned" only if your view fully agrees. "divergent" if you see something the plan misses or gets wrong.
+- entryZone: specific 3-5pt wide zone at key S/R
+- stopLevel: below VWAP or 200 EMA — max 12pts from entry mid
+- target1: minimum 10-15pts from entry (SCALP). target2: 25-30pts (SWING)
+- moveSize: target1 minus entry midpoint, round to nearest 5
+- LONG → call option, SHORT → put option
+- For WAIT/NO TRADE: still populate entryZone/stopLevel/targets as levels to watch`
 
   const systemPrompt = [
-    'You are an elite SPX intraday trading AI companion. Keep this trader disciplined, data-driven, and in their system.',
+    'You are an elite SPX intraday trading AI — trading desk analyst, coach, and independent voice. Your job is two things: (1) assess if the trader\'s system rules are met, AND (2) give your own independent read of what the market is doing. These may agree or disagree. Both matter. The trader needs discipline AND genuine market insight — not just rule enforcement.',
     `COACHING STYLE: ${tone}`,
     morningSection,
     playbookSection,

@@ -77,6 +77,11 @@ export async function GET(req: NextRequest) {
     'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS outcome_at timestamptz',
     'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS pts_to_t1 numeric',
     'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS outcome_note text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS ai_view text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS system_alignment text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS system_alignment_note text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS wait_reason text',
+    'ALTER TABLE trade_alerts ADD COLUMN IF NOT EXISTS context_snapshot text',
   ]
   for (const sql of humanCols) {
     try { await supabaseAdmin.rpc('exec_sql', { sql }) } catch {}

@@ -4474,7 +4474,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
                       setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
                       // ── Log alert to Supabase — server agent scores at 30/60/120min ──
-                      if ((result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone && result.stopLevel && result.target1) {
+                      if ((result.signal === 'LONG' || result.signal === 'SHORT' || result.signal === 'WAIT' || result.signal === 'NO TRADE') && result.entryZone) {
                         fetch('/api/trade-alerts', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
@@ -4493,6 +4493,28 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                             proximityLevel:       levelProximity?.level,
                             proximityBreakoutPct: levelProximity?.breakoutPct,
                             proximityFactors:     levelProximity?.factors,
+                            // AI perspective fields (new)
+                            ai_view:              result.aiView || null,
+                            system_alignment:     result.systemAlignment || null,
+                            system_alignment_note: result.systemAlignmentNote || null,
+                            wait_reason:          result.waitReason || null,
+                            // Full context snapshot for learning
+                            context_snapshot: JSON.stringify({
+                              marketConditions:  result.marketConditions,
+                              todaysEdge:        result.todaysEdge,
+                              riskFlag:          result.riskFlag,
+                              patternSummary:    patternAnalysis?.structureSummary || null,
+                              microSummary:      microstructure?.summary || null,
+                              deltaBias:         microstructure?.cumulativeDelta?.strength || null,
+                              optionsBias:       microstructure?.optionsImbalance?.bias || null,
+                              darkPoolBias:      microstructure?.darkPool?.netBias || null,
+                              vixRegime:         vixPrice ? (vixPrice < 14 ? 'Low' : vixPrice < 20 ? 'Normal' : vixPrice < 28 ? 'Elevated' : 'High') : null,
+                              probContinuation:  probs?.continuation || null,
+                              probReversal:      probs?.reversal || null,
+                              morningBias:       morningPlan?.bias || null,
+                              fibsNear:          patternAnalysis?.fibGrids?.[0]?.nearestLevel?.label || null,
+                              sweepCount:        microstructure?.optionsImbalance?.sweepCount || 0,
+                            }),
                           })
                         })
                         .then(r => r.json())
@@ -4504,7 +4526,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                             // Show outcome capture modal 30s after signal
                             if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current)
                             outcomeTimerRef.current = setTimeout(() => {
-                              if (result.entryZone && result.stopLevel && result.target1) {
+                              if ((result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone && result.stopLevel && result.target1) {
                                 setOutcomeModal({
                                   alertId:   d.id,
                                   signal:    result.signal as 'LONG' | 'SHORT',
@@ -5247,6 +5269,24 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <div style={{ fontSize: 13, color: '#f0f4ff', lineHeight: 1.8 }}>{aiResult.marketConditions}</div>
                       </div>
                     )}
+                    {aiResult.aiView && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(124,106,255,0.12)', background: 'rgba(124,106,255,0.03)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <div style={{ fontSize: 9, color: '#7c6aff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px' }}>🧠 AI's Independent View</div>
+                          {aiResult.systemAlignment && (
+                            <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 7px', borderRadius: 3,
+                              background: aiResult.systemAlignment === 'aligned' ? 'rgba(0,255,136,0.1)' : aiResult.systemAlignment === 'divergent' ? 'rgba(255,183,0,0.1)' : 'rgba(255,255,255,0.05)',
+                              color: aiResult.systemAlignment === 'aligned' ? '#00ff88' : aiResult.systemAlignment === 'divergent' ? '#ffb700' : '#8899bb',
+                              border: `1px solid ${aiResult.systemAlignment === 'aligned' ? 'rgba(0,255,136,0.3)' : aiResult.systemAlignment === 'divergent' ? 'rgba(255,183,0,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                            }}>{aiResult.systemAlignment?.toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#e0e8ff', lineHeight: 1.8 }}>{aiResult.aiView}</div>
+                        {aiResult.systemAlignmentNote && (
+                          <div style={{ fontSize: 11, color: '#8899bb', marginTop: 5, fontStyle: 'italic' }}>{aiResult.systemAlignmentNote}</div>
+                        )}
+                      </div>
+                    )}
                     {aiResult.todaysEdge && (
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(100,140,220,0.08)' }}>
                         <div style={{ fontSize: 9, color: '#00ff88', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(0,255,136,0.5)' }}>⚡ Today's Edge</div>
@@ -5263,6 +5303,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(204,16,64,0.1)', background: 'rgba(204,16,64,0.03)' }}>
                         <div style={{ fontSize: 9, color: '#ff1a4a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6, textShadow: '0 0 8px rgba(255,26,74,0.5)' }}>⚠ Risk Flag</div>
                         <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7 }}>{aiResult.riskFlag}</div>
+                      </div>
+                    )}
+                    {aiResult.waitReason && (aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE') && (
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.1)', background: 'rgba(255,183,0,0.03)' }}>
+                        <div style={{ fontSize: 9, color: '#ffb700', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6 }}>⏳ Waiting For</div>
+                        <div style={{ fontSize: 13, color: '#f0f4ff', lineHeight: 1.8 }}>{aiResult.waitReason}</div>
                       </div>
                     )}
                     {/* Trade Zone placeholder now rendered below signal card — see standalone section */}

@@ -37,6 +37,11 @@ export async function POST(req: NextRequest) {
       proximity_level:       body.proximityLevel,
       proximity_breakout_pct: body.proximityBreakoutPct,
       proximity_factors:     body.proximityFactors,
+      ai_view:               body.ai_view,
+      system_alignment:      body.system_alignment,
+      system_alignment_note: body.system_alignment_note,
+      wait_reason:           body.wait_reason,
+      context_snapshot:      body.context_snapshot,
       outcome:               'PENDING',
       logged_at:             new Date().toISOString(),
     })
