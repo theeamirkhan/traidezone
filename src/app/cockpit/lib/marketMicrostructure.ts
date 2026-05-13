@@ -284,17 +284,21 @@ export function analyzeMicrostructure(
 
   // Dark pool
   // If no proxy blocks, show top 3 largest blocks of any ticker for context
-  const allBlocks = prints.filter(p => !p.canceled && p.size * parseFloat(p.price) >= 250_000)
-    .map(p => {
-      const notional = p.size * parseFloat(p.price)
-      return { ...p, notional }
-    }).sort((a, b) => b.notional - a.notional).slice(0, 3)
+  const allBlocks = darkPool.filter((p: DarkPoolPrint) => !p.canceled && p.size * parseFloat(p.price) >= 250_000)
+    .map((p: DarkPoolPrint) => ({
+      ...p, notional: p.size * parseFloat(p.price)
+    })).sort((a: any, b: any) => b.notional - a.notional).slice(0, 3)
 
   if (dp.prints.length > 0 || allBlocks.length > 0) {
-    lines.push('DARK POOL BLOCKS (SPY/QQQ/IWM $500K+):')
-    lines.push(`  Net bias: ${dp.netBias} | Buy notional: ${fmtM(dp.totalBuyNotional)} | Sell notional: ${fmtM(dp.totalSellNotional)}`)
-    dp.prints.slice(0, 3).forEach(p => {
-      lines.push(`  ${p.time} ${p.ticker} ${fmtM(p.notional)} ${p.vsNBBO} @ $${p.price}`)
+    lines.push('DARK POOL BLOCKS (broad market $250K+):')
+    lines.push(`  Net bias: ${dp.netBias} | Buy: ${fmtM(dp.totalBuyNotional)} | Sell: ${fmtM(dp.totalSellNotional)}`)
+    const toShow = dp.prints.length > 0 ? dp.prints.slice(0, 3) : allBlocks.map((b: any) => ({
+      ticker: b.ticker, notional: b.notional, side: 'NEUTRAL' as const,
+      price: parseFloat(b.price), vsNBBO: 'block print',
+      time: new Date(b.executed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
+    }))
+    toShow.forEach((p: any) => {
+      lines.push(`  ${p.time} ${p.ticker} ${fmtM(p.notional)} ${p.vsNBBO} @ $${p.price.toFixed ? p.price.toFixed(2) : p.price}`)
     })
   } else {
     lines.push('DARK POOL: No significant blocks detected in market proxies recently.')
