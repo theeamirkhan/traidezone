@@ -17,9 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import Anthropic from '@anthropic-ai/sdk'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -52,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = alerts.map(a => {
       let ctx: any = {}
-      try { ctx = JSON.parse(a.context_snapshot || '{}') } catch {}
+      try { ctx = JSON.parse(a.context_snapshot || '{}') } catch (_e) { /* invalid JSON */ }
       return {
         signal: a.signal, outcome: a.outcome,
         won: a.outcome === 'HIT_T1' || a.outcome === 'HIT_T2',
@@ -92,9 +90,12 @@ export async function POST(req: NextRequest) {
         : 'insufficient',
     }
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 1000,
-      messages: [{ role: 'user', content: `Analyze trading signal outcomes. Find what predicts wins vs losses.
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY!, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 1000,
+        messages: [{ role: 'user', content: `Analyze trading signal outcomes. Find what predicts wins vs losses.
 
 DATA (${parsed.length} scored signals, ${matrix.winRate}% win rate):
 By alignment: ${matrix.byAlignment}
@@ -109,9 +110,10 @@ Human vs AI: ${matrix.humanVsAI}
 Extract 3-6 specific rules. Only include if sample >= 3.
 Return ONLY valid JSON array, no markdown:
 [{"rule":"short name","condition":"specific condition","winRate":75,"sampleSize":8,"action":"FAVOR"|"AVOID"|"BOOST_CONFIDENCE"|"REDUCE_CONFIDENCE","insight":"1 sentence"}]` }],
+      })
     })
-
-    const raw = response.content[0].type === 'text' ? response.content[0].text : '[]'
+    const aiData = await aiRes.json()
+    const raw = aiData.content?.[0]?.text || '[]'
     const rules = JSON.parse(raw.replace(/```json|```/g, '').trim())
 
     // Save alongside existing rules (different source tag)
