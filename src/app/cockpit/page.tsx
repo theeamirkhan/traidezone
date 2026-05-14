@@ -4493,7 +4493,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
-                    const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
+                    let result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) {
                       // ── Signal Quality Gate ─────────────────────────────
                       const quality = scoreSignalQuality({

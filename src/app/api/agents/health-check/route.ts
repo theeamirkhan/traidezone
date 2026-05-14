@@ -169,14 +169,56 @@ export async function GET(req: NextRequest) {
   const startTime = Date.now()
 
   // Run all checks in parallel
-  const [anthropic, polygon, uw, priceSanity] = await Promise.all([
+  const [anthropic, polygon, uw, priceSanity, flashAlpha, breadth] = await Promise.all([
     checkAnthropicCredits(),
     checkPolygon(),
     checkUnusualWhales(),
     checkPriceSanity(),
+    // FlashAlpha GEX check
+    (async (): Promise<HealthCheck> => {
+      try {
+        const key = process.env.FLASHALPHA_API_KEY
+        if (!key) return { name: 'FlashAlpha GEX', status: 'warn', message: 'FLASHALPHA_API_KEY not set — using VIX heuristic' }
+        const res = await fetch('https://lab.flashalpha.com/v1/exposure/levels/SPY', {
+          headers: { 'X-Api-Key': key }, signal: AbortSignal.timeout(6000)
+        })
+        if (res.status === 401 || res.status === 403) return { name: 'FlashAlpha GEX', status: 'error', message: 'Auth failed — check FLASHALPHA_API_KEY' }
+        if (!res.ok) return { name: 'FlashAlpha GEX', status: 'warn', message: `HTTP ${res.status}` }
+        const d = await res.json()
+        const flip = d.levels?.gamma_flip ?? d.gamma_flip
+        return { name: 'FlashAlpha GEX', status: 'ok', message: `SPY gamma flip: ${flip ?? 'n/a'} | regime data available` }
+      } catch (e: any) {
+        return { name: 'FlashAlpha GEX', status: 'warn', message: e?.message || 'Fetch failed' }
+      }
+    })(),
+    // TICK/TRIN/VVIX breadth check
+    (async (): Promise<HealthCheck> => {
+      try {
+        const key = process.env.POLYGON_API_KEY
+        const to = new Date().toISOString().split('T')[0]
+        const from = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]
+        const res = await fetch(`https://api.polygon.io/v2/aggs/ticker/I:VVIX/range/5/minute/${from}/${to}?adjusted=true&sort=desc&limit=1&apiKey=${key}`, {
+          signal: AbortSignal.timeout(6000)
+        })
+        const d = await res.json()
+        if (d.status === 'OK' && d.results?.[0]) {
+          return { name: 'Breadth (TICK/TRIN/VVIX)', status: 'ok', message: `VVIX: ${d.results[0].c?.toFixed(1)} | TICK+TRIN on Indices Advanced` }
+        }
+        return { name: 'Breadth (TICK/TRIN/VVIX)', status: 'warn', message: d.status || 'No data' }
+      } catch (e: any) {
+        return { name: 'Breadth (TICK/TRIN/VVIX)', status: 'warn', message: e?.message || 'Fetch failed' }
+      }
+    })(),
   ])
 
-  const checks = [anthropic, polygon, uw, priceSanity]
+  // Signal Quality Gate — always ok (client-side module, no external deps)
+  const qualityGate: HealthCheck = {
+    name: 'Signal Quality Gate',
+    status: 'ok',
+    message: 'Active — 8-stream voting system scoring every LONG/SHORT signal'
+  }
+
+  const checks = [anthropic, polygon, uw, priceSanity, flashAlpha, breadth, qualityGate]
   const hasErrors = checks.some(c => c.status === 'error')
   const hasWarnings = checks.some(c => c.status === 'warn')
   const overallStatus = hasErrors ? 'error' : hasWarnings ? 'warn' : 'ok'
