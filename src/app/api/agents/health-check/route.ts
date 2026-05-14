@@ -174,22 +174,11 @@ export async function GET(req: NextRequest) {
     checkPolygon(),
     checkUnusualWhales(),
     checkPriceSanity(),
-    // FlashAlpha GEX check
+    // FlashAlpha GEX — check key presence only (no API call, preserves 5/day limit)
     (async (): Promise<HealthCheck> => {
-      try {
-        const key = process.env.FLASHALPHA_API_KEY
-        if (!key) return { name: 'FlashAlpha GEX', status: 'warn', message: 'FLASHALPHA_API_KEY not set — using VIX heuristic' }
-        const res = await fetch('https://lab.flashalpha.com/v1/exposure/levels/SPY', {
-          headers: { 'X-Api-Key': key }, signal: AbortSignal.timeout(6000)
-        })
-        if (res.status === 401 || res.status === 403) return { name: 'FlashAlpha GEX', status: 'error', message: 'Auth failed — check FLASHALPHA_API_KEY' }
-        if (!res.ok) return { name: 'FlashAlpha GEX', status: 'warn', message: `HTTP ${res.status}` }
-        const d = await res.json()
-        const flip = d.levels?.gamma_flip ?? d.gamma_flip
-        return { name: 'FlashAlpha GEX', status: 'ok', message: `SPY gamma flip: ${flip ?? 'n/a'} | regime data available` }
-      } catch (e: any) {
-        return { name: 'FlashAlpha GEX', status: 'warn', message: e?.message || 'Fetch failed' }
-      }
+      const key = process.env.FLASHALPHA_API_KEY
+      if (!key) return { name: 'FlashAlpha GEX', status: 'warn', message: 'FLASHALPHA_API_KEY not set — using VIX heuristic' }
+      return { name: 'FlashAlpha GEX', status: 'ok', message: 'Key configured — GEX fetched daily pre-market, cached until EOD' }
     })(),
     // TICK/TRIN/VVIX breadth check
     (async (): Promise<HealthCheck> => {
