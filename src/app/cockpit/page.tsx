@@ -2888,7 +2888,7 @@ export default function CockpitPage() {
       // ── GEX — cached daily, fetch once ───────────────────────────────────
       try {
         if (!gexData || gexData.date !== new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })) {
-          const gexRes = await fetch('/api/gex')
+          const gexRes = await fetch(`/api/gex${currentPrice ? '?price=' + currentPrice : ''}`)
           if (gexRes.ok) { const gd = await gexRes.json(); setGexData(gd) }
         }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }

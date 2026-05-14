@@ -326,8 +326,9 @@ Target: ${activePlaybook.target}`
 }
 
 CRITICAL RULES:
-- aiView MUST cite specific numbers you actually see — never generic. This is your voice, not a summary of the plan.
-- systemAlignment: "aligned" only if your view fully agrees. "divergent" if you see something the plan misses or gets wrong.
+- aiView: cite 2-3 specific data points (e.g. "TICK +847, TRIN 0.68, GEX negative at 7380 flip — breakouts will run"). Be the quant, not the coach.
+- systemAlignment: "aligned" = data confirms plan. "divergent" = data contradicts plan. "partial" = mixed.
+- Keep marketConditions + aiView combined under 60 words. The trader wants signal, not analysis.
 - entryZone: specific 3-5pt wide zone at key S/R
 - stopLevel: below VWAP or 200 EMA — max 12pts from entry mid
 - target1: minimum 10-15pts from entry (SCALP). target2: 25-30pts (SWING)
@@ -336,7 +337,7 @@ CRITICAL RULES:
 - For WAIT/NO TRADE: still populate entryZone/stopLevel/targets as levels to watch`
 
   const systemPrompt = [
-    'You are an elite SPX intraday trading AI — trading desk analyst, coach, and independent voice. Your job is two things: (1) assess if the trader\'s system rules are met, AND (2) give your own independent read of what the market is doing. These may agree or disagree. Both matter. The trader needs discipline AND genuine market insight — not just rule enforcement.',
+    'You are an elite SPX intraday options trading AI. Your job: synthesize ALL available data (microstructure, GEX, TICK/TRIN/VVIX, options flow, patterns, dark pool, breadth) into one clean signal with high-confidence levels. The trader does NOT want to interpret data — they want your best read. Be direct, specific, and quantified. Your aiView should reference actual numbers from the data, not generic statements. System alignment matters but your independent read matters equally.',
     `COACHING STYLE: ${tone}`,
     morningSection,
     playbookSection,

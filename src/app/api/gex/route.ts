@@ -1,85 +1,75 @@
 /**
- * /api/gex — Dealer Gamma Exposure (GEX) for SPX
+ * /api/gex — Dealer Gamma Exposure via FlashAlpha API
  *
- * GEX explains WHY price behaves differently at certain levels:
+ * Uses FlashAlpha free tier (5 req/day) — GEX updates EOD so once/day is enough.
+ * SPY on free tier. SPX requires Basic ($79/mo).
  *
- * Positive Gamma: Dealers are LONG gamma — they SELL when price rises,
- *   BUY when price falls. This creates a "gravity" effect — price
- *   gets pinned near high-OI strikes. Breakouts fail more often.
- *   Think of it as a coil being compressed.
+ * Returns: gamma_flip, call_wall, put_wall, net_gex, regime, AI context string.
+ * Cached daily — fetch once pre-market, use all day.
  *
- * Negative Gamma: Dealers are SHORT gamma — they BUY when price rises,
- *   SELL when price falls. This AMPLIFIES moves. Breakouts succeed more
- *   often and travel further. Think of it as a spring being released.
- *
- * Key Gamma Flip Level: The price where GEX crosses zero. Below this
- *   level markets are more volatile. Above it, more range-bound.
- *
- * Sources (server-side fetch, no CORS issues):
- *  Primary: SpotGamma HIRO API (free daily summary)
- *  Fallback: Cboe published OI data + manual calculation
- *
- * Cached daily (changes overnight, not intraday).
+ * Env var: FLASHALPHA_API_KEY
+ * Sign up free at: flashalpha.com (no credit card, 30 seconds)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 
-// Simple in-memory daily cache
-let cached: { data: any; date: string } | null = null
+const FA_KEY  = process.env.FLASHALPHA_API_KEY
+const FA_BASE = 'https://lab.flashalpha.com'
 
-async function fetchSpotGamma(): Promise<any> {
-  // SpotGamma's free daily levels - available pre-market
-  const res = await fetch('https://spotgamma.com/wp-json/ht_kb/v1/article?slug=spy-gamma-exposure', {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-    },
-    signal: AbortSignal.timeout(8000),
-  })
-  if (!res.ok) throw new Error(`SpotGamma HTTP ${res.status}`)
-  const data = await res.json()
-  return data
+// In-memory daily cache
+let gexCache:    { data: GexResult; date: string } | null = null
+let levelsCache: { data: any; date: string } | null = null
+
+interface GexResult {
+  symbol:      string
+  gammaFlip:   number | null
+  callWall:    number | null
+  putWall:     number | null
+  netGex:      number | null
+  regime:      'positive' | 'negative' | 'neutral' | 'unknown'
+  source:      string
+  aiContext:   string
+  updatedAt:   string
 }
 
-async function fetchCboeGamma(): Promise<any> {
-  // Cboe publishes daily options data including OI by strike
-  // This is a simplified estimate — real GEX requires options chain + delta
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-  const res = await fetch(`https://cdn.cboe.com/api/global/us_indices/daily_prices/SPX_EOD.json`, {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
+async function fetchFlashAlpha(path: string): Promise<any> {
+  if (!FA_KEY) throw new Error('FLASHALPHA_API_KEY not configured')
+  const res = await fetch(`${FA_BASE}${path}`, {
+    headers: { 'X-Api-Key': FA_KEY, 'Accept': 'application/json' },
     signal: AbortSignal.timeout(8000),
   })
-  if (!res.ok) throw new Error(`Cboe HTTP ${res.status}`)
-  return await res.json()
+  if (!res.ok) throw new Error(`FlashAlpha HTTP ${res.status}`)
+  return res.json()
 }
 
-function buildGexContext(gex: any): string {
-  if (!gex) return ''
-
+function buildAiContext(result: GexResult, currentPrice?: number): string {
   const lines: string[] = ['DEALER GAMMA EXPOSURE (GEX):']
-  const absGex = Math.abs(gex.totalGex || 0)
-  const gexBn  = (absGex / 1e9).toFixed(1)
 
-  if (gex.totalGex !== undefined) {
-    const sign = gex.totalGex >= 0 ? 'POSITIVE' : 'NEGATIVE'
-    lines.push(`  GEX: ${sign} $${gexBn}B`)
-  }
+  const gexBn = result.netGex !== null
+    ? `${result.netGex >= 0 ? '+' : ''}$${(result.netGex / 1e9).toFixed(1)}B`
+    : 'unavailable'
 
-  if (gex.gammaFlip) {
-    lines.push(`  Gamma Flip Level: ${gex.gammaFlip} (key regime change level)`)
-  }
-  if (gex.callWall)  lines.push(`  Call Wall: ${gex.callWall} (strong resistance — dealers short above here)`)
-  if (gex.putWall)   lines.push(`  Put Wall: ${gex.putWall} (strong support — dealers long below here)`)
-  if (gex.zeroDteGex !== undefined) {
-    lines.push(`  0DTE GEX contribution: ${gex.zeroDteGex >= 0 ? '+' : ''}${(gex.zeroDteGex / 1e9).toFixed(1)}B`)
-  }
+  lines.push(`  Symbol: ${result.symbol} | Net GEX: ${gexBn} | Regime: ${result.regime.toUpperCase()} GAMMA`)
 
-  if (gex.totalGex !== undefined) {
-    if (gex.totalGex > 0) {
-      lines.push(`  REGIME: POSITIVE GAMMA — price gravitates toward ${gex.gammaFlip || 'key strikes'}. Breakouts need high volume to sustain. Fade extensions.`)
-    } else {
-      lines.push(`  REGIME: NEGATIVE GAMMA — dealer hedging AMPLIFIES moves. Breakouts more likely to run. Don't fade too early.`)
+  if (result.gammaFlip !== null) {
+    const aboveFlip = currentPrice ? (currentPrice > result.gammaFlip ? 'ABOVE' : 'BELOW') : ''
+    lines.push(`  Gamma Flip: ${result.gammaFlip} ${aboveFlip ? `(price is ${aboveFlip} flip)` : ''}`)
+  }
+  if (result.callWall !== null) lines.push(`  Call Wall: ${result.callWall} — dealer resistance ceiling`)
+  if (result.putWall !== null)  lines.push(`  Put Wall:  ${result.putWall} — dealer support floor`)
+
+  if (result.regime === 'positive') {
+    lines.push(`  REGIME IMPLICATION: Dealers BUY dips / SELL rallies → range-bound, mean-reverting market.`)
+    lines.push(`  Breakouts need high volume to sustain. Fade moves toward call/put walls.`)
+    if (result.callWall && result.putWall) {
+      lines.push(`  Expected range: ${result.putWall}–${result.callWall}`)
     }
+  } else if (result.regime === 'negative') {
+    lines.push(`  REGIME IMPLICATION: Dealers SELL dips / BUY rallies → trending, amplified moves.`)
+    lines.push(`  Breakouts more likely to run. Don't fade too early. Size normal or larger.`)
+    if (result.gammaFlip) lines.push(`  Key level: ${result.gammaFlip} gamma flip — if price reclaims, vol compresses.`)
+  } else {
+    lines.push(`  REGIME IMPLICATION: Neutral gamma — no strong structural bias from dealer hedging.`)
   }
 
   return lines.join('\n')
@@ -87,54 +77,81 @@ function buildGexContext(gex: any): string {
 
 export async function GET(req: NextRequest) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const currentPrice = parseFloat(req.nextUrl.searchParams.get('price') || '0') || undefined
 
-  // Return cache if same day
-  if (cached?.date === today) {
-    return NextResponse.json(cached.data)
+  // Serve from cache if same trading day
+  if (gexCache?.date === today) {
+    const cached = { ...gexCache.data, aiContext: buildAiContext(gexCache.data, currentPrice) }
+    return NextResponse.json(cached)
   }
 
-  const result: any = { date: today, source: 'unavailable', aiContext: '' }
-
-  // Try SpotGamma
-  try {
-    const sg = await fetchSpotGamma()
-
-    // Parse SpotGamma response — they return article content
-    // Extract key levels from their text if structured data unavailable
-    const content = JSON.stringify(sg)
-
-    // Look for key numbers in their response
-    const gammaFlipMatch = content.match(/gamma\s*flip[^\d]*(\d{4,5})/i)
-    const callWallMatch  = content.match(/call\s*wall[^\d]*(\d{4,5})/i)
-    const putWallMatch   = content.match(/put\s*wall[^\d]*(\d{4,5})/i)
-
-    if (gammaFlipMatch || callWallMatch || putWallMatch) {
-      result.gammaFlip = gammaFlipMatch ? parseInt(gammaFlipMatch[1]) : null
-      result.callWall  = callWallMatch  ? parseInt(callWallMatch[1])  : null
-      result.putWall   = putWallMatch   ? parseInt(putWallMatch[1])   : null
-      result.source    = 'spotgamma'
-      result.aiContext = buildGexContext(result)
-    } else {
-      // SpotGamma returned data but not parseable — store raw for now
-      result.source = 'spotgamma_raw'
-      result.raw    = content.substring(0, 200)
+  // No API key configured
+  if (!FA_KEY) {
+    const fallback: GexResult = {
+      symbol: 'SPY', gammaFlip: null, callWall: null, putWall: null,
+      netGex: null, regime: 'unknown', source: 'no_key',
+      aiContext: buildVixHeuristic(),
+      updatedAt: new Date().toISOString(),
     }
+    return NextResponse.json(fallback)
+  }
+
+  try {
+    // Try SPX first (requires Basic plan), fall back to SPY (free)
+    let gexData: any = null
+    let symbol = 'SPX'
+
+    try {
+      // Use levels endpoint — returns gamma_flip, call_wall, put_wall in one call
+      const levels = await fetchFlashAlpha('/v1/exposure/levels/SPX')
+      const gex    = await fetchFlashAlpha('/v1/exposure/gex/SPX')
+      gexData = { ...gex, ...levels.levels, _symbol: 'SPX' }
+    } catch {
+      // Fallback to SPY on free tier
+      symbol = 'SPY'
+      const levels = await fetchFlashAlpha('/v1/exposure/levels/SPY')
+      const gex    = await fetchFlashAlpha('/v1/exposure/gex/SPY')
+      gexData = { ...gex, ...levels.levels, _symbol: 'SPY' }
+    }
+
+    const result: GexResult = {
+      symbol:    gexData._symbol || symbol,
+      gammaFlip: gexData.gamma_flip ?? gexData.levels?.gamma_flip ?? null,
+      callWall:  gexData.call_wall  ?? gexData.levels?.call_wall  ?? gexData.call_wall?.strike ?? null,
+      putWall:   gexData.put_wall   ?? gexData.levels?.put_wall   ?? gexData.put_wall?.strike  ?? null,
+      netGex:    gexData.net_gex    ?? null,
+      regime:    (gexData.net_gex_label ?? gexData.regime ?? 'unknown') as GexResult['regime'],
+      source:    'flashalpha',
+      aiContext: '',
+      updatedAt: gexData.updated_at ?? new Date().toISOString(),
+    }
+
+    result.aiContext = buildAiContext(result, currentPrice)
+    gexCache = { data: result, date: today }
+    return NextResponse.json(result)
+
   } catch (e: any) {
-    result.spotgammaError = e.message
+    // FlashAlpha failed — use VIX heuristic fallback
+    const fallback: GexResult = {
+      symbol: 'SPY', gammaFlip: null, callWall: null, putWall: null,
+      netGex: null, regime: 'unknown',
+      source: 'vix_heuristic',
+      aiContext: buildVixHeuristic(),
+      updatedAt: new Date().toISOString(),
+    }
+    console.warn('[GEX] FlashAlpha failed:', e.message, '— using VIX heuristic')
+    gexCache = { data: fallback, date: today }
+    return NextResponse.json(fallback)
   }
+}
 
-  // If SpotGamma failed, note it and provide regime estimate from VIX
-  if (result.source === 'unavailable' || result.source === 'spotgamma_raw') {
-    // Rough heuristic: VIX > 20 tends to correlate with negative gamma environments
-    result.aiContext = [
-      'DEALER GAMMA EXPOSURE (GEX):',
-      '  GEX data temporarily unavailable.',
-      '  Heuristic: VIX > 20 typically = negative gamma (amplified moves).',
-      '  VIX < 17 typically = positive gamma (mean-reverting, range-bound).',
-      '  Use VVIX and options flow as proxy for gamma regime.'
-    ].join('\n')
-  }
-
-  cached = { data: result, date: today }
-  return NextResponse.json(result)
+function buildVixHeuristic(): string {
+  return [
+    'DEALER GAMMA EXPOSURE (GEX):',
+    '  Source: VIX heuristic (FlashAlpha API key not configured)',
+    '  VIX < 15 → likely positive gamma (range-bound, fade edges)',
+    '  VIX 15-20 → transitional gamma (watch gamma flip level)',
+    '  VIX > 20 → likely negative gamma (amplified moves, trend days)',
+    '  Add FLASHALPHA_API_KEY to Vercel env for real GEX levels.',
+  ].join('\n')
 }
