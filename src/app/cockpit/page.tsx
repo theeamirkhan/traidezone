@@ -4614,7 +4614,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               )}
 
               {/* Signal Hero */}
-              <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 6, padding: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,229,255,0.08) inset, 0 4px 24px rgba(0,0,0,0.4)', borderTop: '2px solid #00d4a0' }}>
+              <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 6, padding: 18, paddingTop: 22, position: 'relative', overflow: 'visible', boxShadow: '0 0 0 1px rgba(0,229,255,0.08) inset, 0 4px 24px rgba(0,0,0,0.4)', borderTop: '2px solid #00d4a0' }}>
                 <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(0,212,160,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 1 }}>
                   <div>
@@ -5262,7 +5262,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               })()}
 
               {/* AI Morning Brief */}
-              <div style={{ background: 'rgba(12,15,26,0.98)', margin: '14px', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,212,160,0.08)', borderTop: '3px solid #00d4a0', overflow: 'hidden' }}>
+              <div style={{ background: 'rgba(12,15,26,0.98)', margin: '14px', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,212,160,0.08)', borderTop: '3px solid #00d4a0', overflow: 'visible' }}>
                 {/* Header */}
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,212,160,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -5320,8 +5320,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 {/* Signal badge */}
                 {aiResult ? (
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
-                    <div style={{ background: signalColor + '12', border: `1.5px solid ${signalColor}35`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ padding: '16px 16px 12px 16px', borderBottom: '1px solid rgba(0,212,160,0.08)' }}>
+                    <div style={{ background: signalColor + '12', border: `1.5px solid ${signalColor}35`, borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ fontFamily: fontDisplay, fontSize: 40, fontWeight: 900, color: signalColor, letterSpacing: '3px', textShadow: `0 0 30px ${signalColor}77, 0 0 60px ${signalColor}33`, lineHeight: 1 }}>{aiResult.signal}</div>
                       <ProbMeter value={aiResult.confidence || 0} color={signalColor} />
                     </div>
