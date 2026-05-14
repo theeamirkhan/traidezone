@@ -4553,7 +4553,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                             system_alignment_note: result.systemAlignmentNote || null,
                             wait_reason:          result.waitReason || null,
                             // Full context snapshot for learning
-                            context_snapshot: JSON.stringify({
+                            context_snapshot: (() => { try { return JSON.stringify({
                               marketConditions:  result.marketConditions,
                               todaysEdge:        result.todaysEdge,
                               riskFlag:          result.riskFlag,
@@ -4563,12 +4563,14 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               optionsBias:       microstructure?.optionsImbalance?.bias || null,
                               darkPoolBias:      microstructure?.darkPool?.netBias || null,
                               vixRegime:         vixPrice ? (vixPrice < 14 ? 'Low' : vixPrice < 20 ? 'Normal' : vixPrice < 28 ? 'Elevated' : 'High') : null,
-                              probContinuation:  morningPlan ? calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })?.continuation : null,
-                              probReversal:      morningPlan ? calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })?.reversal : null,
                               morningBias:       morningPlan?.bias || null,
                               fibsNear:          patternAnalysis?.fibGrids?.[0]?.nearestLevel?.label || null,
                               sweepCount:        microstructure?.optionsImbalance?.sweepCount || 0,
-                            }),
+                              qualityScore:      quality ? quality.confirmationPct : null,
+                              qualityVerdict:    quality ? quality.verdict : null,
+                              confirmers:        quality ? quality.confirmers.join('|') : null,
+                              contradictors:     quality ? quality.contradictors.join('|') : null,
+                            }) } catch(e) { return null } })(),
                           })
                         })
                         .then(r => r.json())
