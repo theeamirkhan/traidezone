@@ -11,21 +11,27 @@ import { buildSignalContext, type SignalInput } from './buildContext'
 import { trackUsage } from '../agents/usageTracker'
 
 export interface SignalResult {
-  signal:           'LONG' | 'SHORT' | 'WAIT' | 'NO TRADE'
-  confidence:       number
-  marketConditions: string
-  todaysEdge:       string
-  accountability:   string
-  riskFlag:         string
-  entryZone:        { high: number; low: number }
-  stopLevel:        number
-  target1:          number
-  target2:          number
-  moveSize:         number
-  buyZones:         Array<{ type: string; high: number; low: number }>
+  signal:               'LONG' | 'SHORT' | 'WAIT' | 'NO TRADE'
+  confidence:           number
+  marketConditions:     string
+  todaysEdge:           string
+  accountability:       string
+  riskFlag:             string
+  // AI's independent view (new)
+  aiView?:              string
+  systemAlignment?:     'aligned' | 'partial' | 'divergent'
+  systemAlignmentNote?: string
+  waitReason?:          string
+  // Trade levels
+  entryZone:            { high: number; low: number }
+  stopLevel:            number
+  target1:              number
+  target2:              number
+  moveSize:             number
+  buyZones:             Array<{ type: string; high: number; low: number }>
   // Metadata
-  _warnings:        string[]
-  _timestamp:       string
+  _warnings:            string[]
+  _timestamp:           string
 }
 
 export async function runSignal(input: SignalInput): Promise<SignalResult | null> {
