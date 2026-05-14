@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'insufficient_data', count: alerts?.length || 0, needed: 10 })
     }
 
-    const parsed = alerts.map(a => {
+    const parsed = alerts.map((a: any) => {
       let ctx: any = {}
       try { ctx = JSON.parse(a.context_snapshot || '{}') } catch (_e) { /* invalid JSON */ }
       return {
