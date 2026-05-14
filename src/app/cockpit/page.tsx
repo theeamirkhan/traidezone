@@ -19,6 +19,7 @@ import { trackUsage } from './agents/usageTracker'
 import { loadEdgeProfile, clearEdgeCache } from './agents/edgeLoader'
 import { analyzePatterns, type PatternAnalysis } from './lib/patternRecognition'
 import { analyzeMicrostructure, type MicrostructureResult } from './lib/marketMicrostructure'
+import { scoreSignalQuality, type SignalQualityResult } from './agents/signalQuality'
 import type { EdgeProfile } from './ai/buildContext'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
@@ -1759,6 +1760,7 @@ export default function CockpitPage() {
   const [discoveredRules, setDiscoveredRules] = useState<any[]>([])
   const [patternAnalysis, setPatternAnalysis] = useState<PatternAnalysis | null>(null)
   const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
+  const [signalQuality, setSignalQuality] = useState<SignalQualityResult | null>(null)
   const [breadthData, setBreadthData]       = useState<any | null>(null)
   const [gexData, setGexData]               = useState<any | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
@@ -4493,9 +4495,38 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) {
+                      // ── Signal Quality Gate ─────────────────────────────
+                      const quality = scoreSignalQuality({
+                        signal:        result.signal as any,
+                        confidence:    result.confidence || 0,
+                        currentPrice,
+                        vixPrice,
+                        microstructure: microstructure as any,
+                        breadthData:   breadthData as any,
+                        gexData:       gexData as any,
+                        morningBias:   morningPlan?.bias || null,
+                        patternBias:   patternAnalysis?.structureSummary || null,
+                        economicCalendar,
+                      })
+                      setSignalQuality(quality)
+
+                      // If quality gate blocks — downgrade to WAIT
+                      if (!quality.approved && (result.signal === 'LONG' || result.signal === 'SHORT')) {
+                        result = {
+                          ...result,
+                          signal:        'WAIT',
+                          confidence:    quality.finalConfidence,
+                          waitReason:    `Quality gate blocked: ${quality.verdictReason}`,
+                          accountability: `Signal blocked — ${quality.contradictors[0] || quality.blockers[0] || 'insufficient confirmation'}`,
+                        }
+                      } else {
+                        result = { ...result, confidence: quality.finalConfidence }
+                      }
+
                       setAiResult(result)
                       setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
-                      setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
+                      const confWord = quality.finalConfidence >= 80 ? 'high confidence' : quality.finalConfidence >= 65 ? 'moderate confidence' : 'low confidence'
+                      setTimeout(() => { speak(`${result.signal}. ${quality.finalConfidence}% ${confWord}. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
                       // ── Log alert to Supabase — server agent scores at 30/60/120min ──
                       if ((result.signal === 'LONG' || result.signal === 'SHORT' || result.signal === 'WAIT' || result.signal === 'NO TRADE') && result.entryZone) {
                         fetch('/api/trade-alerts', {
@@ -4588,7 +4619,33 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>{aiResult?.marketConditions?.split('.')[0] || 'Analyzing market conditions...'}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: fontDisplay, fontSize: 32, fontWeight: 900, color: signalColor, opacity: 0.8, letterSpacing: '-1px' }}>{aiResult?.confidence || 0}<span style={{ fontSize: 18 }}>%</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 32, fontWeight: 900, color: signalColor, opacity: 0.8, letterSpacing: '-1px' }}>{aiResult?.confidence || 0}<span style={{ fontSize: 18 }}>%</span></div>
+                      {signalQuality && (
+                        <div style={{
+                          fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 4,
+                          letterSpacing: '1px', textTransform: 'uppercase' as const,
+                          background: signalQuality.verdict === 'STRONG'    ? 'rgba(0,255,136,0.12)' :
+                                      signalQuality.verdict === 'CONFIRMED' ? 'rgba(0,229,255,0.08)' :
+                                      signalQuality.verdict === 'MARGINAL'  ? 'rgba(255,183,0,0.1)'  :
+                                      signalQuality.verdict === 'CONFLICTED'? 'rgba(255,107,0,0.1)'  :
+                                                                              'rgba(255,26,74,0.12)',
+                          color: signalQuality.verdict === 'STRONG'    ? '#00ff88' :
+                                 signalQuality.verdict === 'CONFIRMED'  ? '#00e5ff' :
+                                 signalQuality.verdict === 'MARGINAL'   ? '#ffb700' :
+                                 signalQuality.verdict === 'CONFLICTED' ? '#ff6b00' :
+                                                                          '#ff1a4a',
+                          border: `1px solid ${
+                            signalQuality.verdict === 'STRONG'    ? 'rgba(0,255,136,0.3)' :
+                            signalQuality.verdict === 'CONFIRMED' ? 'rgba(0,229,255,0.2)' :
+                            signalQuality.verdict === 'MARGINAL'  ? 'rgba(255,183,0,0.3)' :
+                                                                    'rgba(255,26,74,0.3)'
+                          }`,
+                        }}>
+                          {signalQuality.verdict} {signalQuality.confirmers.length}/{signalQuality.totalVoters}
+                        </div>
+                      )}
+                    </div>
                     <div style={{ fontSize: 7, color: C.textMuted }}>AI confidence</div>
                   <button onClick={async () => {
                     setAiLoading(true)

@@ -353,6 +353,13 @@ CRITICAL RULES:
     patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${patternAnalysis.aiContext}` : '',
     (input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nMICROSTRUCTURE SUMMARY: ${(input as any).microstructure.summary}` : '',
     (input as any).breadthData?.aiContext ? `═══ MARKET BREADTH (TICK/TRIN/VVIX) ═══\n${(input as any).breadthData.aiContext}` : '',
+    // Quality gate context injected LAST so AI factors it into final output
+    `═══ PRE-SIGNAL QUALITY CHECK ═══
+The signal quality system has independently scored each data stream.
+You MUST factor this into your confidence and signal.
+If confirmation is <50% or blockers exist → signal WAIT, not LONG/SHORT.
+If confirmation is 70%+ → you may increase confidence by up to 10pts.
+Reference this scoring when setting your final confidence number.`,
     (input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══\n${(input as any).gexData.aiContext}` : '',
     patternAnalysis?.structureSummary ? `PATTERN BIAS: ${patternAnalysis.structureSummary}` : '',
     JSON_SCHEMA,
