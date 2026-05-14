@@ -114,11 +114,24 @@ Return ONLY valid JSON array, no markdown:
     const raw = response.content[0].type === 'text' ? response.content[0].text : '[]'
     const rules = JSON.parse(raw.replace(/```json|```/g, '').trim())
 
+    // Save alongside existing rules (different source tag)
+    // First get existing rules
+    const { data: existing } = await supabaseAdmin
+      .from('user_discovered_rules')
+      .select('rules')
+      .eq('user_id', userId)
+      .single()
+
+    // Merge: keep edge-discovery rules, add outcome_learning rules tagged
+    const existingRules = (existing?.rules || []).filter((r: any) => r.source !== 'outcome_learning')
+    const taggedRules = rules.map((r: any) => ({ ...r, source: 'outcome_learning' }))
+    const mergedRules = [...existingRules, ...taggedRules]
+
     await supabaseAdmin.from('user_discovered_rules').upsert({
-      user_id: userId, source: 'outcome_learning',
-      rules, updated_at: new Date().toISOString(),
-      metadata: { signalCount: parsed.length, winRate: matrix.winRate, generatedAt: new Date().toISOString() }
-    }, { onConflict: 'user_id,source' })
+      user_id: userId,
+      rules: mergedRules,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' })
 
     return NextResponse.json({ status: 'complete', signals: parsed.length, winRate: matrix.winRate, rulesFound: rules.length, rules })
   } catch (e: any) {
