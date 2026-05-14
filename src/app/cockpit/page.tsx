@@ -4908,13 +4908,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               )}
 
-              {/* Session Memory */}
+              {/* Session Memory — collapsed by default, accessible via toggle */}
               {sessionMemory && (
-                <div style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, padding: '10px 14px', borderLeft: '2px solid rgba(0,212,160,0.4)' }}>
-                  <div style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', marginBottom: 6 }}>💾 AI REMEMBERS</div>
-                  <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{sessionMemory}</div>
-                  <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
-                </div>
+                <details style={{ background: 'rgba(12,15,26,0.98)', borderRadius: 4, borderLeft: '2px solid rgba(0,212,160,0.2)' }}>
+                  <summary style={{ padding: '6px 10px', fontSize: 9, fontWeight: 700, color: C.textMuted, letterSpacing: '1px', cursor: 'pointer', userSelect: 'none' as const, listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>💾</span><span>AI REMEMBERS</span>
+                  </summary>
+                  <div style={{ padding: '0 10px 10px 10px' }}>
+                    <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.7, whiteSpace: 'pre-line' as const }}>{sessionMemory}</div>
+                    <button onClick={() => { localStorage.removeItem('tz-session-memory'); window.location.reload() }} style={{ marginTop: 6, fontSize: 9, color: C.red, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font }}>Clear memory</button>
+                  </div>
+                </details>
               )}
             </div>
 
