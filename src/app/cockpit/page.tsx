@@ -1759,6 +1759,8 @@ export default function CockpitPage() {
   const [discoveredRules, setDiscoveredRules] = useState<any[]>([])
   const [patternAnalysis, setPatternAnalysis] = useState<PatternAnalysis | null>(null)
   const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
+  const [breadthData, setBreadthData]       = useState<any | null>(null)
+  const [gexData, setGexData]               = useState<any | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
@@ -1774,6 +1776,8 @@ export default function CockpitPage() {
     executionStats,
     patternAnalysis,
     microstructure,
+    breadthData,
+    gexData,
     morningPlan,
     activePlaybook:   playbooks.find((p: any) => p.id === activePlaybookId) || null,
     tradeStats,
@@ -2872,6 +2876,23 @@ export default function CockpitPage() {
         }
       }
 
+      // ── TICK / TRIN / VVIX breadth ───────────────────────────────────────────
+      try {
+        const breadthRes = await fetch('/api/breadth')
+        if (breadthRes.ok) {
+          const bd = await breadthRes.json()
+          setBreadthData(bd)
+        }
+      } catch (e) { console.warn('[Breadth] fetch failed:', e) }
+
+      // ── GEX — cached daily, fetch once ───────────────────────────────────
+      try {
+        if (!gexData || gexData.date !== new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })) {
+          const gexRes = await fetch('/api/gex')
+          if (gexRes.ok) { const gd = await gexRes.json(); setGexData(gd) }
+        }
+      } catch (e) { console.warn('[GEX] fetch failed:', e) }
+
       // ── Market Microstructure — cumulative delta, dark pool, vol spike ──────
       try {
         const micro1mRes = await fetch(`/api/polygon?apiKey=${keys[POLY_KEY] || 'env'}&path=${encodeURIComponent(
@@ -3650,6 +3671,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       executionStats,
       patternAnalysis,
       microstructure,
+      breadthData,
+      gexData,
       morningPlan, activePlaybook: playbooks.find((p: any) => p.id === activePlaybookId) || null,
       tradeStats, aiTone, aiResult,
       optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew, marketScore,

@@ -78,6 +78,10 @@ export interface SignalInput {
   // From chart pattern recognition engine
   patternAnalysis: PatternAnalysis | null
 
+  // TICK/TRIN/VVIX breadth + GEX
+  breadthData?: { aiContext: string; tick: any; trin: any; vvix: any; consensus: string } | null
+  gexData?:     { aiContext: string; gammaFlip?: number; callWall?: number; putWall?: number; totalGex?: number } | null
+
   // Market microstructure (cumulative delta, dark pool, volume, options imbalance)
   microstructure?: {
     aiContext:  string
@@ -347,6 +351,8 @@ CRITICAL RULES:
     warnings.length ? `DATA WARNINGS: ${warnings.join('; ')}` : '',
     patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${patternAnalysis.aiContext}` : '',
     (input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nMICROSTRUCTURE SUMMARY: ${(input as any).microstructure.summary}` : '',
+    (input as any).breadthData?.aiContext ? `═══ MARKET BREADTH (TICK/TRIN/VVIX) ═══\n${(input as any).breadthData.aiContext}` : '',
+    (input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══\n${(input as any).gexData.aiContext}` : '',
     patternAnalysis?.structureSummary ? `PATTERN BIAS: ${patternAnalysis.structureSummary}` : '',
     JSON_SCHEMA,
   ].filter(Boolean).join('\n\n')
@@ -453,6 +459,10 @@ ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
 ${(input as any).patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${(input as any).patternAnalysis.aiContext}` : ''}
 
 ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
+
+${(input as any).breadthData?.aiContext ? `═══ MARKET BREADTH ═══\n${(input as any).breadthData.aiContext}` : ''}
+
+${(input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══\n${(input as any).gexData.aiContext}` : ''}
 
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}
