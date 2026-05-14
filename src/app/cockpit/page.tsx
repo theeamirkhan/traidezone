@@ -1761,6 +1761,7 @@ export default function CockpitPage() {
   const [patternAnalysis, setPatternAnalysis] = useState<PatternAnalysis | null>(null)
   const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
   const [signalQuality, setSignalQuality] = useState<SignalQualityResult | null>(null)
+  const [showAvatarPanel, setShowAvatarPanel] = useState(false)
   const [breadthData, setBreadthData]       = useState<any | null>(null)
   const [gexData, setGexData]               = useState<any | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
@@ -4083,7 +4084,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
       {/* ── FLOW ALERT BANNERS ── */}
       {flowAlerts.length > 0 && (
-        <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 950, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 340 }}>
+        <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 340 }}>
           {flowAlerts.map((alert, i) => (
             <div key={alert.id} style={{
               background: 'rgba(6,8,16,0.97)',
@@ -5057,11 +5058,18 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         color: avatarMode ? '#00d4a0' : '#4a5568',
                         cursor: 'pointer', fontFamily: font,
                       }}>🤖</button>
+                    {avatarMode && avatarId && (
+                      <button onClick={() => setShowAvatarPanel((p: boolean) => !p)} style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 3,
+                        border: `1px solid ${showAvatarPanel ? 'rgba(0,212,160,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                        background: showAvatarPanel ? 'rgba(0,212,160,0.1)' : 'transparent',
+                        color: showAvatarPanel ? '#00d4a0' : '#4a5568', cursor: 'pointer', fontFamily: font,
+                      }}>{showAvatarPanel ? '▲ hide' : '▼ avatar'}</button>
+                    )}
 
                   </div>{/* end voice row */}
 
-                  {/* Avatar ID input — shown when avatar mode enabled */}
-                  {avatarMode && (
+                  {/* Avatar ID input — shown when avatar mode enabled but no ID yet */}
+                  {avatarMode && !avatarId && (
                     <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(0,212,160,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 7, color: '#4a5568', whiteSpace: 'nowrap' }}>AVATAR ID</span>
                       <input
@@ -5074,9 +5082,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   )}
                 </div>{/* end input area */}
 
-              {/* Avatar panel — shown above chat when active */}
-              {avatarMode && avatarId && (
-                <div style={{ padding: '10px', borderBottom: '1px solid rgba(0,212,160,0.1)', display: 'flex', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
+              {/* Avatar panel — only shown when user actively clicks Start Avatar */}
+              {avatarMode && avatarId && showAvatarPanel && (
+                <div style={{ padding: '10px', borderBottom: '1px solid rgba(0,212,160,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.4)' }}>
                   <AvatarCompanion
                     ref={avatarRef}
                     avatarId={avatarId}
