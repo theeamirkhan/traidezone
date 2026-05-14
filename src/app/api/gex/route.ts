@@ -13,7 +13,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
-const FA_KEY  = process.env.FLASHALPHA_API_KEY
 const FA_BASE = 'https://lab.flashalpha.com'
 
 // In-memory daily cache
@@ -33,6 +32,7 @@ interface GexResult {
 }
 
 async function fetchFlashAlpha(path: string): Promise<any> {
+  const FA_KEY = process.env.FLASHALPHA_API_KEY
   if (!FA_KEY) throw new Error('FLASHALPHA_API_KEY not configured')
   const res = await fetch(`${FA_BASE}${path}`, {
     headers: { 'X-Api-Key': FA_KEY, 'Accept': 'application/json' },
@@ -79,13 +79,14 @@ export async function GET(req: NextRequest) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
   const currentPrice = parseFloat(req.nextUrl.searchParams.get('price') || '0') || undefined
 
-  // Serve from cache if same trading day
-  if (gexCache?.date === today) {
+  // Serve from cache if same trading day AND we have a key (don't serve stale no-key cache)
+  if (gexCache?.date === today && gexCache?.data?.source !== 'no_key' && gexCache?.data?.source !== 'vix_heuristic') {
     const cached = { ...gexCache.data, aiContext: buildAiContext(gexCache.data, currentPrice) }
     return NextResponse.json(cached)
   }
 
   // No API key configured
+  const FA_KEY = process.env.FLASHALPHA_API_KEY
   if (!FA_KEY) {
     const fallback: GexResult = {
       symbol: 'SPY', gammaFlip: null, callWall: null, putWall: null,
