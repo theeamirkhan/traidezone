@@ -4370,13 +4370,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   value={suggestionText}
                   onChange={e => setSuggestionText(e.target.value)}
                   placeholder={
-                    suggestionType === 'suggestion' ? 'Describe the feature you'd love to see...
-
-e.g. "I'd love to see a P&L tracker that auto-imports from my broker"' :
-                    suggestionType === 'bug' ? 'What happened? What did you expect to happen?
-
-e.g. "The GEX data shows N/A even after market open"' :
-                    'What's on your mind? We read every submission...'
+                    suggestionType === 'suggestion' ? "Describe the feature you'd love to see..." :
+                    suggestionType === 'bug' ? "What happened? What did you expect to happen?" :
+                    "What's on your mind? We read every submission..."
                   }
                   rows={6}
                   style={{ width: '100%', background: 'rgba(8,12,22,0.9)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 8, padding: '12px 14px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const, lineHeight: 1.6, marginBottom: 14 }}
