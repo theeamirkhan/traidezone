@@ -28,12 +28,17 @@ import { supabaseAdmin } from '@/lib/supabase'
 const POLYGON_KEY = process.env.POLYGON_API_KEY
 
 async function polyFetch(path: string) {
-  const res = await fetch(
-    `https://api.polygon.io${path}${path.includes('?') ? '&' : '?'}apiKey=${POLYGON_KEY}`,
-    { signal: AbortSignal.timeout(10000) }
-  )
-  const d = await res.json()
-  return d.results || []
+  try {
+    const res = await fetch(
+      `https://api.polygon.io${path}${path.includes('?') ? '&' : '?'}apiKey=${POLYGON_KEY}`,
+      { signal: AbortSignal.timeout(10000) }
+    )
+    if (!res.ok) return []
+    const text = await res.text()
+    if (!text || text.trim()[0] !== '{') return []
+    const d = JSON.parse(text)
+    return d.results || []
+  } catch { return [] }
 }
 
 // Classify day type from daily OHLC
@@ -114,12 +119,15 @@ export async function GET(req: NextRequest) {
     // True gap_outcome requires intraday — we mark as ESTIMATED for backfill
 
     // 5. Fetch SPX news for catalyst classification
-    const newsRes = await polyFetch(`/v3/reference/tickers/I:SPX/news?limit=50&published_utc.gte=${from}&order=asc`)
+    // News: use general market news endpoint (ticker-specific doesn't work for indices)
+    const newsRes = await polyFetch(`/v2/reference/news?ticker=SPY&limit=50&published_utc.gte=${from}&order=published_utc&sort=published_utc`)
     const newsByDate: Record<string, string[]> = {}
-    newsRes.forEach((n: any) => {
-      const d = new Date(n.published_utc).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    ;(newsRes || []).forEach((n: any) => {
+      const pubDate = n.published_utc || n.published_at || ''
+      if (!pubDate) return
+      const d = new Date(pubDate).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
       if (!newsByDate[d]) newsByDate[d] = []
-      newsByDate[d].push(n.title || '')
+      newsByDate[d].push((n.title || '') + ' ' + (n.description || ''))
     })
 
     // 6. Process each trading day
