@@ -2562,7 +2562,7 @@ export default function CockpitPage() {
         }
       }
     } catch (e) { console.error(key, e) }
-  }, [keys])
+  }, [keys, chartTf])
 
   // Data loading handled by useMarketData hook above
   // fetchHistory still used for Deep Dive chart (multi-day candles)
@@ -2671,7 +2671,7 @@ export default function CockpitPage() {
 
   // Lightweight charts
   useEffect(() => {
-    if (tab !== 'deepdive' || !chartContainerRef.current || candles.length === 0) return
+    if (tab !== 'deepdive' || !chartContainerRef.current || candles.length < 2) return
     let destroyed = false
     let ro: ResizeObserver | null = null
 
@@ -2799,7 +2799,7 @@ export default function CockpitPage() {
       if (ro) ro.disconnect()
       if (chartRef.current) { try { chartRef.current.remove() } catch {} chartRef.current = null }
     }
-  }, [tab, candles.length, drawnLines.length, drawnZones.length])
+  }, [tab, candles.length, chartTf, drawnLines.length, drawnZones.length])
 
   // Proactive companion alerts — speak when key levels hit or market conditions change
   useEffect(() => {
