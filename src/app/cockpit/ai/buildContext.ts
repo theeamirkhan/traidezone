@@ -475,6 +475,19 @@ ${(input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}
 
+${(() => {
+  const learnings = (input as any).traderProfile?.chat_learnings
+  if (!learnings?.length) return ''
+  const last3 = learnings.slice(-3)
+  const lines = ['═══ WHAT YOU KNOW ABOUT THIS TRADER (from past sessions) ═══']
+  last3.forEach((l: any) => {
+    if (l.keyInsight)              lines.push(`${l.tradingDate}: ${l.keyInsight}`)
+    if (l.emotionalState?.notes)  lines.push(`  Emotional: ${l.emotionalState.notes}`)
+    if (l.executionPatterns?.length) lines.push(`  Execution patterns: ${l.executionPatterns.slice(0,2).join('; ')}`)
+  })
+  return lines.join('\n')
+})()}
+
 ${(input as any).executionStats ? `═══ YOUR EXECUTION REALITY ═══
 AI win rate: ${(input as any).executionStats.aiWinRate ?? '?'}% | Your actual: ${(input as any).executionStats.humanWinRate ?? 'tracking just started'}%
 AI avg pts/trade: ${(input as any).executionStats.avgAiPts ?? '?'} | You capture: ${(input as any).executionStats.avgHumanPts ?? 'not yet tracked'}pts

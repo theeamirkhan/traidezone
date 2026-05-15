@@ -1755,6 +1755,7 @@ export default function CockpitPage() {
       return saved ? JSON.parse(saved) : []
     } catch { return [] }
   })
+  const chatDbSyncRef = useRef<Set<string>>(new Set()) // track which messages are in DB
   const [chatLoading, setChatLoading] = useState(false)
   const [editingVwap, setEditingVwap] = useState(false)
   const [showUsageReport, setShowUsageReport] = useState(false)
@@ -3212,14 +3213,34 @@ export default function CockpitPage() {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [chatMessages, chatLoading])
 
-  // Persist chat to localStorage on every change (capped at 50 messages)
+  // Persist chat — localStorage (instant) + Supabase (durable, queryable by learning agent)
   useEffect(() => {
     if (typeof window === 'undefined' || chatMessages.length === 0) return
+    // Always save to localStorage for instant reload
     try {
-      const toSave = chatMessages.slice(-50) // keep last 50
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toSave))
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatMessages.slice(-50)))
     } catch {}
   }, [chatMessages])
+
+  // Load chat from DB on mount (overrides localStorage if DB has more)
+  useEffect(() => {
+    fetch('/api/chat-sessions')
+      .then(r => r.json())
+      .then(data => {
+        if (data.messages?.length > 0) {
+          // DB messages are the source of truth — they survive device changes
+          const dbMsgs = data.messages.map((m: any) => ({ role: m.role, content: m.content, id: m.id }))
+          // Only override if DB has more messages than localStorage
+          setChatMessages(prev => dbMsgs.length > prev.length ? dbMsgs : prev)
+          // Mark all as synced
+          data.messages.forEach((m: any) => { if (m.id) chatDbSyncRef.current.add(m.id) })
+          // Migrate run if needed
+          if (data.needsMigration) fetch('/api/chat-sessions/migrate').catch(() => {})
+        }
+      })
+      .catch(() => {}) // DB load is best-effort — localStorage is fallback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Speech recognition — stays open until user stops
   const listeningRef = useRef(false)  // stable ref so speak() can check without stale closure
@@ -3254,7 +3275,13 @@ export default function CockpitPage() {
         setChatInput(final.trim())
         setTimeout(() => {
           setChatInput('')
-          setChatMessages(p => [...p, { role: 'user', content: final.trim() }])
+          const userMsg = { role: 'user', content: final.trim() }
+        setChatMessages(p => [...p, userMsg])
+        // Persist to DB for learning agent
+        fetch('/api/chat-sessions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([userMsg])
+        }).catch(() => {})
           sendChatWithText(final.trim())
         }, 100)
       }
@@ -3766,6 +3793,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       } else {
         speak(reply)
       }
+      // Save assistant message to DB after streaming completes
+      const _saveMsgToDb = (content: string) => {
+        fetch('/api/chat-sessions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([{ role: 'assistant', content }])
+        }).catch(() => {})
+      }
       setChatMessages(p => {
         const updated = [...p, { role: 'assistant', content: reply }]
         if (updated.length % 10 === 0) {
@@ -3773,6 +3807,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         }
         return updated
       })
+      _saveMsgToDb(reply)
     } catch (e) {
       const errMsg = "Connection error — make sure you're online and try again."
       setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])

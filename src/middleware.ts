@@ -13,6 +13,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/agents/health-check(.*)',
   '/api/agents/edge-discovery(.*)',
   '/api/agents/learn-from-outcomes(.*)',
+  '/api/agents/analyze-chat(.*)',
+  '/api/chat-sessions(.*)',
   '/api/heygen-token(.*)',
   '/api/breadth(.*)',
   '/api/gex(.*)',
