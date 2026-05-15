@@ -4360,7 +4360,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 {/* Type selector */}
                 <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
                   {([['suggestion', '✨ Feature Idea'], ['bug', '🐛 Bug Report'], ['feedback', '💬 General Feedback']] as const).map(([type, label]) => (
-                    <button key={type} onClick={() => setSuggestionType(type)} style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: `1px solid ${suggestionType === type ? 'rgba(124,106,255,0.6)' : 'rgba(255,255,255,0.08)'}`, background: suggestionType === type ? 'rgba(124,106,255,0.12)' : 'transparent', color: suggestionType === type ? '#7c6aff' : C.textMuted, cursor: 'pointer', fontSize: 9, fontFamily: font, fontWeight: suggestionType === type ? 700 : 400 }}>
+                    <button key={type} onClick={() => setSuggestionType(type as 'suggestion'|'bug'|'feedback')} style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: `1px solid ${suggestionType === type ? 'rgba(124,106,255,0.6)' : 'rgba(255,255,255,0.08)'}`, background: suggestionType === type ? 'rgba(124,106,255,0.12)' : 'transparent', color: suggestionType === type ? '#7c6aff' : C.textMuted, cursor: 'pointer', fontSize: 9, fontFamily: font, fontWeight: suggestionType === type ? 700 : 400 }}>
                       {label}
                     </button>
                   ))}

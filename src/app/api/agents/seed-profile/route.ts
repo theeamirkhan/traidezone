@@ -62,7 +62,6 @@ const SYSTEM_SEED = {
   ],
   is_seeded:     true,
   seed_version:  '1.0',
-  seeded_at:     new Date().toISOString(),
   chat_learnings: [],
   session_count:  0,
 }
@@ -89,6 +88,7 @@ export async function POST(req: NextRequest) {
       .upsert({
         user_id: userId,
         ...SYSTEM_SEED,
+        seeded_at:     new Date().toISOString(),
         session_count: existing?.session_count || 0,
         updated_at:    new Date().toISOString(),
       }, { onConflict: 'user_id' })
