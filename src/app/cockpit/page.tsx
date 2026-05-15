@@ -3222,6 +3222,15 @@ export default function CockpitPage() {
     } catch {}
   }, [chatMessages])
 
+  // Seed profile on first login — runs once, skips if user has real data
+  useEffect(() => {
+    fetch('/api/agents/seed-profile', { method: 'POST' })
+      .then(r => r.json())
+      .then(d => { if (d.status === 'seeded') console.log('[Profile] Seeded with system defaults') })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Load chat from DB on mount (overrides localStorage if DB has more)
   useEffect(() => {
     fetch('/api/chat-sessions')

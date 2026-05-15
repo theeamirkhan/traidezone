@@ -14,6 +14,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/agents/edge-discovery(.*)',
   '/api/agents/learn-from-outcomes(.*)',
   '/api/agents/analyze-chat(.*)',
+  '/api/agents/seed-profile(.*)',
   '/api/chat-sessions(.*)',
   '/api/heygen-token(.*)',
   '/api/breadth(.*)',
