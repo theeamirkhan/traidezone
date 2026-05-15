@@ -20,7 +20,7 @@ const C = {
 }
 
 
-export default function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed }: any) {
+export default function SettingsModal({ keys, setKeys, onClose, voiceId, setVoiceId, voiceEngine, setVoiceEngine, darkMode, setDarkMode, aiTone, setAiTone, userName, setUserName, welcomeMessage, setWelcomeMessage, voiceSpeed, setVoiceSpeed, customRules, setCustomRules }: any) {
   const [vals, setVals] = useState({ [VOICE_ID]: voiceId || '21m00Tcm4TlvDq8ikWAM' })
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
   const previewAudioRef = useRef<any>(null)
@@ -183,6 +183,24 @@ export default function SettingsModal({ keys, setKeys, onClose, voiceId, setVoic
             rows={3}
             style={{ width: '100%', background: 'rgba(8,12,22,0.9)', border: '1px solid rgba(0,229,255,0.15)', borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
           <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Played once per day when you open the cockpit. Use <span style={{color: C.teal}}>{'{name}'}</span> to insert your name.</div>
+        </div>
+
+        {/* Custom Trading Rules */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: font, fontSize: 9, fontWeight: 700, color: '#8899bb', textTransform: 'uppercase' as const, letterSpacing: '2px', marginBottom: 4 }}>My Trading Rules</div>
+          <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
+            Your personal rules — the AI companion uses these as context, not constraints. One per line.
+          </div>
+          <textarea
+            value={customRules || ''}
+            onChange={e => setCustomRules && setCustomRules(e.target.value)}
+            placeholder={`e.g.\nNo trades before 10am\nITM calls and puts only\nStop at VWAP loss\nMax 2 trades per day`}
+            rows={5}
+            style={{ width: '100%', background: 'rgba(8,12,22,0.9)', border: '1px solid rgba(0,229,255,0.15)', borderRadius: 8, padding: '10px 14px', color: C.text, fontFamily: font, fontSize: 11, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const, lineHeight: 1.6 }}
+          />
+          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>
+            These are <em>yours</em> — edit, remove, or add to them anytime. The AI will reference them, not enforce them.
+          </div>
         </div>
 
         {/* AI Tone Slider */}

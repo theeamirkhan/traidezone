@@ -1771,6 +1771,10 @@ export default function CockpitPage() {
   const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
   const [signalQuality, setSignalQuality] = useState<SignalQualityResult | null>(null)
   const [showAvatarPanel, setShowAvatarPanel] = useState(false)
+  const [customRules, setCustomRules] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem('tz-custom-rules') || ''
+  })
   const [breadthData, setBreadthData]       = useState<any | null>(null)
   const [gexData, setGexData]               = useState<any | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
@@ -3213,6 +3217,11 @@ export default function CockpitPage() {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [chatMessages, chatLoading])
 
+  // Persist custom rules
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('tz-custom-rules', customRules)
+  }, [customRules])
+
   // Persist chat — localStorage (instant) + Supabase (durable, queryable by learning agent)
   useEffect(() => {
     if (typeof window === 'undefined' || chatMessages.length === 0) return
@@ -3635,13 +3644,28 @@ export default function CockpitPage() {
 
 NEVER say you are text-only. Your responses ARE spoken aloud in real-time.
 
+YOUR ROLE: You are an advisor and thinking partner, not a rule enforcer.
+The trader makes their own decisions. Your job is to give them the best
+possible context and perspective — then respect their call. Flag concerns
+once, clearly, then move on. Don't lecture or repeat warnings.
+If they have custom rules, honor those over any defaults.
+If they want to trade early, give them the best read you can on the setup.
+
 ${traderProfile ? `
 ═══ WHO YOU'RE TALKING TO ═══
 ${traderProfile.name ? `Name: ${traderProfile.name}` : ''}
 ${traderProfile.experience_level ? `Experience: ${traderProfile.experience_level}` : ''}
 ${traderProfile.trading_style ? `Style: ${traderProfile.trading_style}` : ''}
-${traderProfile.strengths?.length > 0 ? `Strengths: ${traderProfile.strengths.join(', ')}` : ''}
-${traderProfile.weaknesses?.length > 0 ? `Known weaknesses: ${traderProfile.weaknesses.join(', ')}` : ''}
+${(() => {
+  // Custom rules entered in Settings take priority over seed defaults
+  const customR = (input as any).customRules?.trim()
+  if (customR) return `Their personal trading rules (self-defined, advisory — reference but don't enforce):\n${customR}`
+  const seeded = (input as any).traderProfile?.system_rules
+  if (seeded?.length) return `Starting guidelines (system defaults — trader can customize in Settings):\n${seeded.slice(0,4).join('\n')}`
+  return ''
+})()}
+${traderProfile.strengths?.length > 0 ? `Setup strengths: ${traderProfile.strengths.join(', ')}` : ''}
+${traderProfile.weaknesses?.length > 0 ? `Tendencies to be aware of (not rules — just patterns): ${traderProfile.weaknesses.join(', ')}` : ''}
 ${traderProfile.emotional_triggers?.length > 0 ? `Watch for: ${traderProfile.emotional_triggers.join(', ')}` : ''}
 ${traderProfile.companion_tone ? `Tone: ${traderProfile.companion_tone} — adapt your communication style accordingly` : ''}
 ${traderProfile.session_count > 0 ? `You've had ${traderProfile.session_count} sessions together. This is an ongoing relationship.` : 'First session — introduce yourself warmly but get to business.'}
@@ -3744,6 +3768,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       optionsFlow, marketTide, marketIntel, tiingoContext, zeroDTESkew, marketScore,
       tradePatterns, multiTFData, marketNews, economicCalendar, macroRegime, earningsCalendar,
       sessionMemory,
+      traderProfile, customRules,
       probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: ''
     })
     const context = companionCtx.systemPrompt
@@ -4256,7 +4281,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         </div>
       )}
 
-      {showSettings && <_LegacySettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} voiceEngine={voiceEngine} setVoiceEngine={setVoiceEngine} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} />}
+      {showSettings && <_LegacySettingsModal keys={keys} setKeys={setKeys} onClose={() => setShowSettings(false)} voiceId={voiceId} setVoiceId={setVoiceId} voiceEngine={voiceEngine} setVoiceEngine={setVoiceEngine} darkMode={darkMode} setDarkMode={setDarkMode} aiTone={aiTone} setAiTone={setAiTone} userName={userName} setUserName={setUserName} welcomeMessage={welcomeMessage} setWelcomeMessage={setWelcomeMessage} voiceSpeed={voiceSpeed} setVoiceSpeed={setVoiceSpeed} customRules={customRules} setCustomRules={setCustomRules} />}
 
       {/* ── DISCLOSURE MODAL ── */}
       {showDisclosure && (
