@@ -15,7 +15,7 @@
  */
 
 import type { MarketData } from '../hooks/useMarketData'
-import { validateMarketData } from '../agents/dataValidator'hh
+import { validateMarketData } from '../agents/dataValidator'
 import type { PatternAnalysis } from '../lib/patternRecognition'
 h
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -478,7 +478,7 @@ ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) 
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}
 
 ${(() => {
-  const learnings = (input as any).traderProfile?.chat_learnings
+  const learnings = input.traderProfile?.chat_learnings
   if (!learnings?.length) return ''
   const last3 = learnings.slice(-3)
   const lines = ['═══ WHAT YOU KNOW ABOUT THIS TRADER (from past sessions) ═══']
