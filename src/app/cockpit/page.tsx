@@ -1772,6 +1772,7 @@ export default function CockpitPage() {
   const [signalQuality, setSignalQuality] = useState<SignalQualityResult | null>(null)
   const [showAvatarPanel, setShowAvatarPanel] = useState(false)
   const [historicalGapStats, setHistoricalGapStats] = useState<any>(null)
+  const [gapPrediction, setGapPrediction] = useState<any>(null)
   const [showSuggestion, setShowSuggestion] = useState(false)
   const [suggestionText, setSuggestionText] = useState('')
   const [suggestionType, setSuggestionType] = useState<'suggestion'|'bug'|'feedback'>('suggestion')
@@ -2598,6 +2599,12 @@ export default function CockpitPage() {
     const cacheKey = 'tz-gap-stats-' + today + '-' + morningPlan.gapDirection
     const cached = localStorage.getItem(cacheKey)
     if (cached) { setHistoricalGapStats(JSON.parse(cached)); return }
+
+    // Also fetch trend prediction
+    fetch('/api/gap-outcomes?action=predict')
+      .then(r => r.json())
+      .then(p => { if (p.trendScorePredicted !== undefined) setGapPrediction(p) })
+      .catch(() => {})
 
     // Get today's catalyst from gap_outcomes
     fetch('/api/gap-outcomes?action=today')
@@ -3729,6 +3736,12 @@ ${earningsSection}
 
 ═══ HISTORICAL CONTEXT (Tiingo) ═══
 ${tiingoContext ? tiingoContext.summary : 'No Tiingo key — add for historical gap/implied move data'}
+
+${gapPrediction?.trendScorePredicted !== undefined ? `═══ TODAY'S DAY TYPE PREDICTION ═══
+Trend Score: ${gapPrediction.trendScorePredicted}/100 — ${gapPrediction.interpretation}
+Confidence: ${gapPrediction.confidence} | Catalyst: ${gapPrediction.catalyst || 'None'}
+${gapPrediction.historicalMatch?.trendPct != null ? `Historical: ${gapPrediction.historicalMatch.trendPct}% trend days on similar setups (${gapPrediction.historicalMatch.count} obs)` : 'Building historical base — < 5 matching days tracked'}
+Drivers: ${gapPrediction.drivers?.join(' | ') || 'none identified'}` : ''}
 
 ═══ MORNING PLAN ═══
 Bias: ${morningPlan.bias || 'NOT SET — trading without a plan'}
@@ -5436,8 +5449,37 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext, historicalStats: historicalGapStats })
                 return (
                   <div style={{ background: 'rgba(10,13,22,1)', margin: '12px 14px 0', borderRadius: 10, padding: '16px 18px', border: `1px solid ${probs.hasData ? probs.dominantColor + '30' : 'rgba(0,229,255,0.1)'}`, borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(0,229,255,0.25)'}` }}>
+                    {/* Trend Day Prediction — shown when gap data available */}
+                    {gapPrediction?.trendScorePredicted !== undefined && (
+                      <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: '2px', textTransform: 'uppercase' as const }}>Day Type Prediction</div>
+                          <div style={{ fontSize: 9, fontWeight: 800, color: gapPrediction.trendScorePredicted >= 65 ? '#00ff88' : gapPrediction.trendScorePredicted <= 35 ? '#ff4d6d' : '#f59e0b' }}>
+                            {gapPrediction.interpretation}
+                          </div>
+                        </div>
+                        {/* Score bar */}
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                          <div style={{ height: '100%', width: `${gapPrediction.trendScorePredicted}%`, background: `linear-gradient(90deg, #ff4d6d, #f59e0b, #00ff88)`, borderRadius: 3, transition: 'width 0.8s ease' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#4a5568', marginBottom: 4 }}>
+                          <span>CHOP</span>
+                          <span style={{ color: gapPrediction.trendScorePredicted >= 65 ? '#00ff88' : gapPrediction.trendScorePredicted <= 35 ? '#ff4d6d' : '#f59e0b' }}>{gapPrediction.trendScorePredicted}/100</span>
+                          <span>TREND</span>
+                        </div>
+                        {gapPrediction.historicalMatch?.count >= 5 && (
+                          <div style={{ fontSize: 8, color: '#7c6aff', marginTop: 2 }}>
+                            📊 {gapPrediction.historicalMatch.trendPct}% trend days on {gapPrediction.historicalMatch.count} similar setups
+                            {gapPrediction.catalyst && gapPrediction.catalyst !== 'NONE' ? ` · ${gapPrediction.catalyst} day` : ''}
+                          </div>
+                        )}
+                        {gapPrediction.drivers?.length > 0 && (
+                          <div style={{ fontSize: 8, color: '#4a5568', marginTop: 4 }}>{gapPrediction.drivers[0]}</div>
+                        )}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#8899bb', letterSpacing: '2px', textTransform: 'uppercase' }}>Probability Breakdown</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: '#8899bb', letterSpacing: '2px', textTransform: 'uppercase' as const }}>Gap Probability</div>
                       {probs.hasData && (
                         <div style={{ background: probs.dominantColor + '15', border: `1px solid ${probs.dominantColor}40`, borderRadius: 4, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, fontWeight: 800, color: probs.dominantColor, fontFamily: fontDisplay }}>{probs.dominant}</span>

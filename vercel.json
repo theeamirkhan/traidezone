@@ -39,6 +39,10 @@
     {
       "path": "/api/gap-outcomes?action=score",
       "schedule": "5 15 * * 1-5"
+    },
+    {
+      "path": "/api/gap-outcomes?action=eod",
+      "schedule": "5 20 * * 1-5"
     }
   ]
 }
