@@ -396,6 +396,8 @@ export function buildCompanionContext(
     metChecks:       string
     unmetChecks:     string
     aiToneStr:       string
+    traderProfile?:  any
+    customRules?:    string
   }
 ): CompanionContext {
   const warnings: string[] = []
