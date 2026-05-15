@@ -1746,7 +1746,15 @@ export default function CockpitPage() {
   const [liveTranscript, setLiveTranscript] = useState('')
   const [companionOpen, setCompanionOpen] = useState(true)
   const [chatInput, setChatInput] = useState('')
-  const [chatMessages, setChatMessages] = useState<any[]>([])
+  // Chat persistence — saved by trading date, survives refreshes within the day
+  const CHAT_STORAGE_KEY = `tz-chat-${new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })}`
+  const [chatMessages, setChatMessages] = useState<any[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem(CHAT_STORAGE_KEY)
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
   const [chatLoading, setChatLoading] = useState(false)
   const [editingVwap, setEditingVwap] = useState(false)
   const [showUsageReport, setShowUsageReport] = useState(false)
@@ -2585,6 +2593,8 @@ export default function CockpitPage() {
   useEffect(() => {
     if (tab !== 'cockpit') return
     if (greetedRef.current) return  // already greeted this session
+    // Don't greet if we have a persisted conversation — they know us already
+    if (chatMessages.length > 0) { greetedRef.current = true; return }
     greetedRef.current = true  // mark immediately so re-renders don't re-fire
 
     const delay = setTimeout(async () => {
@@ -3201,6 +3211,15 @@ export default function CockpitPage() {
   useEffect(() => {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [chatMessages, chatLoading])
+
+  // Persist chat to localStorage on every change (capped at 50 messages)
+  useEffect(() => {
+    if (typeof window === 'undefined' || chatMessages.length === 0) return
+    try {
+      const toSave = chatMessages.slice(-50) // keep last 50
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toSave))
+    } catch {}
+  }, [chatMessages])
 
   // Speech recognition — stays open until user stops
   const listeningRef = useRef(false)  // stable ref so speak() can check without stale closure
@@ -4949,6 +4968,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 8, color: C.textMuted }}>{aiResult.confidence}%</span>
                     </div>
                   )}
+                  <button title="New session — clear chat history" onClick={() => { if (window.confirm('Start a new session? This will clear today\'s chat history.')) { localStorage.removeItem(CHAT_STORAGE_KEY); setChatMessages([]) } }} style={{ background: 'transparent', border: `1px solid rgba(255,183,0,0.2)`, borderRadius: 3, color: '#ffb700', cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>↺ New</button>
                   <button title="Pop out companion" onClick={() => window.open('/cockpit/companion', 'tz-companion', 'width=400,height=640,top=50,right=50,resizable=yes')} style={{ background: 'transparent', border: `1px solid rgba(0,212,160,0.2)`, borderRadius: 3, color: C.teal, cursor: 'pointer', fontSize: 9, padding: '2px 6px', fontFamily: font }}>⤢</button>
                   <button onClick={() => setCompanionOpen(false)} title="Minimize companion" style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: '2px 6px', borderRadius: 4, lineHeight: 1 }}>— </button>
                 </div>
