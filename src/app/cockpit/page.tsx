@@ -1771,6 +1771,7 @@ export default function CockpitPage() {
   const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
   const [signalQuality, setSignalQuality] = useState<SignalQualityResult | null>(null)
   const [showAvatarPanel, setShowAvatarPanel] = useState(false)
+  const [historicalGapStats, setHistoricalGapStats] = useState<any>(null)
   const [showSuggestion, setShowSuggestion] = useState(false)
   const [suggestionText, setSuggestionText] = useState('')
   const [suggestionType, setSuggestionType] = useState<'suggestion'|'bug'|'feedback'>('suggestion')
@@ -2589,6 +2590,37 @@ export default function CockpitPage() {
     fetchHistory('SPY', () => {}, 'spy')
     fetchHistory('I:VIX', () => {}, 'vix')
   }, [keys, fetchHistory])
+
+  // Fetch historical gap stats when morning plan is set
+  useEffect(() => {
+    if (!morningPlan?.gapDirection || morningPlan.gapDirection === 'flat') return
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const cacheKey = 'tz-gap-stats-' + today + '-' + morningPlan.gapDirection
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) { setHistoricalGapStats(JSON.parse(cached)); return }
+
+    // Get today's catalyst from gap_outcomes
+    fetch('/api/gap-outcomes?action=today')
+      .then(r => r.json())
+      .then(today => {
+        const catalyst = today.catalyst_type && today.catalyst_type !== 'NONE' ? today.catalyst_type : ''
+        const params = new URLSearchParams({
+          action: 'stats',
+          gap_direction: morningPlan.gapDirection,
+          days: '90',
+          ...(catalyst && { catalyst }),
+        })
+        return fetch('/api/gap-outcomes?' + params).then(r => r.json())
+      })
+      .then(stats => {
+        if (stats.status === 'ok') {
+          setHistoricalGapStats(stats)
+          localStorage.setItem(cacheKey, JSON.stringify(stats))
+        }
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [morningPlan?.gapDirection])
 
   // Reload SPX when timeframe changes — fetchHistory already has fresh chartTf via useCallback
   useEffect(() => {
@@ -3632,7 +3664,7 @@ export default function CockpitPage() {
   // Build full context string for AI companion
   const _buildCompanionContext = () => {  // legacy — replaced by ai/buildContext.ts
     const activePlaybook = playbooks.find(p => p.id === activePlaybookId) || null
-    const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+    const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext, historicalStats: historicalGapStats })
     const unmetChecks = CHECKLIST.filter(c => !checked[c.id]).map(c => `✗ ${c.label}`).join('\n')
     const metChecks = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
     const earningsSection = earningsCalendar.length
@@ -3754,7 +3786,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
   // Send chat with explicit text (for voice input)
   const sendChatWithText = async (text: string, retryCount = 0) => {
     setChatLoading(true)
-    const _probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+    const _probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext, historicalStats: historicalGapStats })
     const _score = customChecklist.filter((c: any) => checked[c.id]).length
     const _grade = _score >= 11 ? 'A' : _score >= 9 ? 'B' : _score >= 7 ? 'C' : _score >= 5 ? 'D' : 'F'
     const _met = CHECKLIST.filter(c => checked[c.id]).map(c => `✓ ${c.label}`).join('\n')
@@ -4839,7 +4871,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
                 {/* Probability bars */}
                 {(() => {
-                  const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+                  const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext, historicalStats: historicalGapStats })
                   return (
                     <div style={{ position: 'relative', zIndex: 1 }}>
                       {[
@@ -5401,7 +5433,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
               {/* Probability section */}
               {(() => {
-                const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext })
+                const probs = calcProbabilities({ bias: morningPlan.bias, gapDirection: morningPlan.gapDirection, gapSize: morningPlan.gapSize, impliedMove: morningPlan.impliedMove, vixPrice, tiingoContext, historicalStats: historicalGapStats })
                 return (
                   <div style={{ background: 'rgba(10,13,22,1)', margin: '12px 14px 0', borderRadius: 10, padding: '16px 18px', border: `1px solid ${probs.hasData ? probs.dominantColor + '30' : 'rgba(0,229,255,0.1)'}`, borderTop: `3px solid ${probs.hasData ? probs.dominantColor : 'rgba(0,229,255,0.25)'}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -5410,6 +5442,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <div style={{ background: probs.dominantColor + '15', border: `1px solid ${probs.dominantColor}40`, borderRadius: 4, padding: '3px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, fontWeight: 800, color: probs.dominantColor, fontFamily: fontDisplay }}>{probs.dominant}</span>
                           <span style={{ fontSize: 9, color: C.textMuted }}>{probs.confidence}</span>
+                          {historicalGapStats?.count >= 10
+                            ? <span style={{ fontSize: 8, color: '#7c6aff' }}>📊 {historicalGapStats.count} obs{historicalGapStats.filters?.catalyst && historicalGapStats.filters.catalyst !== '' ? ` · ${historicalGapStats.filters.catalyst}` : ''}</span>
+                            : <span style={{ fontSize: 8, color: '#4a5568' }}>model-based</span>
+                          }
                         </div>
                       )}
                     </div>

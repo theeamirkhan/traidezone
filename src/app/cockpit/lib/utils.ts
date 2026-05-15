@@ -40,9 +40,10 @@ export interface ProbResult {
   dominant: string; dominantColor: string; confidence: string; hasData: boolean
 }
 
-export function calcProbabilities({ bias, gapDirection, gapSize, impliedMove, vixPrice, tiingoContext }: {
+export function calcProbabilities({ bias, gapDirection, gapSize, impliedMove, vixPrice, tiingoContext, historicalStats }: {
   bias: string; gapDirection: string; gapSize: string
   impliedMove: string; vixPrice: number | null; tiingoContext: any
+  historicalStats?: { fillRate: number; continueRate: number; chopRate: number; count: number; catalyst?: string } | null
 }): ProbResult {
   const gap = parseFloat(gapSize) || 0
   const im  = parseFloat(impliedMove) || 0
@@ -70,7 +71,14 @@ export function calcProbabilities({ bias, gapDirection, gapSize, impliedMove, vi
   else if (vix > 22) { reversal += 4; chop += 2; continuation -= 6  }
   else if (vix < 14) { continuation += 6; chop += 3; reversal -= 9  }
 
-  if (tiingoContext?.gapFillRate && tiingoContext?.continueRate) {
+  // Blend with real historical data if available (prioritized over tiingo)
+  if (historicalStats && historicalStats.count >= 10) {
+    // Strong blend — real data dominates after 20+ observations
+    const weight = historicalStats.count >= 20 ? 0.7 : 0.5
+    reversal     = Math.round(reversal * (1 - weight) + historicalStats.fillRate * weight)
+    continuation = Math.round(continuation * (1 - weight) + historicalStats.continueRate * weight)
+    chop         = Math.round(chop * (1 - weight) + historicalStats.chopRate * weight)
+  } else if (tiingoContext?.gapFillRate && tiingoContext?.continueRate) {
     const hf = parseFloat(tiingoContext.gapFillRate)
     const hc = parseFloat(tiingoContext.continueRate)
     reversal     = Math.round(reversal * 0.6     + hf * 0.4)

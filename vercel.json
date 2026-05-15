@@ -31,6 +31,14 @@
     {
       "path": "/api/agents/analyze-chat",
       "schedule": "0 22 * * 1-5"
+    },
+    {
+      "path": "/api/gap-outcomes?action=record",
+      "schedule": "35 13 * * 1-5"
+    },
+    {
+      "path": "/api/gap-outcomes?action=score",
+      "schedule": "5 15 * * 1-5"
     }
   ]
 }
