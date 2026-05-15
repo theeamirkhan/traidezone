@@ -1771,6 +1771,10 @@ export default function CockpitPage() {
   const [microstructure, setMicrostructure] = useState<MicrostructureResult | null>(null)
   const [signalQuality, setSignalQuality] = useState<SignalQualityResult | null>(null)
   const [showAvatarPanel, setShowAvatarPanel] = useState(false)
+  const [showSuggestion, setShowSuggestion] = useState(false)
+  const [suggestionText, setSuggestionText] = useState('')
+  const [suggestionType, setSuggestionType] = useState<'suggestion'|'bug'|'feedback'>('suggestion')
+  const [suggestionSent, setSuggestionSent] = useState(false)
   const [customRules, setCustomRules] = useState<string>(() => {
     if (typeof window === 'undefined') return ''
     return localStorage.getItem('tz-custom-rules') || ''
@@ -4316,8 +4320,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             </div>
 
             <button onClick={() => {
-              localStorage.setItem('tz-disclosure-accepted', new Date().toISOString())
+              const ts = new Date().toISOString()
+              localStorage.setItem('tz-disclosure-accepted', ts)
               setShowDisclosure(false)
+              // Save to DB — persists across devices, legally meaningful timestamp
+              fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'disclaimer_accepted', version: '1.0', acceptedAt: ts })
+              }).catch(() => {})
             }} style={{
               width: '100%', background: C.teal, color: '#fff', border: 'none',
               borderRadius: 10, padding: '14px 0', fontSize: 14, fontWeight: 800,
@@ -4328,6 +4339,79 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: C.textMuted }}>
               You can review this disclosure at any time in Settings
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FEATURE SUGGESTION MODAL ── */}
+      {showSuggestion && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'rgba(6,8,16,0.99)', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 800, color: '#7c6aff' }}>💡 Share Your Idea</div>
+                <div style={{ fontSize: 10, color: C.textMuted, marginTop: 3 }}>Help make trAIde Zone better for everyone</div>
+              </div>
+              <button onClick={() => setShowSuggestion(false)} style={{ background: 'transparent', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 18 }}>×</button>
+            </div>
+
+            {!suggestionSent ? (
+              <>
+                {/* Type selector */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                  {([['suggestion', '✨ Feature Idea'], ['bug', '🐛 Bug Report'], ['feedback', '💬 General Feedback']] as const).map(([type, label]) => (
+                    <button key={type} onClick={() => setSuggestionType(type)} style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: `1px solid ${suggestionType === type ? 'rgba(124,106,255,0.6)' : 'rgba(255,255,255,0.08)'}`, background: suggestionType === type ? 'rgba(124,106,255,0.12)' : 'transparent', color: suggestionType === type ? '#7c6aff' : C.textMuted, cursor: 'pointer', fontSize: 9, fontFamily: font, fontWeight: suggestionType === type ? 700 : 400 }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  value={suggestionText}
+                  onChange={e => setSuggestionText(e.target.value)}
+                  placeholder={
+                    suggestionType === 'suggestion' ? 'Describe the feature you'd love to see...
+
+e.g. "I'd love to see a P&L tracker that auto-imports from my broker"' :
+                    suggestionType === 'bug' ? 'What happened? What did you expect to happen?
+
+e.g. "The GEX data shows N/A even after market open"' :
+                    'What's on your mind? We read every submission...'
+                  }
+                  rows={6}
+                  style={{ width: '100%', background: 'rgba(8,12,22,0.9)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 8, padding: '12px 14px', color: C.text, fontFamily: font, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const, lineHeight: 1.6, marginBottom: 14 }}
+                />
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={async () => {
+                      if (!suggestionText.trim()) return
+                      try {
+                        await fetch('/api/feedback', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: suggestionType, body: suggestionText, category: suggestionType })
+                        })
+                        setSuggestionSent(true)
+                        setSuggestionText('')
+                      } catch {}
+                    }}
+                    disabled={!suggestionText.trim()}
+                    style={{ flex: 1, background: suggestionText.trim() ? 'rgba(124,106,255,0.9)' : 'rgba(124,106,255,0.2)', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', fontSize: 13, fontWeight: 700, cursor: suggestionText.trim() ? 'pointer' : 'default', fontFamily: fontDisplay }}
+                  >
+                    Send →
+                  </button>
+                  <button onClick={() => setShowSuggestion(false)} style={{ flex: 1, background: 'rgba(10,14,24,0.95)', color: C.textDim, border: '1px solid rgba(0,229,255,0.1)', borderRadius: 8, padding: '12px 0', fontSize: 13, cursor: 'pointer', fontFamily: font }}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🙏</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, color: '#7c6aff', marginBottom: 8 }}>Thank you!</div>
+                <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.7, marginBottom: 20 }}>Your {suggestionType} has been submitted. We read every single one and prioritize features based on what traders like you actually need.</div>
+                <button onClick={() => setShowSuggestion(false)} style={{ background: 'rgba(124,106,255,0.15)', color: '#7c6aff', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 8, padding: '10px 24px', fontSize: 12, cursor: 'pointer', fontFamily: font, fontWeight: 700 }}>Close</button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -4455,6 +4539,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: 'rgba(107,114,128,0.7)', cursor: 'pointer' }}>Sign Out</button>
           <button onClick={() => setShowTutorial(true)} title="Help" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: '4px 8px', color: 'rgba(136,153,187,0.6)', cursor: 'pointer', fontSize: 11, fontFamily: font }}>?</button>
+          <button onClick={() => { setShowSuggestion(true); setSuggestionSent(false); setSuggestionText('') }} title="Suggest a feature or report a bug" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 11, fontFamily: font }}>💡</button>
           <button onClick={() => { setSystemCheck(null); runSystemCheck(); setShowSettings(false) }} title="System Check — verify all data feeds" style={{ background: systemCheckRunning ? 'rgba(255,183,0,0.1)' : 'rgba(0,229,255,0.04)', border: `1px solid ${systemCheckRunning ? 'rgba(255,183,0,0.3)' : 'rgba(0,229,255,0.15)'}`, borderRadius: 4, padding: '4px 8px', color: systemCheckRunning ? C.yellow : C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font, transition: 'all 0.2s' }}>{systemCheckRunning ? '⟳' : '✓'}</button>
           <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 4, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>
         </div>
