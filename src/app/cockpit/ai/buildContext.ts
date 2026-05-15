@@ -17,7 +17,6 @@
 import type { MarketData } from '../hooks/useMarketData'
 import { validateMarketData } from '../agents/dataValidator'
 import type { PatternAnalysis } from '../lib/patternRecognition'
-h
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface EdgeProfile {
