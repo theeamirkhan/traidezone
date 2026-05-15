@@ -3658,9 +3658,9 @@ ${traderProfile.experience_level ? `Experience: ${traderProfile.experience_level
 ${traderProfile.trading_style ? `Style: ${traderProfile.trading_style}` : ''}
 ${(() => {
   // Custom rules entered in Settings take priority over seed defaults
-  const customR = (input as any).customRules?.trim()
+  const customR = customRules?.trim()
   if (customR) return `Their personal trading rules (self-defined, advisory — reference but don't enforce):\n${customR}`
-  const seeded = (input as any).traderProfile?.system_rules
+  const seeded = traderProfile?.system_rules
   if (seeded?.length) return `Starting guidelines (system defaults — trader can customize in Settings):\n${seeded.slice(0,4).join('\n')}`
   return ''
 })()}
