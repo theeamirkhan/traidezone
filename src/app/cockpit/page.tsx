@@ -2808,33 +2808,41 @@ export default function CockpitPage() {
 
     proactiveTimerRef.current = setInterval(() => {
       if (!currentPrice || !drawnLines.length) return
+
+      // ── Market hours guard — only fire during NYSE trading hours ──────────
+      const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const etHour = etNow.getHours()
+      const etMin  = etNow.getMinutes()
+      const etDay  = etNow.getDay() // 0=Sun, 6=Sat
+      const isWeekday = etDay >= 1 && etDay <= 5
+      const isMarketOpen = isWeekday && (etHour > 9 || (etHour === 9 && etMin >= 35)) && etHour < 16
+      if (!isMarketOpen) return
+
       const prev = lastPriceRef.current
       lastPriceRef.current = currentPrice
 
-      // Check each horizontal drawn level
+      // Only alert on ACTUAL crosses — not just proximity
+      // This prevents repeated alerts when hovering near a level
       drawnLines.filter((l: any) => l.type === 'horizontal' && l.price).forEach((line: any) => {
         const price = line.price
-        const alertKey = `level-${price.toFixed(2)}`
+        const alertKey = `level-${price.toFixed(2)}-${new Date().toDateString()}` // resets daily
         if (proactiveAlertsSent.has(alertKey)) return
 
-        // Price crossed through the level (within 0.3%)
-        const proximity = Math.abs(currentPrice - price) / price
+        // Must be a genuine cross — prev on one side, current on the other
         const crossed = prev > 0 && (
           (prev < price && currentPrice >= price) || // crossed up
           (prev > price && currentPrice <= price)    // crossed down
         )
-        const nearLevel = proximity < 0.003 // within 0.3%
 
-        if (crossed || nearLevel) {
-          setProactiveAlertsSent(prev => new Set([...prev, alertKey]))
-          const direction = currentPrice > price ? 'broken above' : currentPrice < price ? 'broken below' : 'at'
-          const msg = `Hey — SPX just ${direction} your ${price.toFixed(0)} level. ${crossed ? "That's the break you were watching." : "We're right at it now."} What's your read?`
-          // Add to chat — only speak if not already talking
+        if (crossed) {
+          setProactiveAlertsSent((p: Set<string>) => new Set([...p, alertKey]))
+          const direction = currentPrice > price ? 'broken above' : 'broken below'
+          const msg = `SPX just ${direction} your ${price.toFixed(0)} level. What's your read?`
           setChatMessages((p: any[]) => [...p, { role: 'assistant', content: msg }])
           if (!speakLockRef.current) speak(msg)
         }
       })
-    }, 15000) // check every 15 seconds
+    }, 30000) // check every 30 seconds (was 15s)
 
     return () => { if (proactiveTimerRef.current) clearInterval(proactiveTimerRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
