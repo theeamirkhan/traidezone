@@ -377,7 +377,21 @@ Reference this scoring when setting your final confidence number.`,
     `Flow:\n${buildFlowSection(optionsFlow)}`,
     zeroDTESkew   ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : '',
     marketScore   ? `Score: ${marketScore.score}/100 ${marketScore.label}` : '',
-    multiTFData   ? `MTF: ${multiTFData.confluence}` : '',
+    multiTFData   ? [
+      `═══ TECHNICAL ANALYSIS (Daily + Weekly) ═══`,
+      `Confluence: ${multiTFData.confluence}`,
+      multiTFData.daily ? [
+        `Daily trend: ${multiTFData.daily.trend} | Structure: ${multiTFData.daily.structure}`,
+        `Daily MAs: 20SMA ${multiTFData.daily.sma20} (${multiTFData.daily.pctFromSMA20}%) | 50SMA ${multiTFData.daily.sma50} (${multiTFData.daily.pctFromSMA50}%) | 200SMA ${multiTFData.daily.sma200} (${multiTFData.daily.pctFromSMA200}%)`,
+        `Daily RSI: ${multiTFData.daily.rsi} | ATR: ${multiTFData.daily.atr}pts | ${multiTFData.daily.cross}`,
+        `5-day trend: ${multiTFData.daily.fiveDayTrend}`,
+      ].join('\n') : '',
+      multiTFData.weekly ? [
+        `Weekly trend: ${multiTFData.weekly.trend} | ${multiTFData.weekly.momentum}`,
+        `Weekly RSI: ${multiTFData.weekly.rsi} | ${multiTFData.weekly.pctFrom52H}% from 52W high | ${multiTFData.weekly.pctFrom52L}% from 52W low`,
+      ].join('\n') : '',
+      multiTFData.recentCandles?.length ? `Recent daily candles:\n${multiTFData.recentCandles.join('\n')}` : '',
+    ].filter(Boolean).join('\n') : '',
     tradePatterns?.revengePatterns > 2 ? '⚠ REVENGE TRADING PATTERN ACTIVE' : '',
   ].filter(Boolean).join('\n')
 

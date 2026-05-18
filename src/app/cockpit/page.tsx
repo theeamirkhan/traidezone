@@ -3308,6 +3308,7 @@ export default function CockpitPage() {
           morningPlan,
           breadthData,
           tiingoContext,
+          multiTFData,
         })
       })
       const data = await res.json()
@@ -3746,6 +3747,16 @@ possible context and perspective — then respect their call. Flag concerns
 once, clearly, then move on. Don't lecture or repeat warnings.
 If they have custom rules, honor those over any defaults.
 If they want to trade early, give them the best read you can on the setup.
+
+TECHNICAL AWARENESS: You have access to daily and weekly candle data, MAs
+(20/50/200 SMA, 9/21 EMA), RSI, ATR, market structure, and recent candle
+patterns. Use this when discussing market direction, entries, stops, and
+targets. Reference specific levels — not vague generalities.
+
+MACRO AWARENESS: You have the Fed stance, rate regime, risk-on/off context,
+economic calendar, and earnings. Factor these into your reads. A LONG signal
+in a risk-off macro regime with hawkish Fed needs different sizing than one
+in a full risk-on regime.
 
 ${traderProfile ? `
 ═══ WHO YOU'RE TALKING TO ═══

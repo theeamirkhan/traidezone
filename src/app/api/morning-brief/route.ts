@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       spxPrice, vixPrice, spxChange, vwap, ema200,
       macroRegime, marketNews, economicCalendar, earningsCalendar,
       gapData, gapPrediction, morningPlan,
-      breadthData, tiingoContext,
+      breadthData, tiingoContext, multiTFData,
     } = body
 
     const today = new Date().toLocaleDateString('en-US', {
@@ -82,7 +82,21 @@ Gap: ${morningPlan?.gapDirection || 'n/a'} ${morningPlan?.gapSize || ''}pts
 
 ${tiingoContext?.summary ? `HISTORICAL CONTEXT:\n${tiingoContext.summary.substring(0, 200)}` : ''}
 
-Write the morning brief now. Be specific to today's conditions, not generic.`
+MULTI-TIMEFRAME TECHNICAL ANALYSIS:
+${multiTFData?.summary || 'Technical data not loaded'}
+
+RECENT DAILY CANDLES:
+${multiTFData?.recentCandles?.join('\n') || 'Not available'}
+
+KEY MAs: Daily 20SMA: ${multiTFData?.daily?.sma20 || 'n/a'} | 50SMA: ${multiTFData?.daily?.sma50 || 'n/a'} | 200SMA: ${multiTFData?.daily?.sma200 || 'n/a'}
+Daily RSI: ${multiTFData?.daily?.rsi || 'n/a'} | ATR: ${multiTFData?.daily?.atr || 'n/a'}pts | ${multiTFData?.daily?.cross || ''}
+Price structure: ${multiTFData?.daily?.structure || 'n/a'}
+Weekly: ${multiTFData?.weekly?.trend || 'n/a'} | RSI ${multiTFData?.weekly?.rsi || 'n/a'} | ${multiTFData?.weekly?.pctFrom52H || 'n/a'}% from 52W high
+
+MARKET BREADTH:
+${breadthData?.tick?.value ? `TICK: ${breadthData.tick.value} (${breadthData.tick.regime}) | TRIN: ${breadthData.trin?.value?.toFixed(2) || 'n/a'} | VVIX: ${breadthData.vvix?.value?.toFixed(1) || 'n/a'} (${breadthData.vvix?.regime || ''})` : 'Breadth not loaded'}
+
+Write the morning brief now. Reference specific MAs, RSI levels, and candle patterns from the technical data above. Be specific to today's conditions.`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

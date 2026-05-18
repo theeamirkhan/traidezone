@@ -155,38 +155,161 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
   try {
     const today = new Date()
     const fmt = (d: Date) => d.toISOString().split('T')[0]
-    const oneYearAgo    = new Date(today); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-    const threeMonthsAgo= new Date(today); threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+    const oneYearAgo     = new Date(today); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    const sixMonthsAgo   = new Date(today); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const threeMonthsAgo = new Date(today); threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
 
     const proxy = (path: string) =>
       fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(path)}`).then(r => r.json()).catch(() => null)
 
     const [wRes, dRes] = await Promise.all([
       proxy(`/v2/aggs/ticker/${ticker}/range/1/week/${fmt(oneYearAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=60`),
-      proxy(`/v2/aggs/ticker/${ticker}/range/1/day/${fmt(threeMonthsAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=65`),
+      proxy(`/v2/aggs/ticker/${ticker}/range/1/day/${fmt(sixMonthsAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=130`),
     ])
 
     const weekly = wRes?.results || []
     const daily  = dRes?.results || []
     if (!weekly.length || !daily.length) return null
 
-    const w20 = weekly.slice(-20).reduce((s: number, c: any) => s + c.c, 0) / Math.min(20, weekly.length)
-    const d20 = daily.slice(-20).reduce((s: number, c: any)  => s + c.c, 0) / Math.min(20, daily.length)
-    const d5  = daily.slice(-5).reduce((s: number, c: any)   => s + c.c, 0) / Math.min(5, daily.length)
+    const sma = (bars: any[], n: number) => {
+      const sl = bars.slice(-n)
+      return sl.reduce((s: number, c: any) => s + c.c, 0) / sl.length
+    }
+    const ema = (bars: any[], n: number) => {
+      const k = 2 / (n + 1)
+      let e = bars[0].c
+      for (const b of bars) e = b.c * k + e * (1 - k)
+      return e
+    }
+    const atr = (bars: any[], n = 14) => {
+      const trs = bars.slice(-n).map((b: any, i: number, arr: any[]) => {
+        if (i === 0) return b.h - b.l
+        const prev = arr[i-1]
+        return Math.max(b.h - b.l, Math.abs(b.h - prev.c), Math.abs(b.l - prev.c))
+      })
+      return trs.reduce((s: number, v: number) => s + v, 0) / trs.length
+    }
+    const rsi = (bars: any[], n = 14) => {
+      const changes = bars.slice(-n-1).map((b: any, i: number, arr: any[]) =>
+        i === 0 ? 0 : b.c - arr[i-1].c
+      ).slice(1)
+      const gains = changes.map((c: number) => c > 0 ? c : 0)
+      const losses = changes.map((c: number) => c < 0 ? -c : 0)
+      const avgGain = gains.reduce((s: number, v: number) => s + v, 0) / n
+      const avgLoss = losses.reduce((s: number, v: number) => s + v, 0) / n
+      if (avgLoss === 0) return 100
+      return 100 - (100 / (1 + avgGain / avgLoss))
+    }
 
-    const weeklyTrend = weekly[weekly.length-1]?.c > w20 ? 'BULLISH' : 'BEARISH'
-    const dailyTrend  = d5 > d20 ? 'BULLISH' : 'BEARISH'
+    // ── Weekly technicals ──────────────────────────────────────────────────────
+    const wClose    = weekly[weekly.length-1]?.c || 0
+    const wHigh52   = Math.max(...weekly.slice(-52).map((b: any) => b.h))
+    const wLow52    = Math.min(...weekly.slice(-52).map((b: any) => b.l))
+    const wSMA20    = sma(weekly, Math.min(20, weekly.length))
+    const wSMA50    = sma(weekly, Math.min(50, weekly.length))
+    const wEMA10    = ema(weekly.slice(-30), 10)
+    const wRSI      = rsi(weekly, 14)
+    const wTrend    = wClose > wSMA20 ? 'BULLISH' : 'BEARISH'
+    const wMomentum = wClose > wSMA50 ? 'ABOVE 50W MA' : 'BELOW 50W MA'
+    const wPctFrom52H = ((wClose - wHigh52) / wHigh52 * 100).toFixed(1)
+    const wPctFrom52L = ((wClose - wLow52)  / wLow52  * 100).toFixed(1)
+
+    // ── Daily technicals ───────────────────────────────────────────────────────
+    const dClose    = daily[daily.length-1]?.c || 0
+    const dSMA20    = sma(daily, Math.min(20, daily.length))
+    const dSMA50    = sma(daily, Math.min(50, daily.length))
+    const dSMA200   = sma(daily, Math.min(200, daily.length))
+    const dEMA9     = ema(daily.slice(-30), 9)
+    const dEMA21    = ema(daily.slice(-50), 21)
+    const dRSI      = rsi(daily, 14)
+    const dATR      = atr(daily, 14)
+    const dTrend    = dClose > dSMA20 ? 'BULLISH' : 'BEARISH'
+    const dClose5   = daily.slice(-5).map((b: any) => b.c)
+    const d5Trend   = dClose5[dClose5.length-1] > dClose5[0] ? 'UP' : 'DOWN'
+
+    // Higher highs / lower lows pattern (last 20 daily bars)
+    const recent20  = daily.slice(-20)
+    const highs20   = recent20.map((b: any) => b.h)
+    const lows20    = recent20.map((b: any) => b.l)
+    const hhhl      = highs20[highs20.length-1] > highs20[0] && lows20[lows20.length-1] > lows20[0]
+    const lhll      = highs20[highs20.length-1] < highs20[0] && lows20[lows20.length-1] < lows20[0]
+    const structure = hhhl ? 'HIGHER HIGHS/HIGHER LOWS (uptrend structure)' : lhll ? 'LOWER HIGHS/LOWER LOWS (downtrend structure)' : 'MIXED STRUCTURE (consolidation)'
+
+    // Distance from key MAs
+    const pctFromD200 = ((dClose - dSMA200) / dSMA200 * 100).toFixed(1)
+    const pctFromD50  = ((dClose - dSMA50)  / dSMA50  * 100).toFixed(1)
+    const pctFromD20  = ((dClose - dSMA20)  / dSMA20  * 100).toFixed(1)
+
+    // Golden/death cross
+    const cross = dSMA50 > dSMA200 ? 'GOLDEN CROSS (50D above 200D — bullish structure)' : 'DEATH CROSS (50D below 200D — bearish structure)'
+
+    // Trend alignment across timeframes
+    const weeklyTrend = wTrend
+    const dailyTrend  = dTrend
     const allAligned  = weeklyTrend === dailyTrend
 
+    // Last 5 daily candles narrative
+    const last5 = daily.slice(-5).map((b: any) => {
+      const d = new Date(b.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' })
+      const chg = ((b.c - b.o) / b.o * 100).toFixed(2)
+      const type = b.c > b.o ? '▲' : '▼'
+      return `${d}: ${type} ${Math.abs(parseFloat(chg))}% (O:${b.o.toFixed(0)} H:${b.h.toFixed(0)} L:${b.l.toFixed(0)} C:${b.c.toFixed(0)})`
+    })
+
     return {
-      weekly: { trend: weeklyTrend, ma20: Math.round(w20) },
-      daily:  { trend: dailyTrend,  ma20: Math.round(d20), ma5: Math.round(d5) },
+      // Summary
       confluence: allAligned
         ? (weeklyTrend === 'BULLISH' ? 'ALL TIMEFRAMES BULLISH ✓' : 'ALL TIMEFRAMES BEARISH ✓')
         : `MIXED — Weekly ${weeklyTrend}, Daily ${dailyTrend}`,
       aligned: allAligned,
+
+      // Weekly
+      weekly: {
+        trend: weeklyTrend,
+        momentum: wMomentum,
+        sma20: Math.round(wSMA20),
+        sma50: Math.round(wSMA50),
+        ema10: Math.round(wEMA10),
+        rsi: Math.round(wRSI),
+        high52: Math.round(wHigh52),
+        low52: Math.round(wLow52),
+        pctFrom52H: parseFloat(wPctFrom52H),
+        pctFrom52L: parseFloat(wPctFrom52L),
+        currentClose: Math.round(wClose),
+      },
+
+      // Daily
+      daily: {
+        trend: dailyTrend,
+        fiveDayTrend: d5Trend,
+        structure,
+        sma20: Math.round(dSMA20),
+        sma50: Math.round(dSMA50),
+        sma200: Math.round(dSMA200),
+        ema9: Math.round(dEMA9),
+        ema21: Math.round(dEMA21),
+        rsi: Math.round(dRSI),
+        atr: Math.round(dATR),
+        pctFromSMA200: parseFloat(pctFromD200),
+        pctFromSMA50: parseFloat(pctFromD50),
+        pctFromSMA20: parseFloat(pctFromD20),
+        cross,
+        currentClose: Math.round(dClose),
+      },
+
+      // Last 5 daily candles
+      recentCandles: last5,
+
+      // Summary string for AI context
+      summary: [
+        `Weekly: ${weeklyTrend} | ${wMomentum} | RSI ${Math.round(wRSI)} | ${wPctFrom52H}% from 52W high`,
+        `Daily: ${dailyTrend} | ${structure}`,
+        `Daily MAs: 20D ${Math.round(dSMA20)} (${pctFromD20}%) | 50D ${Math.round(dSMA50)} (${pctFromD50}%) | 200D ${Math.round(dSMA200)} (${pctFromD200}%)`,
+        `Daily RSI: ${Math.round(dRSI)} | ATR: ${Math.round(dATR)}pts | ${cross}`,
+        `5-day candles: ${last5.join(' | ')}`,
+      ].join('\n'),
     }
-  } catch { return null }
+  } catch (e) { console.error('[multiTF]', e); return null }
 }
 
 // ── 0DTE Skew ─────────────────────────────────────────────────────────────────
