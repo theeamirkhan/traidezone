@@ -33,15 +33,15 @@
       "schedule": "0 22 * * 1-5"
     },
     {
-      "path": "/api/gap-outcomes?action=record",
+      "path": "/api/gap-outcomes/record",
       "schedule": "35 13 * * 1-5"
     },
     {
-      "path": "/api/gap-outcomes?action=score",
+      "path": "/api/gap-outcomes/score",
       "schedule": "5 15 * * 1-5"
     },
     {
-      "path": "/api/gap-outcomes?action=eod",
+      "path": "/api/gap-outcomes/eod",
       "schedule": "5 20 * * 1-5"
     }
   ]
