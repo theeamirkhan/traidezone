@@ -17,6 +17,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/agents/seed-profile(.*)',
   '/api/feedback(.*)',
   '/api/gap-outcomes(.*)',
+  '/api/morning-brief(.*)',
   '/api/gap-outcomes/record(.*)',
   '/api/gap-outcomes/score(.*)',
   '/api/gap-outcomes/eod(.*)',

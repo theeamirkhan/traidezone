@@ -1773,6 +1773,8 @@ export default function CockpitPage() {
   const [showAvatarPanel, setShowAvatarPanel] = useState(false)
   const [historicalGapStats, setHistoricalGapStats] = useState<any>(null)
   const [gapPrediction, setGapPrediction] = useState<any>(null)
+  const [morningBrief, setMorningBrief] = useState<any>(null)
+  const [briefLoading, setBriefLoading] = useState(false)
   const [showSuggestion, setShowSuggestion] = useState(false)
   const [suggestionText, setSuggestionText] = useState('')
   const [suggestionType, setSuggestionType] = useState<'suggestion'|'bug'|'feedback'>('suggestion')
@@ -3273,6 +3275,57 @@ export default function CockpitPage() {
       localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatMessages.slice(-50)))
     } catch {}
   }, [chatMessages])
+
+  // Generate morning brief — once per day, cached in localStorage
+  const fetchMorningBrief = async () => {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const cacheKey = 'tz-morning-brief-' + today
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) {
+      try { setMorningBrief(JSON.parse(cached)); return } catch {}
+    }
+    // Only fetch after 8am ET
+    const etHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))
+    if (etHour < 8) return
+
+    setBriefLoading(true)
+    try {
+      const res = await fetch('/api/morning-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spxPrice: currentPrice,
+          vixPrice,
+          spxChange: changes?.spx,
+          vwap: levels?.spyVwap,
+          ema200: levels?.ema200,
+          macroRegime,
+          marketNews,
+          economicCalendar,
+          earningsCalendar,
+          gapData: null,
+          gapPrediction,
+          morningPlan,
+          breadthData,
+          tiingoContext,
+        })
+      })
+      const data = await res.json()
+      if (data.macroBias) {
+        setMorningBrief(data)
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+      }
+    } catch (e) { console.warn('[morning-brief]', e) }
+    finally { setBriefLoading(false) }
+  }
+
+  // Trigger morning brief after macro data loads
+  useEffect(() => {
+    if (macroRegime && !morningBrief && !briefLoading) {
+      fetchMorningBrief()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [macroRegime])
 
   // Seed profile on first login — runs once, skips if user has real data
   useEffect(() => {
@@ -5520,6 +5573,109 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   </div>
                 )
               })()}
+
+              {/* ── MACRO MORNING BRIEF ── */}
+              {(morningBrief || briefLoading) && (
+                <div style={{ margin: '14px 14px 0', borderRadius: 10, background: 'rgba(8,10,20,0.98)', border: '1px solid rgba(0,229,255,0.1)', borderTop: `3px solid ${morningBrief?.macroBias === 'BULLISH' ? '#00ff88' : morningBrief?.macroBias === 'BEARISH' ? '#ff4d6d' : '#f59e0b'}`, overflow: 'hidden' }}>
+                  {/* Brief header */}
+                  <div style={{ padding: '10px 14px', background: 'rgba(0,229,255,0.03)', borderBottom: '1px solid rgba(0,229,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 800, color: '#00e5ff', letterSpacing: 2 }}>📋 MORNING BRIEF</div>
+                      {morningBrief?.macroBias && (
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 3,
+                          background: morningBrief.macroBias === 'BULLISH' ? 'rgba(0,255,136,0.1)' : morningBrief.macroBias === 'BEARISH' ? 'rgba(255,77,109,0.1)' : 'rgba(245,158,11,0.1)',
+                          color: morningBrief.macroBias === 'BULLISH' ? '#00ff88' : morningBrief.macroBias === 'BEARISH' ? '#ff4d6d' : '#f59e0b',
+                          border: `1px solid ${morningBrief.macroBias === 'BULLISH' ? 'rgba(0,255,136,0.3)' : morningBrief.macroBias === 'BEARISH' ? 'rgba(255,77,109,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                        }}>{morningBrief.macroBias}</span>
+                      )}
+                      {morningBrief?.todaysBias && (
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 3,
+                          background: morningBrief.todaysBias === 'LONG' ? 'rgba(0,212,160,0.1)' : morningBrief.todaysBias === 'SHORT' ? 'rgba(255,26,74,0.1)' : 'rgba(136,153,187,0.08)',
+                          color: morningBrief.todaysBias === 'LONG' ? '#00d4a0' : morningBrief.todaysBias === 'SHORT' ? '#ff1a4a' : C.textMuted,
+                          border: `1px solid ${morningBrief.todaysBias === 'LONG' ? 'rgba(0,212,160,0.3)' : morningBrief.todaysBias === 'SHORT' ? 'rgba(255,26,74,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                        }}>AI BIAS: {morningBrief.todaysBias}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {morningBrief && (
+                        <button onClick={() => {
+                          const text = [morningBrief.macroSentence, morningBrief.weeklyNarrative, morningBrief.biasReasoning, morningBrief.tradingPlan].filter(Boolean).join(' ')
+                          if (!speakLockRef.current) speak(text)
+                        }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(0,229,255,0.2)', background: 'rgba(0,229,255,0.05)', color: '#00e5ff', cursor: 'pointer', fontFamily: font }}>🔊</button>
+                      )}
+                      <button onClick={() => { setMorningBrief(null); setBriefLoading(false); localStorage.removeItem('tz-morning-brief-' + new Date().toLocaleDateString('en-CA', {timeZone:'America/New_York'})); fetchMorningBrief() }}
+                        style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: C.textMuted, cursor: 'pointer', fontFamily: font }}>↺</button>
+                    </div>
+                  </div>
+
+                  {briefLoading && !morningBrief && (
+                    <div style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 10, height: 10, border: '1.5px solid rgba(0,229,255,0.2)', borderTopColor: '#00e5ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      <span style={{ fontSize: 11, color: C.textMuted }}>Generating morning brief...</span>
+                    </div>
+                  )}
+
+                  {morningBrief && (
+                    <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {/* Macro sentence */}
+                      <div style={{ fontSize: 12, color: '#b0c4de', lineHeight: 1.7, fontStyle: 'italic', borderLeft: '2px solid rgba(0,229,255,0.3)', paddingLeft: 10 }}>
+                        {morningBrief.macroSentence}
+                      </div>
+
+                      {/* Weekly narrative */}
+                      {morningBrief.weeklyNarrative && (
+                        <div>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>This Week</div>
+                          <div style={{ fontSize: 12, color: C.text, lineHeight: 1.75 }}>{morningBrief.weeklyNarrative}</div>
+                        </div>
+                      )}
+
+                      {/* AI bias reasoning */}
+                      {morningBrief.biasReasoning && (
+                        <div style={{ background: morningBrief.todaysBias === 'LONG' ? 'rgba(0,212,160,0.05)' : morningBrief.todaysBias === 'SHORT' ? 'rgba(255,26,74,0.05)' : 'rgba(255,255,255,0.02)', borderRadius: 6, padding: '10px 12px', border: `1px solid ${morningBrief.todaysBias === 'LONG' ? 'rgba(0,212,160,0.15)' : morningBrief.todaysBias === 'SHORT' ? 'rgba(255,26,74,0.15)' : 'rgba(255,255,255,0.06)'}` }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: morningBrief.todaysBias === 'LONG' ? '#00d4a0' : morningBrief.todaysBias === 'SHORT' ? '#ff1a4a' : C.textMuted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>🧠 AI Bias — {morningBrief.todaysBias}</div>
+                          <div style={{ fontSize: 12, color: C.text, lineHeight: 1.75 }}>{morningBrief.biasReasoning}</div>
+                        </div>
+                      )}
+
+                      {/* Key levels + catalyst in a row */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {morningBrief.keyLevels && (
+                          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>📍 Key Levels</div>
+                            <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{morningBrief.keyLevels}</div>
+                          </div>
+                        )}
+                        {morningBrief.catalystWatch && (
+                          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>📅 Watch</div>
+                            <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>{morningBrief.catalystWatch}</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Biggest risk */}
+                      {morningBrief.biggestRisk && (
+                        <div style={{ background: 'rgba(255,77,109,0.04)', borderRadius: 6, padding: '8px 12px', border: '1px solid rgba(255,77,109,0.15)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: 12 }}>⚠️</span>
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: '#ff4d6d', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 2 }}>Biggest Risk</div>
+                            <div style={{ fontSize: 11, color: '#ffb0b8', lineHeight: 1.6 }}>{morningBrief.biggestRisk}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Trading plan */}
+                      {morningBrief.tradingPlan && (
+                        <div style={{ background: 'rgba(0,212,160,0.04)', borderRadius: 6, padding: '8px 12px', border: '1px solid rgba(0,212,160,0.12)' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#00d4a0', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>📋 Today's Plan</div>
+                          <div style={{ fontSize: 12, color: C.text, lineHeight: 1.75 }}>{morningBrief.tradingPlan}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* AI Morning Brief */}
               <div style={{ background: 'rgba(12,15,26,0.98)', margin: '14px', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,212,160,0.08)', borderTop: '3px solid #00d4a0', overflow: 'visible' }}>
