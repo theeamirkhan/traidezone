@@ -74,10 +74,13 @@ export function calcProbabilities({ bias, gapDirection, gapSize, impliedMove, vi
   // Blend with real historical data if available (prioritized over tiingo)
   if (historicalStats && historicalStats.count >= 10) {
     // Strong blend — real data dominates after 20+ observations
+    const hFill = isNaN(historicalStats.fillRate) ? 49 : (historicalStats.fillRate || 49)
+    const hCont = isNaN(historicalStats.continueRate) ? 26 : (historicalStats.continueRate || 26)
+    const hChop = isNaN(historicalStats.chopRate) ? 25 : (historicalStats.chopRate || 25)
     const weight = historicalStats.count >= 20 ? 0.7 : 0.5
-    reversal     = Math.round(reversal * (1 - weight) + historicalStats.fillRate * weight)
-    continuation = Math.round(continuation * (1 - weight) + historicalStats.continueRate * weight)
-    chop         = Math.round(chop * (1 - weight) + historicalStats.chopRate * weight)
+    reversal     = Math.round(reversal * (1 - weight) + hFill * weight)
+    continuation = Math.round(continuation * (1 - weight) + hCont * weight)
+    chop         = Math.round(chop * (1 - weight) + hChop * weight)
   } else if (tiingoContext?.gapFillRate && tiingoContext?.continueRate) {
     const hf = parseFloat(tiingoContext.gapFillRate)
     const hc = parseFloat(tiingoContext.continueRate)
@@ -86,10 +89,15 @@ export function calcProbabilities({ bias, gapDirection, gapSize, impliedMove, vi
     chop         = Math.round(chop * 0.6 + Math.max(100 - hf - hc, 5) * 0.4)
   }
 
+  // Guard against negative values before normalization
+  reversal     = Math.max(1, reversal)
+  continuation = Math.max(1, continuation)
+  chop         = Math.max(1, chop)
+
   const total = reversal + continuation + chop
   reversal     = Math.round(reversal / total * 100)
   continuation = Math.round(continuation / total * 100)
-  chop         = 100 - reversal - continuation
+  chop         = Math.max(1, 100 - reversal - continuation)
 
   const max      = Math.max(reversal, continuation, chop)
   const dominant = max === reversal ? 'REVERSAL' : max === continuation ? 'CONTINUATION' : 'CHOP'
