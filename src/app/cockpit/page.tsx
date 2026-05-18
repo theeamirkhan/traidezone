@@ -428,9 +428,11 @@ Recent: ${tradeStats.recentForm || 'Unknown'}`
   const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })
   const effectiveVwap = levels?.spyVwap || null
   const vwapPos = currentPrice && effectiveVwap ? (currentPrice > effectiveVwap ? 'ABOVE' : 'BELOW') : '?'
-  const emaPos = currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'
+  const emaPos = currentPrice && levels?.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE' : 'BELOW') : '?'  // keep for backward compat
+  const ema200Daily = levels?.ema200Daily || multiTFData?.daily?.ema200 || null
+  const ema200DailyPos = currentPrice && ema200Daily ? (currentPrice > ema200Daily ? 'ABOVE' : 'BELOW') : '?'
 
-  const liveContext = `LIVE (${timeNow} ET): SPX ${fmt(currentPrice)} | VWAP ${fmt(effectiveVwap)} ${vwapPos} | 200EMA ${fmt(levels?.ema200)} ${emaPos}
+  const liveContext = `LIVE (${timeNow} ET): SPX ${fmt(currentPrice)} | VWAP ${fmt(effectiveVwap)} ${vwapPos} | 200EMA(5m) ${fmt(levels?.ema200)} ${emaPos} | 200EMA(1D) ${fmt(ema200Daily)} ${ema200DailyPos}
 PDH ${fmt(levels?.pdh)} | PDL ${fmt(levels?.pdl)} | Open ${fmt(levels?.dayOpen)}
 VIX ${marketIntel?.vix?.current || '?'} (${marketIntel?.vix?.level || '?'}) | Breadth ${marketIntel?.breadth?.bias || '?'} | Tide ${marketTide?.bias || '?'} P/C ${marketTide?.putCallRatio || '?'}
 Candles: ${recent}
@@ -3239,7 +3241,13 @@ export default function CockpitPage() {
         if (news) setMarketNews(news)
         if (calendar) setEconomicCalendar(calendar)
         if (macro) setMacroRegime(macro)
-        if (mtf) setMultiTFData(mtf)
+        if (mtf) {
+          setMultiTFData(mtf)
+          // Expose daily 200 EMA into levels so it's available everywhere
+          if (mtf.daily?.ema200) {
+            setLevels((p: any) => ({ ...p, ema200Daily: mtf.daily.ema200 }))
+          }
+        }
       } catch {}
     }
 
@@ -3781,7 +3789,8 @@ ${traderProfile.session_count > 0 ? `You've had ${traderProfile.session_count} s
 ═══ LIVE MARKET DATA ═══
 SPX: ${fmt(currentPrice)} | Open: ${fmt(openPrice)} | Change: ${changes.spx ? (changes.spx >= 0 ? '+' : '') + changes.spx?.toFixed(2) : '—'} (${changes.spx && openPrice ? (changes.spx/openPrice*100).toFixed(2) : '—'}%)
 SPX vs VWAP (${fmt(levels.spyVwap)}): ${currentPrice && levels.spyVwap ? (currentPrice > levels.spyVwap ? 'ABOVE ▲ — bullish intraday' : 'BELOW ▼ — bearish intraday') : 'No VWAP data'}
-SPX vs 200 EMA (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE — long-term bullish' : 'BELOW — long-term bearish') : 'No EMA data'}
+SPX vs 200 EMA 5min (${fmt(levels.ema200)}): ${currentPrice && levels.ema200 ? (currentPrice > levels.ema200 ? 'ABOVE — intraday bullish' : 'BELOW — intraday bearish') : 'No EMA data'}
+SPX vs 200 EMA Daily (${fmt(levels.ema200Daily || multiTFData?.daily?.ema200)}): ${currentPrice && (levels.ema200Daily || multiTFData?.daily?.ema200) ? (currentPrice > (levels.ema200Daily || multiTFData?.daily?.ema200) ? 'ABOVE — macro bullish structure' : 'BELOW — macro bearish structure') : 'No daily EMA data'}
 PDH: ${fmt(levels.pdh)} | PDL: ${fmt(levels.pdl)} | Prev Close: ${fmt(levels.prevClose)}
 Implied Move Range: ${fmt(levels.impliedLow)} — ${fmt(levels.impliedHigh)}
 SPY: ${fmt(spyPrice)} | VIX: ${vixPrice?.toFixed(2) || '—'} (${vixPrice ? (vixPrice > 30 ? 'EXTREME — high caution' : vixPrice > 25 ? 'HIGH — elevated risk' : vixPrice > 18 ? 'ELEVATED — use caution' : vixPrice > 14 ? 'NORMAL' : 'LOW — complacent market') : '—'})
@@ -4603,7 +4612,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             )}
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 7, color: '#00e5ff', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>200E</span>
+            <span style={{ fontSize: 7, color: '#00e5ff', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>200E(5m)</span>
             <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#f0f4ff' }}>{fmt(levels.ema200)}</span>
             {currentPrice && levels.ema200 && (
               <span style={{ fontSize: 9, color: currentPrice > levels.ema200 ? '#00ff88' : '#ff1a4a', fontWeight: 700 }}>
@@ -4611,6 +4620,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </span>
             )}
           </div>
+          {ema200Daily && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ fontSize: 7, color: '#7c6aff', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>200E(1D)</span>
+              <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#f0f4ff' }}>{fmt(ema200Daily)}</span>
+              {currentPrice && (
+                <span style={{ fontSize: 9, color: currentPrice > ema200Daily ? '#00ff88' : '#ff1a4a', fontWeight: 700 }}>
+                  {currentPrice > ema200Daily ? '▲' : '▼'}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right side */}

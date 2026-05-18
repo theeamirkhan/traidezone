@@ -221,6 +221,7 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
     const dSMA200   = sma(daily, Math.min(200, daily.length))
     const dEMA9     = ema(daily.slice(-30), 9)
     const dEMA21    = ema(daily.slice(-50), 21)
+    const dEMA200   = daily.length >= 200 ? ema(daily, 200) : dSMA200  // true 200 EMA, fallback to SMA
     const dRSI      = rsi(daily, 14)
     const dATR      = atr(daily, 14)
     const dTrend    = dClose > dSMA20 ? 'BULLISH' : 'BEARISH'
@@ -286,6 +287,7 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
         sma20: Math.round(dSMA20),
         sma50: Math.round(dSMA50),
         sma200: Math.round(dSMA200),
+        ema200: Math.round(dEMA200),   // true 200 EMA — the key stop/support level
         ema9: Math.round(dEMA9),
         ema21: Math.round(dEMA21),
         rsi: Math.round(dRSI),
@@ -293,6 +295,7 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
         pctFromSMA200: parseFloat(pctFromD200),
         pctFromSMA50: parseFloat(pctFromD50),
         pctFromSMA20: parseFloat(pctFromD20),
+        pctFromEMA200: parseFloat(((dClose - dEMA200) / dEMA200 * 100).toFixed(1)),
         cross,
         currentClose: Math.round(dClose),
       },
@@ -304,7 +307,8 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
       summary: [
         `Weekly: ${weeklyTrend} | ${wMomentum} | RSI ${Math.round(wRSI)} | ${wPctFrom52H}% from 52W high`,
         `Daily: ${dailyTrend} | ${structure}`,
-        `Daily MAs: 20D ${Math.round(dSMA20)} (${pctFromD20}%) | 50D ${Math.round(dSMA50)} (${pctFromD50}%) | 200D ${Math.round(dSMA200)} (${pctFromD200}%)`,
+        `Daily SMA: 20D ${Math.round(dSMA20)} (${pctFromD20}%) | 50D ${Math.round(dSMA50)} (${pctFromD50}%) | 200D SMA ${Math.round(dSMA200)} (${pctFromD200}%)`,
+        `Daily 200 EMA: ${Math.round(dEMA200)} (${((dClose - dEMA200) / dEMA200 * 100).toFixed(1)}% from price) — KEY STOP LEVEL`,
         `Daily RSI: ${Math.round(dRSI)} | ATR: ${Math.round(dATR)}pts | ${cross}`,
         `5-day candles: ${last5.join(' | ')}`,
       ].join('\n'),
