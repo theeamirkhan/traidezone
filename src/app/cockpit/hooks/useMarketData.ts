@@ -30,7 +30,8 @@ export interface Bar {
 
 export interface MarketLevels {
   spyVwap:      number | null   // VWAP (from I:SPX direct, or manual override)
-  ema200:       number | null   // 200 EMA from I:SPX bars
+  ema200:       number | null   // 200 EMA from I:SPX 5-min bars (intraday stop level)
+  ema200Daily:  number | null   // 200 EMA from daily bars (macro structure level)
   pdh:          number | null   // prior day high
   pdl:          number | null   // prior day low
   prevClose:    number | null   // yesterday's close
@@ -130,7 +131,7 @@ export function useMarketData(impliedMove?: number): MarketData {
   const [spyCandles,  setSpyCandles]       = useState<Bar[]>([])
   const [vixCandles,  setVixCandles]       = useState<Bar[]>([])
   const [levels,      setLevels]           = useState<MarketLevels>({
-    spyVwap: null, ema200: null, pdh: null, pdl: null,
+    spyVwap: null, ema200: null, ema200Daily: null, pdh: null, pdl: null,
     prevClose: null, dayOpen: null, impliedHigh: null, impliedLow: null
   })
   const [changes,     setChanges]          = useState<{ spx: number|null; spy: number|null; vix: number|null }>({ spx: null, spy: null, vix: null })
