@@ -237,16 +237,18 @@ export async function GET(req: NextRequest) {
     const result = await sendEmail(ADMIN_EMAIL, subject, html)
 
     // 6. Log to Supabase
-    await supabaseAdmin.from('email_logs').insert({
-      type:       'morning_brief',
-      recipient:  ADMIN_EMAIL,
-      subject,
-      status:     result.id ? 'sent' : 'failed',
-      resend_id:  result.id || null,
-      brief_bias: brief.todaysBias,
-      macro_bias: brief.macroBias,
-      sent_at:    new Date().toISOString(),
-    }).catch(() => {}) // non-critical
+    try {
+      await supabaseAdmin.from('email_logs').insert({
+        type:       'morning_brief',
+        recipient:  ADMIN_EMAIL,
+        subject,
+        status:     result.id ? 'sent' : 'failed',
+        resend_id:  result.id || null,
+        brief_bias: brief.todaysBias,
+        macro_bias: brief.macroBias,
+        sent_at:    new Date().toISOString(),
+      })
+    } catch {} // non-critical — don't fail the send if logging fails
 
     return NextResponse.json({
       status:    result.id ? 'sent' : 'failed',
