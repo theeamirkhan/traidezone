@@ -56,8 +56,9 @@ async function generateBrief(prevClose: number | null, prevVix: number | null) {
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       system: `You are an elite institutional trading analyst writing the pre-market morning brief for a disciplined SPX intraday options day trader.
 The trader uses ITM SPX options, entries after 10am ET, VWAP+EMA confluence, stops at VWAP or 200 EMA.
-Write a sharp, specific, actionable brief. Search for current market conditions, overnight futures, and today's economic calendar.
-Respond ONLY with valid JSON, no markdown:
+Search for current market conditions, overnight futures, and today's economic calendar first.
+CRITICAL: Your ENTIRE response must be a single valid JSON object. No intro text, no explanation, no markdown. Start with { and end with }.
+JSON format:
 {
   "macroBias": "BULLISH|BEARISH|NEUTRAL",
   "macroSentence": "One line on Fed/rates/macro regime",
@@ -84,8 +85,10 @@ Write the morning brief for an SPX intraday options trader.`
 
   const data = await res.json()
   const text = (data.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
-  const clean = text.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean)
+  // Extract JSON block — AI sometimes returns text before/after the JSON
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('No JSON found in response: ' + text.substring(0, 100))
+  return JSON.parse(jsonMatch[0])
 }
 
 // ── Build HTML email ───────────────────────────────────────────────────────
