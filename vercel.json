@@ -43,6 +43,10 @@
     {
       "path": "/api/gap-outcomes/eod",
       "schedule": "5 20 * * 1-5"
+    },
+    {
+      "path": "/api/email/morning-brief",
+      "schedule": "30 13 * * 1-5"
     }
   ]
 }
