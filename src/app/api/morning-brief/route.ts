@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       spxPrice, vixPrice, spxChange, vwap, ema200,
       macroRegime, marketNews, economicCalendar, earningsCalendar,
       gapData, gapPrediction, morningPlan,
-      breadthData, tiingoContext, multiTFData,
+      breadthData, tiingoContext, multiTFData, dailyPatterns,
     } = body
 
     const today = new Date().toLocaleDateString('en-US', {
@@ -84,6 +84,11 @@ ${tiingoContext?.summary ? `HISTORICAL CONTEXT:\n${tiingoContext.summary.substri
 
 MULTI-TIMEFRAME TECHNICAL ANALYSIS:
 ${multiTFData?.summary || 'Technical data not loaded'}
+
+DAILY CANDLE PATTERN SIGNALS:
+${dailyPatterns?.length > 0
+  ? dailyPatterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n')
+  : 'No significant patterns detected'}
 
 RECENT DAILY CANDLES:
 ${multiTFData?.recentCandles?.join('\n') || 'Not available'}

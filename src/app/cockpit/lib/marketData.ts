@@ -23,6 +23,8 @@ export async function fetchMarketNews(): Promise<string> {
 }
 
 // ── Economic Calendar ─────────────────────────────────────────────────────────
+import { detectDailyCandlePatterns, formatPatternsForAI } from './dailyCandlePatterns'
+
 export async function fetchEconomicCalendar(): Promise<string> {
   try {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -304,6 +306,13 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
       recentCandles: last5,
 
       // Summary string for AI context
+      // ── Daily candle pattern detection ────────────────────────────────────
+      patterns: detectDailyCandlePatterns(daily.slice(-10), {
+        ema200:    dEMA200,
+        sma50:     dSMA50,
+        sma200:    dSMA200,
+      }),
+
       summary: [
         `Weekly: ${weeklyTrend} | ${wMomentum} | RSI ${Math.round(wRSI)} | ${wPctFrom52H}% from 52W high`,
         `Daily: ${dailyTrend} | ${structure}`,

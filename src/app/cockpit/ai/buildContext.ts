@@ -391,6 +391,7 @@ Reference this scoring when setting your final confidence number.`,
         `Weekly RSI: ${multiTFData.weekly.rsi} | ${multiTFData.weekly.pctFrom52H}% from 52W high | ${multiTFData.weekly.pctFrom52L}% from 52W low`,
       ].join('\n') : '',
       multiTFData.recentCandles?.length ? `Recent daily candles:\n${multiTFData.recentCandles.join('\n')}` : '',
+      multiTFData.patterns?.length ? `\n═══ DAILY CANDLE SIGNALS ═══\n${multiTFData.patterns.map((p: any) => `${p.strength === 'STRONG' ? '🔴 STRONG' : '🟡 MODERATE'} ${p.name} (${p.type})\n${p.description}\n→ ${p.actionable}${p.keyLevel ? '\n📍 ' + p.keyLevel : ''}${p.confirmed ? '\n✓ CONFIRMED' : '\n⚠ Needs confirmation'}`).join('\n\n')}` : '\nNo significant daily candle patterns',
     ].filter(Boolean).join('\n') : '',
     tradePatterns?.revengePatterns > 2 ? '⚠ REVENGE TRADING PATTERN ACTIVE' : '',
   ].filter(Boolean).join('\n')

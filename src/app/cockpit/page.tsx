@@ -3323,6 +3323,7 @@ export default function CockpitPage() {
           breadthData,
           tiingoContext,
           multiTFData,
+          dailyPatterns: multiTFData?.patterns || [],
         })
       })
       const data = await res.json()
@@ -6289,6 +6290,33 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   ) : <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center' }}>{'Loading tide...'}</div>}
                 </div>
               </div>
+
+              {/* Daily Candle Pattern Alerts */}
+              {multiTFData?.patterns?.length > 0 && (
+                <div style={{ padding: '8px 14px 4px' }}>
+                  {(multiTFData.patterns as any[]).map((p: any, i: number) => (
+                    <div key={i} style={{
+                      background: p.type.includes('BULLISH') ? 'rgba(0,255,136,0.05)' : p.type.includes('BEARISH') ? 'rgba(255,77,109,0.05)' : 'rgba(245,158,11,0.05)',
+                      border: `1px solid ${p.type.includes('BULLISH') ? 'rgba(0,255,136,0.2)' : p.type.includes('BEARISH') ? 'rgba(255,77,109,0.2)' : 'rgba(245,158,11,0.2)'}`,
+                      borderLeft: `3px solid ${p.type.includes('BULLISH') ? '#00ff88' : p.type.includes('BEARISH') ? '#ff4d6d' : '#f59e0b'}`,
+                      borderRadius: 8, padding: '10px 14px', marginBottom: 6
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: p.type.includes('BULLISH') ? '#00ff88' : p.type.includes('BEARISH') ? '#ff4d6d' : '#f59e0b', letterSpacing: 1 }}>
+                          📊 {p.name.toUpperCase()}
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {p.strength === 'STRONG' && <span style={{ fontSize: 8, color: '#ff4d6d', fontWeight: 800 }}>STRONG</span>}
+                          {p.confirmed && <span style={{ fontSize: 8, color: '#00d4a0', fontWeight: 800 }}>✓ CONFIRMED</span>}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#b0c4de', lineHeight: 1.6, marginBottom: 4 }}>{p.description}</div>
+                      <div style={{ fontSize: 11, color: p.type.includes('BULLISH') ? '#00d4a0' : p.type.includes('BEARISH') ? '#ff8fa3' : '#fcd34d' }}>→ {p.actionable}</div>
+                      {p.keyLevel && <div style={{ fontSize: 10, color: '#7c6aff', marginTop: 3 }}>📍 {p.keyLevel}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Market Conditions */}
               <div style={{ width: 220, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
