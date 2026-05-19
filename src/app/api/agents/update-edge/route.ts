@@ -226,7 +226,7 @@ export async function GET(req: NextRequest) {
       .select('user_id')
       .gte('logged_at', new Date(Date.now() - 30 * 86400000).toISOString())
       .limit(500)
-    userIds = [...new Set((activeUsers || []).map((u: any) => u.user_id))]
+    userIds = [...new Set((activeUsers || []).map((u: any) => u.user_id))] as string[]
     console.log(`[update-edge] Cron: updating ${userIds.length} active users`)
   } else if (isCronSecret) {
     // Called with cron secret from browser — try to get user from session first,
@@ -242,7 +242,7 @@ export async function GET(req: NextRequest) {
         .select('user_id')
         .gte('logged_at', new Date(Date.now() - 30 * 86400000).toISOString())
         .limit(500)
-      userIds = [...new Set((activeUsers || []).map((u: any) => u.user_id))]
+      userIds = [...new Set((activeUsers || []).map((u: any) => u.user_id))] as string[]
       if (!userIds.length) {
         // No trades yet — still create a placeholder profile from backtest
         // Use a sentinel so the backtest data is available even before first trade
