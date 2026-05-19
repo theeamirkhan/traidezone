@@ -1936,7 +1936,12 @@ export default function CockpitPage() {
           const top = newAlerts[0]
           const dir = top.sentiment === 'BULLISH' ? 'bullish' : top.sentiment === 'BEARISH' ? 'bearish' : ''
           const msg = `Flow alert. ${top.ticker} ${top.type?.toLowerCase().startsWith('c') ? 'call' : 'put'} ${top.premium} ${dir} sweep.`
-          setTimeout(() => { if (!speakLockRef.current) speak(msg) }, 500)
+          // Only announce flow alert if companion is completely silent
+          // Delay 2s to give companion time to set lock, then check both refs
+          setTimeout(() => {
+            const isCompanionTalking = speakLockRef.current || speaking || audioSourceRef.current !== null
+            if (!isCompanionTalking) speak(msg)
+          }, 2000)
         }
       } catch {}
     }
@@ -2901,7 +2906,8 @@ export default function CockpitPage() {
           const direction = currentPrice > price ? 'broken above' : 'broken below'
           const msg = `SPX just ${direction} your ${price.toFixed(0)} level. What's your read?`
           setChatMessages((p: any[]) => [...p, { role: 'assistant', content: msg }])
-          if (!speakLockRef.current) speak(msg)
+          // Companion message gets priority — only speak if not already talking
+          if (!speakLockRef.current && !speaking) speak(msg)
         }
       })
     }, 30000) // check every 30 seconds (was 15s)
@@ -5634,7 +5640,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       {morningBrief && (
                         <button onClick={() => {
                           const text = [morningBrief.macroSentence, morningBrief.weeklyNarrative, morningBrief.biasReasoning, morningBrief.tradingPlan].filter(Boolean).join(' ')
-                          if (!speakLockRef.current) speak(text)
+                          if (!speakLockRef.current && !speaking) speak(text)
                         }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(0,229,255,0.2)', background: 'rgba(0,229,255,0.05)', color: '#00e5ff', cursor: 'pointer', fontFamily: font }}>🔊</button>
                       )}
                       <button onClick={() => { setMorningBrief(null); setBriefLoading(false); localStorage.removeItem('tz-morning-brief-' + new Date().toLocaleDateString('en-CA', {timeZone:'America/New_York'})); fetchMorningBrief() }}
