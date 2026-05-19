@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { detectDailyCandlePatterns } from '../../cockpit/lib/dailyCandlePatterns'
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
@@ -26,6 +27,29 @@ export async function POST(req: NextRequest) {
       gapData, gapPrediction, morningPlan,
       breadthData, tiingoContext, multiTFData, dailyPatterns,
     } = body
+
+    // Fetch daily bars for pattern detection
+    const cronPolyKey = process.env.POLYGON_API_KEY
+    const cronToday = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const cronFrom  = new Date(Date.now() - 20 * 86400000).toISOString().split('T')[0]
+    let cronPatterns: any[] = []
+    let cronPrevClose: number | null = null
+    let cronPrevVix: number | null = null
+    try {
+      const [spxRes, vixRes] = await Promise.all([
+        fetch(`https://api.polygon.io/v2/aggs/ticker/I:SPX/range/1/day/${cronFrom}/${cronToday}?adjusted=true&sort=desc&limit=15&apiKey=${cronPolyKey}`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()),
+        fetch(`https://api.polygon.io/v2/aggs/ticker/I:VIX/range/1/day/${cronFrom}/${cronToday}?adjusted=true&sort=desc&limit=2&apiKey=${cronPolyKey}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+      ])
+      const spxBars = spxRes.results || []
+      cronPrevClose = spxBars[0]?.c || null
+      cronPrevVix   = vixRes.results?.[0]?.c || null
+      // Detect patterns on last 10 bars (sorted asc for pattern logic)
+      if (spxBars.length >= 2) {
+        cronPatterns = detectDailyCandlePatterns([...spxBars].reverse(), {
+          sma50:  spxBars.length >= 10 ? spxBars.slice(0, 10).reduce((s: number, b: any) => s + b.c, 0) / 10 : undefined,
+        })
+      }
+    } catch (e) { console.warn('[morning-brief] price fetch failed:', e) }
 
     const today = new Date().toLocaleDateString('en-US', {
       timeZone: 'America/New_York',
@@ -86,9 +110,11 @@ MULTI-TIMEFRAME TECHNICAL ANALYSIS:
 ${multiTFData?.summary || 'Technical data not loaded'}
 
 DAILY CANDLE PATTERN SIGNALS:
-${dailyPatterns?.length > 0
-  ? dailyPatterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n')
-  : 'No significant patterns detected'}
+${cronPatterns?.length > 0
+  ? cronPatterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n')
+  : (dailyPatterns?.length > 0
+    ? dailyPatterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n')
+    : 'No significant patterns detected')}
 
 RECENT DAILY CANDLES:
 ${multiTFData?.recentCandles?.join('\n') || 'Not available'}
