@@ -4624,7 +4624,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <span style={{ fontSize: 7, color: '#7c6aff', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>200E(1D)</span>
               <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#f0f4ff' }}>{fmt(ema200Daily)}</span>
-              {currentPrice && (
+              {currentPrice && ema200Daily && (
                 <span style={{ fontSize: 9, color: currentPrice > ema200Daily ? '#00ff88' : '#ff1a4a', fontWeight: 700 }}>
                   {currentPrice > ema200Daily ? '▲' : '▼'}
                 </span>
