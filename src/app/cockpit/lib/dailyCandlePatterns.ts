@@ -229,6 +229,182 @@ function detectPinBar(bars: CandleBar[], keyLevels: number[]): DailyPattern | nu
   }
 }
 
+function detectMorningStar(bars: CandleBar[], keyLevels: number[]): DailyPattern | null {
+  if (bars.length < 3) return null
+  const [b1, b2, b3] = [bars[bars.length-3], bars[bars.length-2], bars[bars.length-1]]
+  const trend = trendDir(bars.slice(0, -1), 5)
+  if (trend !== 'DOWN') return null
+
+  // Day 1: big bearish candle, Day 2: small body (star) gaps down, Day 3: bullish reclaims 50%+ of day 1
+  const isBigBear = isBear(b1) && body(b1) > range(b1) * 0.5
+  const isStar    = body(b2) < body(b1) * 0.3  // small body
+  const b3Reclaim = b3.c > b1.o + (b1.c - b1.o) * 0.5  // reclaims 50% of b1
+  if (!isBigBear || !isStar || !isBull(b3) || !b3Reclaim) return null
+
+  const lvl = nearLevel(b3.c, keyLevels)
+  return {
+    name:        'Morning Star',
+    type:        'BULLISH_REVERSAL',
+    strength:    'STRONG',
+    description: `3-candle morning star: strong bearish day, small indecision candle (${body(b2).toFixed(0)}pts body), then bullish recovery closing above the midpoint of the first candle. Classic bottom reversal.`,
+    actionable:  `High-probability bullish reversal. Look for LONG above ${b3.h.toFixed(0)} with stop below ${b2.l.toFixed(0)}.`,
+    keyLevel:    lvl ? `Near key level ${lvl.toFixed(0)}` : undefined,
+    confirmed:   true,
+  }
+}
+
+function detectEveningStar(bars: CandleBar[], keyLevels: number[]): DailyPattern | null {
+  if (bars.length < 3) return null
+  const [b1, b2, b3] = [bars[bars.length-3], bars[bars.length-2], bars[bars.length-1]]
+  const trend = trendDir(bars.slice(0, -1), 5)
+  if (trend !== 'UP') return null
+
+  const isBigBull = isBull(b1) && body(b1) > range(b1) * 0.5
+  const isStar    = body(b2) < body(b1) * 0.3
+  const b3Reclaim = b3.c < b1.o + (b1.c - b1.o) * 0.5
+  if (!isBigBull || !isStar || !isBear(b3) || !b3Reclaim) return null
+
+  const lvl = nearLevel(b3.c, keyLevels)
+  return {
+    name:        'Evening Star',
+    type:        'BEARISH_REVERSAL',
+    strength:    'STRONG',
+    description: `3-candle evening star: strong bullish day, small indecision candle at the top (${body(b2).toFixed(0)}pts body), then bearish close back below the midpoint. Classic top reversal.`,
+    actionable:  `High-probability bearish reversal. Watch for SHORT below ${b3.l.toFixed(0)} with stop above ${b2.h.toFixed(0)}.`,
+    keyLevel:    lvl ? `Near key level ${lvl.toFixed(0)}` : undefined,
+    confirmed:   true,
+  }
+}
+
+function detectHarami(bars: CandleBar[], keyLevels: number[]): DailyPattern | null {
+  if (bars.length < 2) return null
+  const prev = bars[bars.length-2]
+  const curr = bars[bars.length-1]
+  const trend = trendDir(bars, 5)
+
+  // Harami: current bar's body is fully inside prior bar's body
+  const prevBodyHigh = Math.max(prev.o, prev.c)
+  const prevBodyLow  = Math.min(prev.o, prev.c)
+  const currBodyHigh = Math.max(curr.o, curr.c)
+  const currBodyLow  = Math.min(curr.o, curr.c)
+
+  if (currBodyHigh >= prevBodyHigh || currBodyLow <= prevBodyLow) return null
+  if (body(curr) > body(prev) * 0.5) return null  // harami is small relative to prior
+
+  const isBullHarami = isBear(prev) && isBull(curr) && trend === 'DOWN'
+  const isBearHarami = isBull(prev) && isBear(curr) && trend === 'UP'
+  if (!isBullHarami && !isBearHarami) return null
+
+  const lvl = nearLevel(curr.c, keyLevels)
+  return {
+    name:        isBullHarami ? 'Bullish Harami' : 'Bearish Harami',
+    type:        isBullHarami ? 'BULLISH_REVERSAL' : 'BEARISH_REVERSAL',
+    strength:    'MODERATE',
+    description: `${isBullHarami ? 'Bullish' : 'Bearish'} harami: small ${isBullHarami ? 'green' : 'red'} candle (${body(curr).toFixed(0)}pts) nestled inside yesterday's large ${isBullHarami ? 'red' : 'green'} candle. Momentum is stalling — potential reversal.`,
+    actionable:  isBullHarami
+      ? `Momentum slowing after downtrend. Watch for bullish confirmation above ${curr.h.toFixed(0)} tomorrow.`
+      : `Momentum slowing after uptrend. Watch for bearish confirmation below ${curr.l.toFixed(0)} tomorrow.`,
+    keyLevel:    lvl ? `Near key level ${lvl.toFixed(0)}` : undefined,
+    confirmed:   false,
+  }
+}
+
+function detectTweezers(bars: CandleBar[], keyLevels: number[]): DailyPattern | null {
+  if (bars.length < 2) return null
+  const prev = bars[bars.length-2]
+  const curr = bars[bars.length-1]
+  const trend = trendDir(bars, 5)
+
+  const tolerance = (prev.h - prev.l) * 0.005  // 0.5% of range
+
+  // Tweezer tops: two candles with same high after uptrend
+  const isTweezTop = trend === 'UP' && Math.abs(curr.h - prev.h) <= tolerance
+    && isBull(prev) && isBear(curr)
+
+  // Tweezer bottoms: two candles with same low after downtrend
+  const isTweezBot = trend === 'DOWN' && Math.abs(curr.l - prev.l) <= tolerance
+    && isBear(prev) && isBull(curr)
+
+  if (!isTweezTop && !isTweezBot) return null
+
+  const lvl = nearLevel(isTweezTop ? curr.h : curr.l, keyLevels)
+  return {
+    name:        isTweezTop ? 'Tweezer Top' : 'Tweezer Bottom',
+    type:        isTweezTop ? 'BEARISH_REVERSAL' : 'BULLISH_REVERSAL',
+    strength:    lvl ? 'STRONG' : 'MODERATE',
+    description: `${isTweezTop ? 'Tweezer top' : 'Tweezer bottom'}: two consecutive candles ${isTweezTop ? `rejected at the same high (${curr.h.toFixed(0)})` : `found support at the same low (${curr.l.toFixed(0)})`}. Double rejection signals a strong ${isTweezTop ? 'resistance' : 'support'} level.`,
+    actionable:  isTweezTop
+      ? `Strong resistance at ${curr.h.toFixed(0)} confirmed by double rejection. Watch for breakdown below ${curr.l.toFixed(0)}.`
+      : `Strong support at ${curr.l.toFixed(0)} confirmed by double test. Watch for breakout above ${curr.h.toFixed(0)}.`,
+    keyLevel:    lvl ? `At key level ${lvl.toFixed(0)}` : undefined,
+    confirmed:   true,
+  }
+}
+
+function detectDarkCloudPiercing(bars: CandleBar[], keyLevels: number[]): DailyPattern | null {
+  if (bars.length < 2) return null
+  const prev = bars[bars.length-2]
+  const curr = bars[bars.length-1]
+  const trend = trendDir(bars, 5)
+
+  const prevMid = (prev.o + prev.c) / 2
+
+  // Dark cloud cover: after uptrend, gaps up then closes below prior midpoint
+  const isDarkCloud = trend === 'UP' && isBull(prev) && isBear(curr)
+    && curr.o > prev.c && curr.c < prevMid && curr.c > prev.o
+
+  // Piercing line: after downtrend, gaps down then closes above prior midpoint
+  const isPiercing = trend === 'DOWN' && isBear(prev) && isBull(curr)
+    && curr.o < prev.c && curr.c > prevMid && curr.c < prev.o
+
+  if (!isDarkCloud && !isPiercing) return null
+
+  const lvl = nearLevel(curr.c, keyLevels)
+  const penetration = isDarkCloud
+    ? ((prev.c - curr.c) / body(prev) * 100).toFixed(0)
+    : ((curr.c - prev.c) / body(prev) * 100).toFixed(0)
+
+  return {
+    name:        isDarkCloud ? 'Dark Cloud Cover' : 'Piercing Line',
+    type:        isDarkCloud ? 'BEARISH_REVERSAL' : 'BULLISH_REVERSAL',
+    strength:    parseFloat(penetration) > 60 ? 'STRONG' : 'MODERATE',
+    description: `${isDarkCloud ? 'Dark cloud cover' : 'Piercing line'}: gapped ${isDarkCloud ? 'up then reversed' : 'down then recovered'}, closing ${penetration}% into yesterday's body. ${parseFloat(penetration) > 60 ? 'Deep penetration — strong reversal signal.' : 'Moderate penetration — watch for confirmation.'}`,
+    actionable:  isDarkCloud
+      ? `Bearish reversal — watch for follow-through below ${curr.l.toFixed(0)}. Gap at ${curr.o.toFixed(0)} is now resistance.`
+      : `Bullish reversal — watch for follow-through above ${curr.h.toFixed(0)}. Gap low at ${curr.o.toFixed(0)} is now support.`,
+    keyLevel:    lvl ? `Near key level ${lvl.toFixed(0)}` : undefined,
+    confirmed:   parseFloat(penetration) > 60,
+  }
+}
+
+function detectOutsideBar(bars: CandleBar[], keyLevels: number[]): DailyPattern | null {
+  if (bars.length < 2) return null
+  const prev = bars[bars.length-2]
+  const curr = bars[bars.length-1]
+  const trend = trendDir(bars, 5)
+
+  // Outside bar: today's range completely engulfs yesterday's range (including wicks)
+  if (curr.h <= prev.h || curr.l >= prev.l) return null
+  if (body(curr) < range(curr) * 0.3) return null  // need a real body not just wicks
+
+  const isBullOutside = isBull(curr) && trend === 'DOWN'
+  const isBearOutside = isBear(curr) && trend === 'UP'
+  if (!isBullOutside && !isBearOutside) return null
+
+  const lvl = nearLevel(curr.c, keyLevels)
+  return {
+    name:        isBullOutside ? 'Bullish Outside Bar' : 'Bearish Outside Bar',
+    type:        isBullOutside ? 'BULLISH_REVERSAL' : 'BEARISH_REVERSAL',
+    strength:    'STRONG',
+    description: `${isBullOutside ? 'Bullish' : 'Bearish'} outside bar — today's range (${range(curr).toFixed(0)}pts, ${curr.l.toFixed(0)}-${curr.h.toFixed(0)}) fully engulfs yesterday's range including wicks. Aggressive ${isBullOutside ? 'buying' : 'selling'} took control.`,
+    actionable:  isBullOutside
+      ? `Strong bullish reversal. Above ${curr.h.toFixed(0)} confirms momentum. Stop below ${curr.l.toFixed(0)}.`
+      : `Strong bearish reversal. Below ${curr.l.toFixed(0)} confirms momentum. Stop above ${curr.h.toFixed(0)}.`,
+    keyLevel:    lvl ? `At key level ${lvl.toFixed(0)}` : undefined,
+    confirmed:   true,
+  }
+}
+
 function detectInsideBar(bars: CandleBar[]): DailyPattern | null {
   if (bars.length < 2) return null
   const curr = bars[bars.length - 1]
@@ -299,11 +475,21 @@ export function detectDailyCandlePatterns(
 
   // Run all detectors — order matters (stronger signals first)
   const detectors = [
+    // 3-candle patterns (most reliable — run first)
+    () => detectMorningStar(bars, levels),
+    () => detectEveningStar(bars, levels),
+    // 2-candle strong reversals
     () => detectEngulfing(bars, levels),
+    () => detectOutsideBar(bars, levels),
+    () => detectTweezers(bars, levels),
+    () => detectDarkCloudPiercing(bars, levels),
+    // Single candle reversals
     () => detectHammer(bars, levels),
     () => detectShootingStar(bars, levels),
     () => detectPinBar(bars, levels),
+    () => detectHarami(bars, levels),
     () => detectDoji(bars, levels),
+    // Continuation / indecision
     () => detectThreeSoldiersCrows(bars),
     () => detectInsideBar(bars),
   ]
