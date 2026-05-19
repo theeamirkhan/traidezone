@@ -32,6 +32,7 @@ export interface SignalResult {
   // Metadata
   _warnings:            string[]
   _timestamp:           string
+  currentPrice?:        number | null  // price at signal time — for staleness detection
 }
 
 export async function runSignal(input: SignalInput): Promise<SignalResult | null> {
