@@ -411,6 +411,7 @@ export function buildCompanionContext(
     aiToneStr:       string
     traderProfile?:  any
     customRules?:    string
+    lastAITime?:     string | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -466,9 +467,25 @@ Key Levels: ${input.morningPlan?.keyLevels || 'not set'}
 ${input.morningPlan?.notes ? `Notes: ${input.morningPlan.notes}` : ''}
 
 ═══ AI SIGNAL ═══
-${input.aiResult?.signal || 'No signal'} | Confidence: ${input.aiResult?.confidence || 0}%
-${input.aiResult?.marketConditions || ''}
-${input.aiResult?.riskFlag ? `⚠ ${input.aiResult.riskFlag}` : ''}
+${(() => {
+  if (!input.aiResult) return 'No signal generated yet'
+  const sig = input.aiResult
+  const signalPrice = sig.currentPrice || sig.entryZone?.low || null
+  const nowPrice = input.market?.currentPrice || null
+  const signalTime = (input as any).lastAITime || null
+  const priceDrift = signalPrice && nowPrice ? (nowPrice - signalPrice).toFixed(1) : null
+  const driftFlag = priceDrift && Math.abs(parseFloat(priceDrift)) > 8
+    ? ` ⚠ PRICE HAS MOVED ${priceDrift}pts SINCE SIGNAL — may be stale`
+    : ''
+  return [
+    `${sig.signal} | Confidence: ${sig.confidence || 0}% ${signalTime ? '| Generated: ' + signalTime : ''}`,
+    driftFlag,
+    sig.marketConditions || '',
+    sig.riskFlag ? `⚠ ${sig.riskFlag}` : '',
+    sig.waitReason ? `Wait reason: ${sig.waitReason}` : '',
+    sig.aiView ? `AI view: ${sig.aiView}` : '',
+  ].filter(Boolean).join('\n')
+})()}
 
 ═══ PRE-TRADE CHECKLIST: ${input.checklistScore}/13 (${input.checklistGrade}) ═══
 MET: ${input.metChecks || 'None'}
