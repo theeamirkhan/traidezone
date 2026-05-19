@@ -11,15 +11,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-const RESEND_KEY   = process.env.RESEND_API_KEY
 const FROM_EMAIL   = 'morning@traidezone.ai'
 const ADMIN_EMAIL  = 'theeamirkhan@gmail.com'
-const POLYGON_KEY  = process.env.POLYGON_API_KEY
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
 // ── Fetch pre-market data ──────────────────────────────────────────────────
 async function getPreMarketData() {
   try {
+    const POLYGON_KEY = process.env.POLYGON_API_KEY
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
     const from  = new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0]
 
@@ -39,6 +37,7 @@ async function getPreMarketData() {
 
 // ── Generate brief via AI ──────────────────────────────────────────────────
 async function generateBrief(prevClose: number | null, prevVix: number | null) {
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
   const today = new Date().toLocaleDateString('en-US', {
     timeZone: 'America/New_York',
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
@@ -185,6 +184,7 @@ function buildEmailHTML(brief: any, date: string) {
 
 // ── Send via Resend ────────────────────────────────────────────────────────
 async function sendEmail(to: string, subject: string, html: string) {
+  const RESEND_KEY = process.env.RESEND_API_KEY
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -200,9 +200,11 @@ async function sendEmail(to: string, subject: string, html: string) {
 export async function GET(req: NextRequest) {
   // Auth check — cron or admin only
   const authHeader = req.headers.get('authorization')
-  const isCron     = authHeader === `Bearer ${process.env.CRON_SECRET}`
+  const CRON_SECRET = process.env.CRON_SECRET
+  const isCron     = authHeader === `Bearer ${CRON_SECRET}`
   const isPreview  = req.nextUrl.searchParams.get('preview') === 'true'
   if (!isCron && !isPreview) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Preview is public — anyone with the URL can see the email
 
   // Only run on weekdays
   const etDay = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay()
