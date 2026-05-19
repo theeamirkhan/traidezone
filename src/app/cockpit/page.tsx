@@ -3751,9 +3751,13 @@ export default function CockpitPage() {
         }).join('\n')
       : 'No earnings data'
 
-    return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 2 sentences. Never more than 40 words. Be direct and specific. Be specific, reference real numbers. Challenge bad ideas directly.
+    return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences. Never more than 60 words. Be direct and specific. Reference real numbers. Challenge bad ideas directly.
+
+NEVER use markdown. No bold (**text**), no bullet points (- or *), no headers (#), no dashes for lists. Write in plain spoken sentences only — your response is read aloud.
 
 NEVER say you are text-only. Your responses ARE spoken aloud in real-time.
+
+STALE SIGNALS: If the trader questions a WAIT or old signal and conditions have clearly changed, acknowledge the signal may be stale and suggest they hit Get Signal for a fresh read. Don't defend a stale signal — the market moved.
 
 YOUR ROLE: You are an advisor and thinking partner, not a rule enforcer.
 The trader makes their own decisions. Your job is to give them the best
@@ -3962,14 +3966,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           body: JSON.stringify([{ role: 'assistant', content }])
         }).catch(() => {})
       }
+      // Strip markdown before displaying — responses are spoken aloud
+      const cleanReply = reply
+        .replace(/\*\*(.*?)\*\*/g, '$1')   // **bold** → bold
+        .replace(/\*(.*?)\*/g, '$1')        // *italic* → italic
+        .replace(/^[-•]\s+/gm, '')          // bullet points → plain
+        .replace(/^#+\s+/gm, '')            // headers → plain
+        .replace(/`(.*?)`/g, '$1')          // `code` → code
+        .trim()
+
       setChatMessages(p => {
-        const updated = [...p, { role: 'assistant', content: reply }]
+        const updated = [...p, { role: 'assistant', content: cleanReply }]
         if (updated.length % 10 === 0) {
           extractMemoryFromSession(keys[ANTH_KEY] || 'server', updated, tradePatterns, traderProfile)
         }
         return updated
       })
-      _saveMsgToDb(reply)
+      _saveMsgToDb(cleanReply)
     } catch (e) {
       const errMsg = "Connection error — make sure you're online and try again."
       setChatMessages(p => [...p, { role: 'assistant', content: errMsg }])
