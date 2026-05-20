@@ -206,8 +206,9 @@ export async function GET(req: NextRequest) {
   const CRON_SECRET = process.env.CRON_SECRET
   const isCron     = authHeader === `Bearer ${CRON_SECRET}`
   const isPreview  = req.nextUrl.searchParams.get('preview') === 'true'
-  if (!isCron && !isPreview) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  // Preview is public — anyone with the URL can see the email
+  const isManual   = req.nextUrl.searchParams.get('send') === 'true'
+  // Preview and manual send are public (URL-guarded), cron requires auth header
+  if (!isCron && !isPreview && !isManual) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Only run on weekdays
   const etDay = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay()
@@ -219,11 +220,11 @@ export async function GET(req: NextRequest) {
       weekday: 'short', month: 'short', day: 'numeric'
     })
 
-    // 1. Get pre-market data
-    const { prevClose, prevVix } = await getPreMarketData()
+    // 1. Get pre-market data + detect daily patterns
+    const { prevClose, prevVix, patterns: dailyCandlePatterns } = await getPreMarketData()
 
     // 2. Generate brief
-    const brief = await generateBrief(prevClose, prevVix)
+    const brief = await generateBrief(prevClose, prevVix, dailyCandlePatterns || [])
 
     // 3. Build subject line
     const subject = `trAIde Zone · ${today} · ${brief.macroBias} · AI: ${brief.todaysBias}`
@@ -231,7 +232,7 @@ export async function GET(req: NextRequest) {
     // 4. Build HTML
     const html = buildEmailHTML(brief, today)
 
-    if (isPreview) {
+    if (isPreview && !isManual) {
       // Return HTML for preview without sending
       return new Response(html, { headers: { 'Content-Type': 'text/html' } })
     }
