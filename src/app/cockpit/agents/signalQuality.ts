@@ -73,6 +73,13 @@ export interface SignalQualityResult {
   confirmers:        string[]   // streams that agree
   contradictors:     string[]   // streams that disagree
   aiContext:         string     // injected into final signal prompt
+  streamBreakdown:   Array<{   // per-stream vote detail for visualization
+    name:    string
+    vote:    1 | -1 | 0        // +1 confirm, -1 contradict, 0 neutral/unavailable
+    weight:  number            // % contribution when voting (equal weight = 100/totalVoters)
+    detail:  string            // what the stream saw
+    available: boolean         // was data available?
+  }>
 }
 
 function isLong(signal: string)  { return signal === 'LONG' }
@@ -90,6 +97,9 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
   const blockers:       string[] = []
 
   let votes     = 0
+  // Per-stream tracking for visualization
+  const streams: Array<{ name: string; vote: 1|-1|0; detail: string; available: boolean }> = []
+  const addStream = (name: string, vote: 1|-1|0, detail: string, available = true) => streams.push({ name, vote, detail, available })
   let maxVotes  = 0
   let finalConf = confidence
 
@@ -131,7 +141,7 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
   // Each stream votes independently. Only called for LONG/SHORT signals.
 
   if (!isDirectional(signal)) {
-    return buildResult(input, finalConf, votes, maxVotes, confirmers, contradictors, adjustments, blockers, 'n/a')
+    return buildResult(input, finalConf, votes, maxVotes, confirmers, contradictors, adjustments, blockers, 'n/a', streams)
   }
 
   // 1. Cumulative Delta
@@ -140,22 +150,22 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
     const delta = input.microstructure.cumulativeDelta
     const deltaBull = delta.strength === 'STRONG_BUY' || delta.strength === 'BUY'
     const deltaBear = delta.strength === 'STRONG_SELL' || delta.strength === 'SELL'
-    if (bullish && deltaBull)  { votes++; confirmers.push(`Delta ${delta.strength} (${delta.pct}% bull bars)`) }
-    else if (bearish && deltaBear) { votes++; confirmers.push(`Delta ${delta.strength} (${delta.pct}% bull bars)`) }
-    else if (bullish && deltaBear) { votes--; contradictors.push(`Delta ${delta.strength} contradicts LONG`) }
-    else if (bearish && deltaBull) { votes--; contradictors.push(`Delta ${delta.strength} contradicts SHORT`) }
-    else { /* neutral delta — no vote */ maxVotes-- }
+    if (bullish && deltaBull)  { votes++; confirmers.push(`Delta ${delta.strength} (${delta.pct}% bull bars)`); addStream('Cum. Delta', 1, `${delta.strength} (${delta.pct}% bull)`) }
+    else if (bearish && deltaBear) { votes++; confirmers.push(`Delta ${delta.strength} (${delta.pct}% bull bars)`); addStream('Cum. Delta', 1, `${delta.strength}`) }
+    else if (bullish && deltaBear) { votes--; contradictors.push(`Delta ${delta.strength} contradicts LONG`); addStream('Cum. Delta', -1, `${delta.strength} — bearish vs LONG`) }
+    else if (bearish && deltaBull) { votes--; contradictors.push(`Delta ${delta.strength} contradicts SHORT`); addStream('Cum. Delta', -1, `${delta.strength} — bullish vs SHORT`) }
+    else { /* neutral delta — no vote */ maxVotes--; addStream('Cum. Delta', 0, 'Neutral') }
   }
 
   // 2. Options Flow Imbalance
   if (input.microstructure?.optionsImbalance) {
     maxVotes++
     const flow = input.microstructure.optionsImbalance
-    if (bullish && flow.bias === 'CALL_HEAVY')  { votes++; confirmers.push(`Options CALL_HEAVY ${flow.ratio.toFixed(1)}x, ${flow.sweepCount} sweeps`) }
-    else if (bearish && flow.bias === 'PUT_HEAVY')  { votes++; confirmers.push(`Options PUT_HEAVY ${flow.ratio.toFixed(1)}x`) }
-    else if (bullish && flow.bias === 'PUT_HEAVY')  { votes--; contradictors.push(`Options PUT_HEAVY contradicts LONG`) }
-    else if (bearish && flow.bias === 'CALL_HEAVY') { votes--; contradictors.push(`Options CALL_HEAVY contradicts SHORT`) }
-    else { maxVotes-- } // BALANCED — no vote
+    if (bullish && flow.bias === 'CALL_HEAVY')  { votes++; confirmers.push(`Options CALL_HEAVY ${flow.ratio.toFixed(1)}x, ${flow.sweepCount} sweeps`); addStream('Options Flow', 1, `CALL_HEAVY ${flow.ratio.toFixed(1)}x`) }
+    else if (bearish && flow.bias === 'PUT_HEAVY')  { votes++; confirmers.push(`Options PUT_HEAVY ${flow.ratio.toFixed(1)}x`); addStream('Options Flow', 1, `PUT_HEAVY ${flow.ratio.toFixed(1)}x`) }
+    else if (bullish && flow.bias === 'PUT_HEAVY')  { votes--; contradictors.push(`Options PUT_HEAVY contradicts LONG`); addStream('Options Flow', -1, `PUT_HEAVY vs LONG`) }
+    else if (bearish && flow.bias === 'CALL_HEAVY') { votes--; contradictors.push(`Options CALL_HEAVY contradicts SHORT`); addStream('Options Flow', -1, `CALL_HEAVY vs SHORT`) }
+    else { maxVotes--; addStream('Options Flow', 0, 'Balanced — no edge') } // BALANCED — no vote
   }
 
   // 3. Dark Pool
@@ -163,10 +173,10 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
     const dp = input.microstructure.darkPool
     if (dp.netBias !== 'NEUTRAL') {
       maxVotes++
-      if (bullish && dp.netBias === 'BUY')   { votes++; confirmers.push(`Dark pool net buying $${(dp.totalBuyNotional/1e6).toFixed(0)}M`) }
-      else if (bearish && dp.netBias === 'SELL')  { votes++; confirmers.push(`Dark pool net selling $${(dp.totalSellNotional/1e6).toFixed(0)}M`) }
-      else if (bullish && dp.netBias === 'SELL') { votes--; contradictors.push(`Dark pool selling contradicts LONG`) }
-      else if (bearish && dp.netBias === 'BUY')  { votes--; contradictors.push(`Dark pool buying contradicts SHORT`) }
+      if (bullish && dp.netBias === 'BUY')   { votes++; confirmers.push(`Dark pool net buying $${(dp.totalBuyNotional/1e6).toFixed(0)}M`); addStream('Dark Pool', 1, `Net buying $${(dp.totalBuyNotional/1e6).toFixed(0)}M`) }
+      else if (bearish && dp.netBias === 'SELL')  { votes++; confirmers.push(`Dark pool net selling $${(dp.totalSellNotional/1e6).toFixed(0)}M`); addStream('Dark Pool', 1, `Net selling $${(dp.totalSellNotional/1e6).toFixed(0)}M`) }
+      else if (bullish && dp.netBias === 'SELL') { votes--; contradictors.push(`Dark pool selling contradicts LONG`); addStream('Dark Pool', -1, 'Selling vs LONG') }
+      else if (bearish && dp.netBias === 'BUY')  { votes--; contradictors.push(`Dark pool buying contradicts SHORT`); addStream('Dark Pool', -1, 'Buying vs SHORT') }
     }
   }
 
@@ -178,10 +188,10 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
       maxVotes++
       const tickBull = tick > 400
       const tickBear = tick < -400
-      if (bullish && tickBull)  { votes++; confirmers.push(`TICK +${tick.toFixed(0)} broad buying`) }
-      else if (bearish && tickBear)  { votes++; confirmers.push(`TICK ${tick.toFixed(0)} broad selling`) }
-      else if (bullish && tickBear)  { votes--; contradictors.push(`TICK ${tick.toFixed(0)} contradicts LONG`) }
-      else if (bearish && tickBull)  { votes--; contradictors.push(`TICK +${tick.toFixed(0)} contradicts SHORT`) }
+      if (bullish && tickBull)  { votes++; confirmers.push(`TICK +${tick.toFixed(0)} broad buying`); addStream('NYSE TICK', 1, `+${tick.toFixed(0)} broad buying`) }
+      else if (bearish && tickBear)  { votes++; confirmers.push(`TICK ${tick.toFixed(0)} broad selling`); addStream('NYSE TICK', 1, `${tick.toFixed(0)} broad selling`) }
+      else if (bullish && tickBear)  { votes--; contradictors.push(`TICK ${tick.toFixed(0)} contradicts LONG`); addStream('NYSE TICK', -1, `${tick.toFixed(0)} vs LONG`) }
+      else if (bearish && tickBull)  { votes--; contradictors.push(`TICK +${tick.toFixed(0)} contradicts SHORT`); addStream('NYSE TICK', -1, `+${tick.toFixed(0)} vs SHORT`) }
     }
   }
 
@@ -192,9 +202,9 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
       maxVotes++
       const trinBull = trin < 0.75
       const trinBear = trin > 1.25
-      if (bullish && trinBull)  { votes++; confirmers.push(`TRIN ${trin.toFixed(2)} volume favors advancers`) }
-      else if (bearish && trinBear)  { votes++; confirmers.push(`TRIN ${trin.toFixed(2)} volume favors decliners`) }
-      else if (bullish && trinBear)  { votes--; contradictors.push(`TRIN ${trin.toFixed(2)} contradicts LONG`) }
+      if (bullish && trinBull)  { votes++; confirmers.push(`TRIN ${trin.toFixed(2)} volume favors advancers`); addStream('TRIN', 1, `${trin.toFixed(2)} favors advancers`) }
+      else if (bearish && trinBear)  { votes++; confirmers.push(`TRIN ${trin.toFixed(2)} volume favors decliners`); addStream('TRIN', 1, `${trin.toFixed(2)} favors decliners`) }
+      else if (bullish && trinBear)  { votes--; contradictors.push(`TRIN ${trin.toFixed(2)} contradicts LONG`); addStream('TRIN', -1, `${trin.toFixed(2)} vs LONG`) }
       else if (bearish && trinBull)  { votes--; contradictors.push(`TRIN ${trin.toFixed(2)} contradicts SHORT`) }
       else { maxVotes-- } // TRIN neutral — no vote
     }
@@ -205,11 +215,13 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
     maxVotes++
     const negGamma = input.gexData.regime === 'negative'
     const posGamma = input.gexData.regime === 'positive'
+    const gexDetail = `${input.gexData.regime} gamma | flip: ${input.gexData.gammaFlip || 'n/a'}`
     // In negative gamma: breakouts run — both LONG and SHORT get a boost
     // In positive gamma: breakouts fade — neither direction gets a boost
     if (negGamma) {
       votes++
       confirmers.push(`Negative gamma — moves amplified, breakouts run`)
+      addStream('GEX Regime', 1, gexDetail)
     } else if (posGamma) {
       // Positive gamma: warn if price is near a wall
       if (bullish && input.gexData.callWall && currentPrice) {
@@ -231,7 +243,7 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
     maxVotes++
     const planBull = input.morningBias.toUpperCase() === 'LONG' || input.morningBias.toUpperCase() === 'BULLISH'
     const planBear = input.morningBias.toUpperCase() === 'SHORT' || input.morningBias.toUpperCase() === 'BEARISH'
-    if (bullish && planBull)  { votes++; confirmers.push(`Morning plan bias: ${input.morningBias}`) }
+    if (bullish && planBull)  { votes++; confirmers.push(`Morning plan bias: ${input.morningBias}`); addStream('Morning Plan', 1, `${input.morningBias} aligns`) }
     else if (bearish && planBear)  { votes++; confirmers.push(`Morning plan bias: ${input.morningBias}`) }
     else if (bullish && planBear)  { votes--; contradictors.push(`Morning plan is ${input.morningBias} — diverging from plan`) }
     else if (bearish && planBull)  { votes--; contradictors.push(`Morning plan is ${input.morningBias} — diverging from plan`) }
@@ -244,14 +256,14 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
     const patBear = input.patternBias.toLowerCase().includes('bear') || input.patternBias.toLowerCase().includes('short')
     if (patBull || patBear) {
       maxVotes++
-      if (bullish && patBull)  { votes++; confirmers.push(`Pattern: ${input.patternBias}`) }
+      if (bullish && patBull)  { votes++; addStream('Patterns', 1, input.patternBias || ''); confirmers.push(`Pattern: ${input.patternBias}`) }
       else if (bearish && patBear)  { votes++; confirmers.push(`Pattern: ${input.patternBias}`) }
       else if (bullish && patBear)  { votes--; contradictors.push(`Pattern bearish contradicts LONG`) }
       else if (bearish && patBull)  { votes--; contradictors.push(`Pattern bullish contradicts SHORT`) }
     }
   }
 
-  return buildResult(input, finalConf, votes, maxVotes, confirmers, contradictors, adjustments, blockers, signal)
+  return buildResult(input, finalConf, votes, maxVotes, confirmers, contradictors, adjustments, blockers, signal, streams)
 }
 
 function buildResult(
@@ -263,7 +275,8 @@ function buildResult(
   contradictors: string[],
   adjustments: string[],
   blockers: string[],
-  signal: string
+  signal: string,
+  streams: Array<{ name: string; vote: 1|-1|0; detail: string; available: boolean }> = []
 ): SignalQualityResult {
   const { confidence } = input
 
@@ -271,6 +284,7 @@ function buildResult(
   if (!isDirectional(signal)) {
     return {
       approved: true,
+      streamBreakdown: [],
       finalConfidence: finalConf,
       originalConfidence: confidence,
       confirmationScore: 0,
@@ -350,6 +364,11 @@ function buildResult(
     lines.push(`  ⚠ QUALITY GATE RECOMMENDS: Do not signal. Issue WAIT with explanation.`)
   }
 
+  // Build weight percentages
+  const totalVoters2 = Math.max(1, maxVotes)
+  const weightPct2 = Math.round(100 / totalVoters2)
+  const streamBreakdown2 = streams.map(s => ({ ...s, weight: s.vote !== 0 ? weightPct2 : 0 }))
+
   return {
     approved,
     finalConfidence: finalConf,
@@ -363,6 +382,7 @@ function buildResult(
     blockers,
     confirmers,
     contradictors,
+    streamBreakdown: streamBreakdown2,
     aiContext: lines.join('\n'),
   }
 }

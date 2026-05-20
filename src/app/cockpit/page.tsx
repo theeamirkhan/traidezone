@@ -4989,6 +4989,26 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         </div>
                       )}
                     </div>
+                    {/* Stream breakdown visualization */}
+                    {signalQuality?.streamBreakdown?.length > 0 && (
+                      <div style={{ padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: '#4a5568', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: 6 }}>Stream Votes ({signalQuality.confirmers.length} confirm · {signalQuality.contradictors.length} contra)</div>
+                        {(signalQuality.streamBreakdown as any[]).map((s: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{ fontSize: 8, color: '#6b7a9a', width: 80, flexShrink: 0 }}>{s.name}</span>
+                            <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                              {s.vote !== 0 && (
+                                <div style={{ height: '100%', width: `${s.weight}%`, background: s.vote === 1 ? '#00d4a0' : '#ff4d6d', borderRadius: 2 }} />
+                              )}
+                            </div>
+                            <span style={{ fontSize: 9, fontWeight: 800, color: s.vote === 1 ? '#00d4a0' : s.vote === -1 ? '#ff4d6d' : '#4a5568', width: 12, textAlign: 'center' as const }}>
+                              {s.vote === 1 ? '✓' : s.vote === -1 ? '✗' : '–'}
+                            </span>
+                            <span style={{ fontSize: 8, color: '#4a5568', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.detail}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div style={{ fontSize: 7, color: C.textMuted }}>AI confidence</div>
                   <button onClick={async () => {
                     setAiLoading(true)
