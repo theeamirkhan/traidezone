@@ -220,11 +220,11 @@ export async function GET(req: NextRequest) {
       weekday: 'short', month: 'short', day: 'numeric'
     })
 
-    // 1. Get pre-market data + detect daily patterns
-    const { prevClose, prevVix, patterns: dailyCandlePatterns } = await getPreMarketData()
+    // 1. Get pre-market data
+    const { prevClose, prevVix } = await getPreMarketData()
 
-    // 2. Generate brief
-    const brief = await generateBrief(prevClose, prevVix, dailyCandlePatterns || [])
+    // 2. Generate brief (cronPatterns detected inline above in the route)
+    const brief = await generateBrief(prevClose, prevVix)
 
     // 3. Build subject line
     const subject = `trAIde Zone · ${today} · ${brief.macroBias} · AI: ${brief.todaysBias}`
