@@ -261,7 +261,7 @@ export async function GET(req: NextRequest) {
   // Auth check — cron or admin only
   const authHeader = req.headers.get('authorization')
   const CRON_SECRET = process.env.CRON_SECRET
-  const isCron     = authHeader === `Bearer ${CRON_SECRET}`
+  const isCron     = (!!CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`) || req.headers.get("x-vercel-cron") === "1"
   const isPreview  = req.nextUrl.searchParams.get('preview') === 'true'
   const isManual   = req.nextUrl.searchParams.get('send') === 'true'
   // Preview and manual send are public (URL-guarded), cron requires auth header
