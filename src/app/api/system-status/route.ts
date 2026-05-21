@@ -239,8 +239,9 @@ export async function GET(req: NextRequest) {
   ])
 
   const checks = results.map((r, i) => {
-    if (r.status === 'fulfilled') return r.value
-    return { name: `Check ${i}`, status: 'error' as const, detail: String((r as any).reason) }
+    if (r.status === 'fulfilled') return r.value as { name: string; status: 'ok'|'warn'|'error'; detail: string; value?: any }
+    const rejected = r as PromiseRejectedResult
+    return { name: `Check ${i}`, status: 'error' as const, detail: String(rejected.reason) }
   })
 
   const ok    = checks.filter(c => c.status === 'ok').length
