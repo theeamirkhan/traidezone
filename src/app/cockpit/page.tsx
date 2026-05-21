@@ -4720,7 +4720,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: 'rgba(107,114,128,0.7)', cursor: 'pointer' }}>Sign Out</button>
           <button onClick={() => setShowTutorial(true)} title="Help" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: '4px 8px', color: 'rgba(136,153,187,0.6)', cursor: 'pointer', fontSize: 11, fontFamily: font }}>?</button>
-          {userId && ADMIN_USER_IDS.includes(userId) && (
+          {user?.id && ADMIN_USER_IDS.includes(user.id) && (
             <a href="/admin" target="_blank" title="System Admin Dashboard" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 10, fontFamily: font, textDecoration: 'none', fontWeight: 700 }}>⚙</a>
           )}
           <button onClick={() => { setShowSuggestion(true); setSuggestionSent(false); setSuggestionText('') }} title="Suggest a feature or report a bug" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 11, fontFamily: font }}>💡</button>
