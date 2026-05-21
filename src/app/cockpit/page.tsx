@@ -94,6 +94,9 @@ const C_DARK = {
   redBorderLegacy: 'rgba(255,26,74,0.25)',
 }
 const C = C_DARK  // Module-level fallback; component overrides with const C = CC
+// Admin user IDs — only these users see the admin link in the header
+const ADMIN_USER_IDS = ['REPLACE_WITH_YOUR_CLERK_USER_ID']
+
 const font = "'Share Tech Mono', monospace"
 const fontDisplay = "'Orbitron', sans-serif"
 
@@ -4717,6 +4720,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: 'rgba(107,114,128,0.7)', cursor: 'pointer' }}>Sign Out</button>
           <button onClick={() => setShowTutorial(true)} title="Help" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: '4px 8px', color: 'rgba(136,153,187,0.6)', cursor: 'pointer', fontSize: 11, fontFamily: font }}>?</button>
+          {userId && ADMIN_USER_IDS.includes(userId) && (
+            <a href="/admin" target="_blank" title="System Admin Dashboard" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 10, fontFamily: font, textDecoration: 'none', fontWeight: 700 }}>⚙</a>
+          )}
           <button onClick={() => { setShowSuggestion(true); setSuggestionSent(false); setSuggestionText('') }} title="Suggest a feature or report a bug" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 11, fontFamily: font }}>💡</button>
           <button onClick={() => { setSystemCheck(null); runSystemCheck(); setShowSettings(false) }} title="System Check — verify all data feeds" style={{ background: systemCheckRunning ? 'rgba(255,183,0,0.1)' : 'rgba(0,229,255,0.04)', border: `1px solid ${systemCheckRunning ? 'rgba(255,183,0,0.3)' : 'rgba(0,229,255,0.15)'}`, borderRadius: 4, padding: '4px 8px', color: systemCheckRunning ? C.yellow : C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font, transition: 'all 0.2s' }}>{systemCheckRunning ? '⟳' : '✓'}</button>
           <button onClick={() => setShowSettings(true)} style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.15)`, borderRadius: 4, padding: '4px 10px', color: C.textDim, cursor: 'pointer', fontSize: 13, fontFamily: font, transition: 'all 0.2s' }}>⚙</button>

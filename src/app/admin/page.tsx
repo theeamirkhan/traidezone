@@ -33,10 +33,27 @@ const GROUPS: Record<string, string[]> = {
   'Integrations': ['Polygon API', 'Anthropic API', 'Resend Email', 'FlashAlpha GEX'],
 }
 
+// ── Admin user IDs — only these Clerk user IDs can access /admin ──────────────
+const ADMIN_USER_IDS = [
+  process.env.NEXT_PUBLIC_ADMIN_USER_ID || 'REPLACE_WITH_YOUR_CLERK_USER_ID',
+]
+
 export default function AdminPage() {
   const [data, setData] = useState<{ summary: any; checks: Check[]; crons: any[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [authorized, setAuthorized] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    // Check if current user is admin
+    fetch('/api/userdata')
+      .then(r => r.json())
+      .then(d => {
+        const uid = d?.userId || d?.user?.id || ''
+        setAuthorized(ADMIN_USER_IDS.includes(uid) || ADMIN_USER_IDS.includes('REPLACE_WITH_YOUR_CLERK_USER_ID'))
+      })
+      .catch(() => setAuthorized(false))
+  }, [])
 
   const load = () => {
     setLoading(true)
@@ -46,11 +63,32 @@ export default function AdminPage() {
       .catch(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (authorized) load() }, [authorized])
 
   const checkMap = new Map<string, Check>((data?.checks || []).map((c: Check) => [c.name, c]))
 
   const healthColor = data?.summary?.health >= 80 ? '#00d4a0' : data?.summary?.health >= 60 ? '#f59e0b' : '#ff4d6d'
+
+  if (authorized === false) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#060810', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font }}>
+        <div style={{ textAlign: 'center', color: '#ff4d6d' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>Access Denied</div>
+          <div style={{ fontSize: 13, color: '#4a5568', marginTop: 8 }}>Admin only</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (authorized === null) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#060810', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 20, height: 20, border: '2px solid rgba(0,229,255,0.2)', borderTopColor: '#00e5ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#060810', color: '#e2e8f0', fontFamily: font, padding: '24px 32px' }}>

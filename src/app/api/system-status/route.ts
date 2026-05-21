@@ -22,6 +22,12 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Admin-only endpoint
+  const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '').split(',').filter(Boolean)
+  if (ADMIN_USER_IDS.length > 0 && !ADMIN_USER_IDS.includes(userId)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const results = await Promise.allSettled([
 
     // ── SIGNAL PIPELINE ────────────────────────────────────────────────────────
