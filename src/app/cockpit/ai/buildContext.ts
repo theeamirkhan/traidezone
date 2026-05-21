@@ -80,6 +80,7 @@ export interface SignalInput {
   // TICK/TRIN/VVIX breadth + GEX
   breadthData?: { aiContext: string; tick: any; trin: any; vvix: any; consensus: string } | null
   gexData?:     { aiContext: string; gammaFlip?: number; callWall?: number; putWall?: number; totalGex?: number } | null
+  marketIntel2?: any | null   // comprehensive market intelligence
 
   // Market microstructure (cumulative delta, dark pool, volume, options imbalance)
   microstructure?: {
@@ -371,6 +372,7 @@ If confirmation is <50% or blockers exist → signal WAIT, not LONG/SHORT.
 If confirmation is 70%+ → you may increase confidence by up to 10pts.
 Reference this scoring when setting your final confidence number.`,
     (input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══\n${(input as any).gexData.aiContext}` : '',
+    (input as any).marketIntel2?.aiContext ? `\n═══ MARKET INTELLIGENCE ═══\n${(input as any).marketIntel2.aiContext}` : '',
     patternAnalysis?.structureSummary ? `PATTERN BIAS: ${patternAnalysis.structureSummary}` : '',
     JSON_SCHEMA,
   ].filter(Boolean).join('\n\n')
@@ -424,6 +426,7 @@ export function buildCompanionContext(
     traderProfile?:  any
     customRules?:    string
     lastAITime?:     string | null
+    marketIntel2?:   any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -515,6 +518,7 @@ ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE �
 ${(input as any).breadthData?.aiContext ? `═══ MARKET BREADTH ═══\n${(input as any).breadthData.aiContext}` : ''}
 
 ${(input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══\n${(input as any).gexData.aiContext}` : ''}
+${(input as any).marketIntel2?.aiContext ? `═══ MARKET INTELLIGENCE ═══\n${(input as any).marketIntel2.aiContext}` : ''}
 
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null) ? `═══ YOUR HISTORICAL EDGE ═══
 ${buildEdgeSection((input as any).edgeProfile ?? null, market.vixPrice ?? null)}` : ''}

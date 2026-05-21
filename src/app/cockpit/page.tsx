@@ -1780,6 +1780,7 @@ export default function CockpitPage() {
   const [gapPrediction, setGapPrediction] = useState<any>(null)
   const [insights, setInsights] = useState<any>(null)
   const [streamWeights, setStreamWeights] = useState<Record<string,number> | null>(null)
+  const [marketIntel2, setMarketIntel2] = useState<any>(null)
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [morningBrief, setMorningBrief] = useState<any>(null)
   const [briefLoading, setBriefLoading] = useState(false)
@@ -1827,6 +1828,7 @@ export default function CockpitPage() {
     economicCalendar,
     macroRegime,
     earningsCalendar,
+    marketIntel2,
     sessionMemory,
   })
   const [flowAlerts, setFlowAlerts] = useState<any[]>([])
@@ -3349,6 +3351,21 @@ export default function CockpitPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [macroRegime])
 
+  // Fetch comprehensive market intelligence every 2 minutes
+  useEffect(() => {
+    const fetchIntel = () => {
+      const etHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))
+      if (etHour < 8 || etHour >= 17) return  // market hours only
+      fetch('/api/market-intelligence')
+        .then(r => r.json())
+        .then(d => { if (!d.error) setMarketIntel2(d) })
+        .catch(() => {})
+    }
+    fetchIntel()
+    const interval = setInterval(fetchIntel, 120000)  // every 2min
+    return () => clearInterval(interval)
+  }, [])
+
   // Load stream weights from localStorage (updated by cron daily)
   useEffect(() => {
     const cached = localStorage.getItem('tz-stream-weights')
@@ -3935,6 +3952,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       tradePatterns, multiTFData, marketNews, economicCalendar, macroRegime, earningsCalendar,
       sessionMemory,
       traderProfile, customRules,
+      marketIntel2,
       probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: ''
     })
     const context = companionCtx.systemPrompt
@@ -4687,6 +4705,25 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               </div>
             )
           })()}
+          {/* VWAP Bands */}
+          {marketIntel2?.vwapBands && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ fontSize: 7, color: '#f59e0b', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>VWAP±</span>
+              <span style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: marketIntel2.vwapBands.isExtended ? '#ff4d6d' : marketIntel2.vwapBands.isMeanRevertZone ? '#f59e0b' : '#f0f4ff' }}>
+                {marketIntel2.vwapBands.band1Dn?.toFixed(0)}/{marketIntel2.vwapBands.band1Up?.toFixed(0)}
+              </span>
+              {marketIntel2.vwapBands.isExtended && <span style={{ fontSize: 8, color: '#ff4d6d', fontWeight: 800 }}>EXT</span>}
+            </div>
+          )}
+          {/* Session context */}
+          {marketIntel2?.timeContext && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '2px 6px', borderRadius: 4, background: marketIntel2.timeContext.isHighRisk ? 'rgba(255,77,109,0.1)' : marketIntel2.timeContext.isPrimeWindow ? 'rgba(0,212,160,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${marketIntel2.timeContext.isHighRisk ? 'rgba(255,77,109,0.3)' : marketIntel2.timeContext.isPrimeWindow ? 'rgba(0,212,160,0.3)' : 'rgba(255,255,255,0.08)'}` }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: marketIntel2.timeContext.isHighRisk ? '#ff4d6d' : marketIntel2.timeContext.isPrimeWindow ? '#00d4a0' : '#8899bb' }}>
+                {marketIntel2.timeContext.currentSession}
+              </span>
+              {marketIntel2.timeContext.isHighRisk && <span style={{ fontSize: 7, color: '#ff4d6d' }}>⚠θ</span>}
+            </div>
+          )}
         </div>
 
         {/* Right side */}
@@ -6353,6 +6390,106 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   ) : <div style={{ fontSize: 9, color: C.textMuted, textAlign: 'center' }}>{'Loading tide...'}</div>}
                 </div>
               </div>
+
+              {/* Market Intelligence Cards */}
+              {marketIntel2 && (
+                <div style={{ padding: '8px 14px 0' }}>
+
+                  {/* VIX Term Structure */}
+                  {marketIntel2.termStructure && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: marketIntel2.termStructure.termShape === 'inverted' ? 'rgba(255,77,109,0.05)' : 'rgba(0,0,0,0.2)', border: `1px solid ${marketIntel2.termStructure.termShape === 'inverted' ? 'rgba(255,77,109,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>VIX Term Structure</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: marketIntel2.termStructure.termShape === 'inverted' ? '#ff4d6d' : '#00d4a0' }}>{marketIntel2.termStructure.termShape.toUpperCase()}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+                        {[
+                          { label: 'VIX1D', val: marketIntel2.termStructure.vix1d, color: '#ff8fa3' },
+                          { label: 'VIX9D', val: marketIntel2.termStructure.vix9d, color: '#f59e0b' },
+                          { label: 'VIX30', val: marketIntel2.termStructure.vix30, color: '#00e5ff' },
+                          { label: 'VVIX',  val: marketIntel2.termStructure.vvix,  color: '#7c6aff' },
+                        ].map((v, i) => v.val && (
+                          <div key={i} style={{ textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>{v.label}</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: v.color, fontFamily: fontDisplay }}>{v.val.toFixed(1)}</div>
+                          </div>
+                        ))}
+                        {marketIntel2.termStructure.impliedMoveToday && (
+                          <div style={{ marginLeft: 'auto' as const, textAlign: 'right' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>Implied Today</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: '#f59e0b', fontFamily: fontDisplay }}>±{marketIntel2.termStructure.impliedMoveToday}pts</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VWAP Bands */}
+                  {marketIntel2.vwapBands && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: marketIntel2.vwapBands.isExtended ? 'rgba(255,77,109,0.05)' : 'rgba(0,0,0,0.2)', border: `1px solid ${marketIntel2.vwapBands.isExtended ? 'rgba(255,77,109,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>VWAP Bands</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: marketIntel2.vwapBands.isExtended ? '#ff4d6d' : marketIntel2.vwapBands.isMeanRevertZone ? '#f59e0b' : '#00d4a0' }}>{marketIntel2.vwapBands.bandPosition.replace(/_/g,' ').toUpperCase()}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+                        <span style={{ color: '#ff4d6d' }}>{marketIntel2.vwapBands.band2Dn?.toFixed(1)}</span>
+                        <span style={{ color: '#f59e0b' }}>{marketIntel2.vwapBands.band1Dn?.toFixed(1)}</span>
+                        <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, position: 'relative' as const }}>
+                          <div style={{ position: 'absolute' as const, left: '50%', top: 0, bottom: 0, width: 2, background: '#00e5ff', transform: 'translateX(-50%)' }} />
+                          {marketIntel2.vwapBands.currentPrice && marketIntel2.vwapBands.band2Dn && marketIntel2.vwapBands.band2Up && (() => {
+                            const range = marketIntel2.vwapBands.band2Up - marketIntel2.vwapBands.band2Dn
+                            const pct   = Math.max(0, Math.min(100, (marketIntel2.vwapBands.currentPrice - marketIntel2.vwapBands.band2Dn) / range * 100))
+                            return <div style={{ position: 'absolute' as const, left: `${pct}%`, top: -3, width: 8, height: 10, background: '#f59e0b', borderRadius: 2, transform: 'translateX(-50%)' }} />
+                          })()}
+                        </div>
+                        <span style={{ color: '#f59e0b' }}>{marketIntel2.vwapBands.band1Up?.toFixed(1)}</span>
+                        <span style={{ color: '#ff4d6d' }}>{marketIntel2.vwapBands.band2Up?.toFixed(1)}</span>
+                      </div>
+                      {marketIntel2.vwapBands.isExtended && <div style={{ fontSize: 9, color: '#ff4d6d', marginTop: 4 }}>⚠ Price at 2σ — high mean-reversion probability</div>}
+                    </div>
+                  )}
+
+                  {/* Sector Rotation */}
+                  {marketIntel2.sectorRotation && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>Sector Rotation</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: marketIntel2.sectorRotation.rotationBias === 'BULLISH' ? '#00ff88' : marketIntel2.sectorRotation.rotationBias === 'BEARISH' ? '#ff4d6d' : '#f59e0b' }}>{marketIntel2.sectorRotation.rotationSignal}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+                        {(marketIntel2.sectorRotation.sectors || []).map((s: any, i: number) => (
+                          <div key={i} style={{ fontSize: 8, padding: '2px 5px', borderRadius: 3, background: s.chgPct > 0 ? 'rgba(0,212,160,0.1)' : 'rgba(255,77,109,0.1)', color: s.chgPct > 0 ? '#00d4a0' : '#ff4d6d', fontWeight: 600 }}>
+                            {s.ticker} {s.chgPct > 0 ? '+' : ''}{s.chgPct?.toFixed(1)}%
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 9, color: '#4a5568', marginTop: 4 }}>{marketIntel2.sectorRotation.advancers} up · {marketIntel2.sectorRotation.decliners} down</div>
+                    </div>
+                  )}
+
+                  {/* Vol Spread */}
+                  {marketIntel2.volSpread && (
+                    <div style={{ marginBottom: 8, padding: '8px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>IV vs RV</span>
+                      <div style={{ display: 'flex', gap: 16 }}>
+                        <div style={{ textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>Implied</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#00e5ff' }}>{marketIntel2.volSpread.impliedVol}%</div>
+                        </div>
+                        <div style={{ textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>Realized</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#7c6aff' }}>{marketIntel2.volSpread.realizedVol5d}%</div>
+                        </div>
+                        <div style={{ textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>Spread</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: marketIntel2.volSpread.spread > 5 ? '#ff4d6d' : marketIntel2.volSpread.spread < -3 ? '#00ff88' : '#f59e0b' }}>{marketIntel2.volSpread.spread > 0 ? '+' : ''}{marketIntel2.volSpread.spread}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
 
               {/* Daily Candle Pattern Alerts */}
               {multiTFData?.patterns?.length > 0 && (
