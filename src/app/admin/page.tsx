@@ -22,6 +22,8 @@ const STATUS_ICON: Record<string, string> = {
   error: '✗',
 }
 
+interface Check { name: string; status: 'ok'|'warn'|'error'; detail: string; value?: any }
+
 const GROUPS: Record<string, string[]> = {
   'Signal Pipeline': ['Signal Scoring (auto)', 'Context Snapshot Tracking', 'Stream Votes in Snapshot', 'Stream Weight Learning'],
   'Learning Agents': ['Chat Learning (nightly)', 'Edge Profile Learning'],
@@ -32,7 +34,7 @@ const GROUPS: Record<string, string[]> = {
 }
 
 export default function AdminPage() {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<{ summary: any; checks: Check[]; crons: any[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
@@ -46,7 +48,7 @@ export default function AdminPage() {
 
   useEffect(() => { load() }, [])
 
-  const checkMap = new Map((data?.checks || []).map((c: any) => [c.name, c]))
+  const checkMap = new Map<string, Check>((data?.checks || []).map((c: Check) => [c.name, c]))
 
   const healthColor = data?.summary?.health >= 80 ? '#00d4a0' : data?.summary?.health >= 60 ? '#f59e0b' : '#ff4d6d'
 
