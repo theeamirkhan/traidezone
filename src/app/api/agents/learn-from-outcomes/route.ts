@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       try { ctx = JSON.parse(a.context_snapshot || '{}') } catch (_e) { /* invalid JSON */ }
       return {
         signal: a.signal, outcome: a.outcome,
-        won: a.outcome === 'HIT_T1' || a.outcome === 'HIT_T2',
+        won: a.outcome === 'HIT_T1' || a.outcome === 'HIT_T2' || a.outcome_normalized === 'WIN',
         humanWon: a.human_outcome ? (a.human_outcome === 'HIT_T1' || a.human_outcome === 'HIT_T2') : null,
         humanPts: a.human_pts, aiPts: a.pts_to_t1,
         confidence: a.confidence, systemAlignment: a.system_alignment,
@@ -61,55 +61,97 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    const wins = parsed.filter(a => a.won)
-    const losses = parsed.filter(a => !a.won && a.outcome !== 'EXPIRED')
+    const wins   = parsed.filter((a: any) => a.won)
+    const losses = parsed.filter((a: any) => !a.won && a.outcome !== 'EXPIRED')
 
     const feat = (field: string) => {
       const b: Record<string, { w: number; t: number }> = {}
-      parsed.forEach(a => {
-        const v = String((a as any)[field] || 'unknown')
+      parsed.forEach((a: any) => {
+        const v = String(a[field] ?? 'unknown')
         if (!b[v]) b[v] = { w: 0, t: 0 }
         b[v].t++
         if (a.won) b[v].w++
       })
       return Object.entries(b).filter(([, d]) => d.t >= 3)
-        .map(([v, d]) => `${v}: ${d.w}/${d.t} (${Math.round(d.w/d.t*100)}%)`).join(' | ')
+        .sort((a, b) => b[1].t - a[1].t)
+        .map(([v, d]) => `${v}: ${d.w}/${d.t} (${Math.round(d.w/d.t*100)}%)`).join(' | ') || 'insufficient data'
     }
 
-    const humanAlerts = parsed.filter(a => a.humanPts != null)
+    const boolFeat = (field: string, label: string) => {
+      const items = parsed.filter((a: any) => a[field] === true)
+      const w = items.filter((a: any) => a.won).length
+      return items.length >= 3 ? `${label}: ${w}/${items.length} (${Math.round(w/items.length*100)}%)` : ''
+    }
+
+    const humanAlerts = parsed.filter((a: any) => a.humanPts != null)
+    const total = parsed.length
     const matrix = {
-      total: parsed.length, wins: wins.length, losses: losses.length,
-      winRate: Math.round(wins.length / parsed.length * 100),
-      byAlignment: feat('systemAlignment'), byVix: feat('vixRegime'),
-      byDelta: feat('deltaBias'), byOptions: feat('optionsBias'),
-      byDarkPool: feat('darkPoolBias'), bySignal: feat('signal'),
-      avgWinConf: wins.length ? Math.round(wins.reduce((s, a) => s + (a.confidence||0), 0) / wins.length) : null,
-      avgLossConf: losses.length ? Math.round(losses.reduce((s, a) => s + (a.confidence||0), 0) / losses.length) : null,
-      humanVsAI: humanAlerts.length >= 3
-        ? `Human ${(humanAlerts.reduce((s,a)=>s+(a.humanPts||0),0)/humanAlerts.length).toFixed(1)}pts avg vs AI ${(humanAlerts.reduce((s,a)=>s+(a.aiPts||0),0)/humanAlerts.length).toFixed(1)}pts avg`
+      total, wins: wins.length, losses: losses.length,
+      winRate: Math.round(wins.length / Math.max(1, total) * 100),
+      byAlignment:      feat('systemAlignment'),
+      byVix:            feat('vixRegime'),
+      byDelta:          feat('deltaBias'),
+      byOptions:        feat('optionsBias'),
+      byDarkPool:       feat('darkPoolBias'),
+      bySignal:         feat('signal'),
+      avgWinConf:       wins.length ? Math.round(wins.reduce((s: number, a: any) => s + (a.confidence||0), 0) / wins.length) : null,
+      avgLossConf:      losses.length ? Math.round(losses.reduce((s: number, a: any) => s + (a.confidence||0), 0) / losses.length) : null,
+      humanVsAI:        humanAlerts.length >= 3
+        ? `Human ${(humanAlerts.reduce((s: number, a: any)=>s+(a.humanPts||0),0)/humanAlerts.length).toFixed(1)}pts vs AI ${(humanAlerts.reduce((s: number, a: any)=>s+(a.aiPts||0),0)/humanAlerts.length).toFixed(1)}pts avg`
         : 'insufficient',
+      // Market intelligence
+      byTermShape:      feat('termShape'),
+      byVwapPos:        feat('vwapBandPos'),
+      vwapExtended:     boolFeat('vwapIsExtended', 'VWAP_extended'),
+      vwapMeanRevert:   boolFeat('vwapIsMeanRevert', 'VWAP_meanrevert'),
+      optionsCheap:     boolFeat('optionsCheap', 'IV_cheap'),
+      optionsExp:       boolFeat('optionsExpensive', 'IV_expensive'),
+      bySectorBias:     feat('sectorBias'),
+      bySession:        feat('sessionName'),
+      byThetaUrgency:   feat('thetaUrgency'),
+      byPreMarket:      feat('preMarketConviction'),
+      byDailyTrend:     feat('dailyTrend'),
+      byWeeklyTrend:    feat('weeklyTrend'),
+      byCandlePatterns: feat('candlePatterns'),
     }
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY!, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 1000,
-        messages: [{ role: 'user', content: `Analyze trading signal outcomes. Find what predicts wins vs losses.
+        model: 'claude-haiku-4-5-20251001', max_tokens: 1500,
+        messages: [{ role: 'user', content: `Analyze SPX intraday ITM options day trading signal outcomes. Find what predicts wins vs losses.
 
-DATA (${parsed.length} scored signals, ${matrix.winRate}% win rate):
-By alignment: ${matrix.byAlignment}
-By VIX: ${matrix.byVix}
-By delta: ${matrix.byDelta}
-By options flow: ${matrix.byOptions}
-By dark pool: ${matrix.byDarkPool}
-By direction: ${matrix.bySignal}
-Avg confidence: winners ${matrix.avgWinConf}% vs losers ${matrix.avgLossConf}%
-Human vs AI: ${matrix.humanVsAI}
+DATA (${total} signals, ${matrix.winRate}% win rate):
 
-Extract 3-6 specific rules. Only include if sample >= 3.
-Return ONLY valid JSON array, no markdown:
-[{"rule":"short name","condition":"specific condition","winRate":75,"sampleSize":8,"action":"FAVOR"|"AVOID"|"BOOST_CONFIDENCE"|"REDUCE_CONFIDENCE","insight":"1 sentence"}]` }],
+CORE STREAMS:
+Alignment: ${matrix.byAlignment}
+VIX regime: ${matrix.byVix}
+Delta: ${matrix.byDelta}
+Options flow: ${matrix.byOptions}
+Dark pool: ${matrix.byDarkPool}
+Signal direction: ${matrix.bySignal}
+Confidence: winners ${matrix.avgWinConf}% vs losers ${matrix.avgLossConf}%
+
+MARKET INTELLIGENCE:
+VIX term shape: ${matrix.byTermShape}
+VWAP band position: ${matrix.byVwapPos}
+VWAP extended (2σ): ${matrix.vwapExtended}
+VWAP mean-revert zone (1σ): ${matrix.vwapMeanRevert}
+Options cheap (IV<RV): ${matrix.optionsCheap}
+Options expensive (IV>RV): ${matrix.optionsExp}
+Sector bias: ${matrix.bySectorBias}
+Session: ${matrix.bySession}
+Theta urgency: ${matrix.byThetaUrgency}
+Pre-market conviction: ${matrix.byPreMarket}
+Daily trend: ${matrix.byDailyTrend}
+Weekly trend: ${matrix.byWeeklyTrend}
+Candle patterns: ${matrix.byCandlePatterns}
+Human vs AI execution: ${matrix.humanVsAI}
+
+Extract 5-8 rules that predict outcomes. Only include if sample >= 3.
+Return ONLY valid JSON, no markdown:
+[{"rule":"short name","condition":"specific","winRate":75,"sampleSize":8,"action":"FAVOR"|"AVOID"|"BOOST_CONFIDENCE"|"REDUCE_CONFIDENCE","category":"stream"|"timing"|"technical"|"macro","insight":"why this works"}]` }],
       })
     })
     const aiData = await aiRes.json()

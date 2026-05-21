@@ -19,6 +19,7 @@ import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const STREAM_NAMES = [
+  // Original 8 quality gate streams
   'Cum. Delta',
   'Options Flow',
   'Dark Pool',
@@ -27,7 +28,79 @@ const STREAM_NAMES = [
   'GEX Regime',
   'Morning Plan',
   'Patterns',
+  // Market intelligence streams (tracked via context_snapshot)
+  'VIX Term Shape',
+  'VWAP Position',
+  'IV vs RV',
+  'Sector Rotation',
+  'Session Timing',
+  'Daily Trend',
+  'Weekly Trend',
+  'Candle Patterns',
+  'Pre-Market',
 ]
+
+// Map context_snapshot fields to stream names for accuracy tracking
+const INTEL_STREAM_MAP: Record<string, string> = {
+  termShape:           'VIX Term Shape',
+  vwapBandPos:         'VWAP Position',
+  optionsCheap:        'IV vs RV',
+  optionsExpensive:    'IV vs RV',
+  sectorBias:          'Sector Rotation',
+  sessionBias:         'Session Timing',
+  dailyTrend:          'Daily Trend',
+  weeklyTrend:         'Weekly Trend',
+  candlePatterns:      'Candle Patterns',
+  preMarketConviction: 'Pre-Market',
+}
+
+// Determine if a market intelligence value is "bullish" or "bearish"
+function intelVote(key: string, value: any, signal: string): 1 | -1 | 0 {
+  const isBull = signal === 'LONG'
+  const isBear = signal === 'SHORT'
+  if (key === 'termShape') {
+    if (value === 'inverted') return 0  // inverted = uncertainty, not directional
+    if (value === 'calm' && isBull) return 1
+    if (value === 'normal') return 0
+    return 0
+  }
+  if (key === 'vwapBandPos') {
+    if (isBull && value === 'above_vwap') return 1
+    if (isBull && value === 'below_1sigma') return -1
+    if (isBear && value === 'below_vwap') return 1
+    if (isBear && value === 'above_1sigma') return -1
+    if (value === 'above_2sigma' || value === 'below_2sigma') return -1  // extended = risky
+    return 0
+  }
+  if (key === 'optionsCheap' && value === true) return 1   // cheap options = good to buy
+  if (key === 'optionsExpensive' && value === true) return -1
+  if (key === 'sectorBias') {
+    if (isBull && value === 'BULLISH') return 1
+    if (isBull && value === 'BEARISH') return -1
+    if (isBear && value === 'BEARISH') return 1
+    if (isBear && value === 'BULLISH') return -1
+    return 0
+  }
+  if (key === 'sessionBias') {
+    if (value === 'PRIME') return 1
+    if (value === 'DANGER' || value === 'THETA RISK') return -1
+    if (value === 'HIGH NOISE' || value === 'CHOPPY') return -1
+    return 0
+  }
+  if (key === 'dailyTrend' || key === 'weeklyTrend') {
+    if (isBull && value === 'BULLISH') return 1
+    if (isBull && value === 'BEARISH') return -1
+    if (isBear && value === 'BEARISH') return 1
+    if (isBear && value === 'BULLISH') return -1
+    return 0
+  }
+  if (key === 'preMarketConviction') {
+    if (value === 'HIGH') return 1   // high conviction pre-market = gap likely holds
+    if (value === 'LOW') return -1
+    return 0
+  }
+  return 0
+}
 
 // Equal weights to start — each stream gets 12.5% (100/8)
 const DEFAULT_WEIGHTS: Record<string, number> = Object.fromEntries(
@@ -91,9 +164,10 @@ export async function GET(req: NextRequest) {
       let ctx: any = {}
       try { ctx = JSON.parse(alert.context_snapshot || '{}') } catch { continue }
 
-      if (!ctx.streamVotes) continue
       let votes: Array<{ n: string; v: number }> = []
-      try { votes = JSON.parse(ctx.streamVotes) } catch { continue }
+      if (ctx.streamVotes) {
+        try { votes = JSON.parse(ctx.streamVotes) } catch {}
+      }
 
       // Normalize outcome
       const norm = alert.outcome_normalized ||
@@ -103,22 +177,32 @@ export async function GET(req: NextRequest) {
       const won = norm === 'WIN'
       scoredWithStreams++
 
+      // Track original 8 stream votes
       for (const vote of votes) {
         const stats = streamStats[vote.n]
         if (!stats) continue
-
         if (vote.v === 0) {
           stats.neutral++
         } else {
-          // Stream is "correct" if its vote direction matches the outcome
           const streamCorrect = (vote.v === 1 && won) || (vote.v === -1 && !won)
-          if (streamCorrect) {
-            stats.correct++
-            stats.recent.push(1)
-          } else {
-            stats.incorrect++
-            stats.recent.push(-1)
-          }
+          if (streamCorrect) { stats.correct++; stats.recent.push(1) }
+          else               { stats.incorrect++; stats.recent.push(-1) }
+        }
+      }
+
+      // Track market intelligence streams from context_snapshot
+      for (const [key, streamName] of Object.entries(INTEL_STREAM_MAP)) {
+        const val = ctx[key]
+        if (val === null || val === undefined) continue
+        const stats = streamStats[streamName]
+        if (!stats) continue
+        const vote = intelVote(key, val, alert.signal)
+        if (vote === 0) {
+          stats.neutral++
+        } else {
+          const correct = (vote === 1 && won) || (vote === -1 && !won)
+          if (correct) { stats.correct++; stats.recent.push(1) }
+          else         { stats.incorrect++; stats.recent.push(-1) }
         }
       }
     }
