@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     // Fetch all scored signals
     const { data: alerts } = await supabaseAdmin
       .from('trade_alerts')
-      .select('signal, outcome, confidence, pts_to_t1, vix_at_signal, created_at, human_outcome, human_pts, ai_view, system_alignment, context_snapshot, wait_reason')
+      .select('signal, outcome, outcome_normalized, confidence, pts_to_t1, vix_at_signal, created_at, human_outcome, human_pts, ai_view, system_alignment, context_snapshot, wait_reason')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -34,11 +34,20 @@ export async function GET(req: NextRequest) {
       .eq('user_id', userId)
       .single()
 
-    const scored  = (alerts || []).filter(a => a.outcome && a.outcome !== 'PENDING')
-    const total   = scored.length
-    const wins    = scored.filter(a => a.outcome === 'WIN').length
-    const losses  = scored.filter(a => a.outcome === 'LOSS').length
-    const scratch = scored.filter(a => a.outcome === 'SCRATCH').length
+    // Normalize outcomes — use outcome_normalized if available, else map raw outcome
+    const normalize = (a: any): string | null => {
+      if (a.outcome_normalized) return a.outcome_normalized
+      if (a.outcome === 'HIT_T1' || a.outcome === 'HIT_T2') return 'WIN'
+      if (a.outcome === 'STOPPED_OUT') return 'LOSS'
+      if (a.outcome === 'PARTIAL' || a.outcome === 'EXPIRED') return 'SCRATCH'
+      return null
+    }
+
+    const scored  = (alerts || []).filter(a => a.outcome && a.outcome !== 'PENDING').map(a => ({ ...a, _norm: normalize(a) }))
+    const total   = scored.filter(a => a._norm).length
+    const wins    = scored.filter(a => a._norm === 'WIN').length
+    const losses  = scored.filter(a => a._norm === 'LOSS').length
+    const scratch = scored.filter(a => a._norm === 'SCRATCH').length
     const winRate = total > 0 ? Math.round(wins / total * 100) : 0
 
     // Avg pts
@@ -52,7 +61,7 @@ export async function GET(req: NextRequest) {
       const bucket = a.confidence >= 80 ? '80-100%' : a.confidence >= 65 ? '65-79%' : a.confidence >= 50 ? '50-64%' : '<50%'
       if (!byConfidence[bucket]) byConfidence[bucket] = { wins: 0, total: 0 }
       byConfidence[bucket].total++
-      if (a.outcome === 'WIN') byConfidence[bucket].wins++
+      if (a._norm === 'WIN') byConfidence[bucket].wins++
     })
     const confidenceCalibration = Object.entries(byConfidence).map(([range, d]) => ({
       range,
@@ -64,8 +73,8 @@ export async function GET(req: NextRequest) {
     // Signal direction breakdown
     const longs  = scored.filter(a => a.signal === 'LONG')
     const shorts = scored.filter(a => a.signal === 'SHORT')
-    const longWR = longs.length > 0 ? Math.round(longs.filter(a => a.outcome === 'WIN').length / longs.length * 100) : null
-    const shortWR = shorts.length > 0 ? Math.round(shorts.filter(a => a.outcome === 'WIN').length / shorts.length * 100) : null
+    const longWR = longs.length > 0 ? Math.round(longs.filter(a => a._norm === 'WIN').length / longs.length * 100) : null
+    const shortWR = shorts.length > 0 ? Math.round(shorts.filter(a => a._norm === 'WIN').length / shorts.length * 100) : null
 
     // VIX regime performance
     const byVix: Record<string, { wins: number; total: number }> = {}
@@ -74,7 +83,7 @@ export async function GET(req: NextRequest) {
       const bucket = a.vix_at_signal > 25 ? 'VIX >25 (high vol)' : a.vix_at_signal > 18 ? 'VIX 18-25 (elevated)' : 'VIX <18 (low vol)'
       if (!byVix[bucket]) byVix[bucket] = { wins: 0, total: 0 }
       byVix[bucket].total++
-      if (a.outcome === 'WIN') byVix[bucket].wins++
+      if (a._norm === 'WIN') byVix[bucket].wins++
     })
     const vixPerformance = Object.entries(byVix).map(([regime, d]) => ({
       regime,
@@ -85,12 +94,12 @@ export async function GET(req: NextRequest) {
     // System alignment — does following the plan win more?
     const aligned   = scored.filter(a => a.system_alignment === 'aligned')
     const divergent = scored.filter(a => a.system_alignment === 'divergent')
-    const alignedWR = aligned.length > 0 ? Math.round(aligned.filter(a => a.outcome === 'WIN').length / aligned.length * 100) : null
-    const divergentWR = divergent.length > 0 ? Math.round(divergent.filter(a => a.outcome === 'WIN').length / divergent.length * 100) : null
+    const alignedWR = aligned.length > 0 ? Math.round(aligned.filter(a => a._norm === 'WIN').length / aligned.length * 100) : null
+    const divergentWR = divergent.length > 0 ? Math.round(divergent.filter(a => a._norm === 'WIN').length / divergent.length * 100) : null
 
     // Recent losers — what conditions led to losses
     const recentLosses = scored
-      .filter(a => a.outcome === 'LOSS')
+      .filter(a => a._norm === 'LOSS')
       .slice(0, 5)
       .map(a => ({
         signal:    a.signal,
@@ -103,7 +112,7 @@ export async function GET(req: NextRequest) {
 
     // Recent wins
     const recentWins = scored
-      .filter(a => a.outcome === 'WIN')
+      .filter(a => a._norm === 'WIN')
       .slice(0, 5)
       .map(a => ({
         signal:    a.signal,
@@ -120,7 +129,7 @@ export async function GET(req: NextRequest) {
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString()
     const recent5d    = scored.filter(a => a.created_at > fiveDaysAgo)
     const recent5dWR  = recent5d.length > 0
-      ? Math.round(recent5d.filter(a => a.outcome === 'WIN').length / recent5d.length * 100)
+      ? Math.round(recent5d.filter(a => a._norm === 'WIN').length / recent5d.length * 100)
       : null
 
     return NextResponse.json({

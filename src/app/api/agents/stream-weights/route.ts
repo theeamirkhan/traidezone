@@ -64,9 +64,10 @@ export async function GET(req: NextRequest) {
     // Get all scored signals with stream vote data
     const { data: alerts } = await supabaseAdmin
       .from('trade_alerts')
-      .select('signal, outcome, context_snapshot, created_at')
+      .select('signal, outcome, outcome_normalized, context_snapshot, created_at')
       .eq('user_id', userId)
-      .in('outcome', ['WIN', 'LOSS'])
+      .not('outcome', 'eq', 'PENDING')
+      .not('outcome', 'is', null)
       .not('context_snapshot', 'is', null)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -94,7 +95,12 @@ export async function GET(req: NextRequest) {
       let votes: Array<{ n: string; v: number }> = []
       try { votes = JSON.parse(ctx.streamVotes) } catch { continue }
 
-      const won = alert.outcome === 'WIN'
+      // Normalize outcome
+      const norm = alert.outcome_normalized ||
+        (alert.outcome === 'HIT_T1' || alert.outcome === 'HIT_T2' ? 'WIN' :
+         alert.outcome === 'STOPPED_OUT' ? 'LOSS' : null)
+      if (!norm || norm === 'SCRATCH') continue  // skip non-decisive outcomes
+      const won = norm === 'WIN'
       scoredWithStreams++
 
       for (const vote of votes) {

@@ -149,10 +149,18 @@ export async function GET(req: NextRequest) {
     const { outcome, ptsToT1, outcomeNote } = scoreAlert(alert, currentPrice)
 
     if (outcome !== 'PENDING') {
+      // Normalize to WIN/LOSS/SCRATCH for learning agents
+      const normalizedOutcome =
+        outcome === 'HIT_T1' || outcome === 'HIT_T2' ? 'WIN' :
+        outcome === 'STOPPED_OUT' ? 'LOSS' :
+        outcome === 'PARTIAL' ? 'SCRATCH' :
+        outcome === 'EXPIRED' ? 'SCRATCH' : null
+
       const { error } = await supabaseAdmin
         .from('trade_alerts')
         .update({
           outcome,
+          outcome_normalized: normalizedOutcome,
           outcome_at:   new Date().toISOString(),
           pts_to_t1:    ptsToT1,
           outcome_note: outcomeNote,
