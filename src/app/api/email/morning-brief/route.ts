@@ -80,7 +80,7 @@ VIX prev close: ${prevVix ? prevVix.toFixed(2) : 'search for current'}
 Search for: current SPX futures pre-market, today's economic calendar, overnight market news.
 
 DAILY CANDLE PATTERNS (yesterday's close):
-${cronPatterns?.length > 0 ? cronPatterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n') : 'No significant patterns'}
+${patterns?.length > 0 ? patterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n') : 'No significant patterns'}
 
 VIX TERM STRUCTURE:
 ${marketIntel?.termStructure ? `VIX1D: ${marketIntel.termStructure.vix1d} | VIX30: ${marketIntel.termStructure.vix30} | Shape: ${marketIntel.termStructure.termShape?.toUpperCase()} | Implied move today: ±${marketIntel.termStructure.impliedMoveToday}pts` : 'Fetch from market data'}
