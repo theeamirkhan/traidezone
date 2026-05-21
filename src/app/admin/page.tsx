@@ -35,7 +35,7 @@ const GROUPS: Record<string, string[]> = {
 
 // ── Admin user IDs — only these Clerk user IDs can access /admin ──────────────
 const ADMIN_USER_IDS = [
-  process.env.NEXT_PUBLIC_ADMIN_USER_ID || 'REPLACE_WITH_YOUR_CLERK_USER_ID',
+  process.env.NEXT_PUBLIC_ADMIN_USER_ID || 'user_3BKD6y0MW6t9rxyyZo3HlywvkqT',
 ]
 
 export default function AdminPage() {
@@ -50,7 +50,7 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(d => {
         const uid = d?.userId || d?.user?.id || ''
-        setAuthorized(ADMIN_USER_IDS.includes(uid) || ADMIN_USER_IDS.includes('REPLACE_WITH_YOUR_CLERK_USER_ID'))
+        setAuthorized(ADMIN_USER_IDS.includes(uid) || ADMIN_USER_IDS.includes('user_3BKD6y0MW6t9rxyyZo3HlywvkqT'))
       })
       .catch(() => setAuthorized(false))
   }, [])

@@ -95,7 +95,7 @@ const C_DARK = {
 }
 const C = C_DARK  // Module-level fallback; component overrides with const C = CC
 // Admin user IDs — only these users see the admin link in the header
-const ADMIN_USER_IDS = ['REPLACE_WITH_YOUR_CLERK_USER_ID']
+const ADMIN_USER_IDS = ['user_3BKD6y0MW6t9rxyyZo3HlywvkqT']
 
 const font = "'Share Tech Mono', monospace"
 const fontDisplay = "'Orbitron', sans-serif"
