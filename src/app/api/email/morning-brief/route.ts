@@ -31,6 +31,14 @@ async function getPreMarketData() {
     const prevClose = spxBars[0]?.c || null
     const prevVix   = vixBars[0]?.c || null
 
+    // Detect daily candle patterns
+    const patterns = spxBars.length >= 2
+      ? (await import('../../cockpit/lib/dailyCandlePatterns')).detectDailyCandlePatterns(
+          [...spxBars].reverse(),
+          { sma50: spxBars.length >= 10 ? spxBars.slice(0,10).reduce((s: number, b: any) => s + b.c, 0) / 10 : undefined }
+        )
+      : []
+
     return { prevClose, prevVix, today, patterns }
   } catch { return { prevClose: null, prevVix: null, today: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), patterns: [] } }
 }
