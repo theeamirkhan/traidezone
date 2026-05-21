@@ -31,8 +31,8 @@ async function getPreMarketData() {
     const prevClose = spxBars[0]?.c || null
     const prevVix   = vixBars[0]?.c || null
 
-    return { prevClose, prevVix, today }
-  } catch { return { prevClose: null, prevVix: null, today: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) } }
+    return { prevClose, prevVix, today, patterns }
+  } catch { return { prevClose: null, prevVix: null, today: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), patterns: [] } }
 }
 
 // ── Generate brief via AI ──────────────────────────────────────────────────
