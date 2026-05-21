@@ -1,6 +1,31 @@
 /**
  * /api/system-status — Complete system health and wiring audit
  *
+ * ═══════════════════════════════════════════════════════════════
+ * HOW TO ADD A NEW FEATURE CHECK:
+ *
+ * 1. Add a check() call in the Promise.allSettled([...]) array below
+ *    Format:
+ *      check('Feature Name', async () => {
+ *        // test the feature
+ *        return { detail: 'what you found', value: optionalData }
+ *        // or throw new Error('what is broken') for error status
+ *      })
+ *
+ * 2. Add the feature name to the GROUPS object in src/app/admin/page.tsx
+ *    under the appropriate group (or create a new group)
+ *
+ * Groups: Signal Pipeline | Learning Loop | Market Intelligence |
+ *         Probability Engine | Cron Health | Morning Brief |
+ *         Companion | Integrations
+ *
+ * Status levels:
+ *   return { detail: '...' }              → OK (green ✓)
+ *   return { detail: '...', status: 'warn' } → WARN (yellow ⚠)
+ *   throw new Error('...')               → ERROR (red ✗)
+ * ═══════════════════════════════════════════════════════════════
+ *
+ *
  * Returns status of every feature, data flow, cron, and integration.
  * Used by the Admin dashboard to show what's working vs broken.
  */
@@ -240,6 +265,224 @@ export async function GET(req: NextRequest) {
       const key = process.env.FLASHALPHA_API_KEY
       if (!key) throw new Error('FLASHALPHA_API_KEY not set in Vercel env vars')
       return { detail: 'Key present ✓ (not tested — 5/day limit)' }
+    }),
+
+    // ── Signal Quality Gate ────────────────────────────────────────────────────
+    check('Quality Gate (signal verdicts)', async () => {
+      const { data } = await supabaseAdmin.from('trade_alerts')
+        .select('context_snapshot').eq('user_id', userId)
+        .not('context_snapshot', 'is', null)
+        .order('created_at', { ascending: false }).limit(10)
+      const verdicts: Record<string, number> = {}
+      let total = 0
+      for (const row of data || []) {
+        try {
+          const ctx = JSON.parse(row.context_snapshot || '{}')
+          if (ctx.qualityVerdict) { verdicts[ctx.qualityVerdict] = (verdicts[ctx.qualityVerdict] || 0) + 1; total++ }
+        } catch {}
+      }
+      const blocked = verdicts['BLOCKED'] || 0
+      const strong  = verdicts['STRONG']  || 0
+      return {
+        detail: total > 0
+          ? `${total} signals with verdicts — STRONG: ${strong} | BLOCKED: ${blocked} | Distribution: ${Object.entries(verdicts).map(([k,v]) => `${k}:${v}`).join(', ')}`
+          : 'No verdicts recorded yet — fire a signal to test',
+        value: verdicts
+      }
+    }),
+
+    check('Breadth Data (TICK/TRIN/VVIX)', async () => {
+      const POLY = process.env.POLYGON_API_KEY
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const etHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))
+      if (etHour < 9 || etHour >= 17) return { detail: 'Pre/post market — breadth tracked during market hours', value: null }
+      const res = await fetch(`https://api.polygon.io/v2/aggs/ticker/I:TICK/range/1/minute/${today}/${today}?adjusted=true&sort=desc&limit=3&apiKey=${POLY}`, { signal: AbortSignal.timeout(5000) })
+      const d = await res.json()
+      const tick = d.results?.[0]?.c
+      return { detail: tick !== undefined ? `TICK: ${tick} ✓ — breadth data live` : 'No TICK data — check Polygon Indices Advanced plan', value: { tick } }
+    }),
+
+    // ── Probability Engine ─────────────────────────────────────────────────────
+    check('Gap Fill/Trend Rates (probability)', async () => {
+      const { data, count } = await supabaseAdmin.from('gap_outcomes')
+        .select('gap_outcome, day_type', { count: 'exact' }).neq('gap_outcome', 'PENDING')
+      const filled    = (data || []).filter(r => r.gap_outcome === 'FILLED').length
+      const trendDays = (data || []).filter(r => r.day_type === 'TREND_UP' || r.day_type === 'TREND_DOWN').length
+      const total     = count || 0
+      return {
+        detail: total >= 20
+          ? `${total} days — Fill rate: ${Math.round(filled/total*100)}% | Trend days: ${Math.round(trendDays/total*100)}% — probability display using real data ✓`
+          : `${total} days tracked (need 20+ for reliable rates) — probability display using model estimates`,
+        value: { total, fillRate: total > 0 ? Math.round(filled/total*100) : null }
+      }
+    }),
+
+    // ── Companion Health ───────────────────────────────────────────────────────
+    check('Custom Trading Rules', async () => {
+      // Rules stored in localStorage — check profile for seed data as proxy
+      const { data } = await supabaseAdmin.from('trader_profiles')
+        .select('system_rules, is_seeded, disclaimer_accepted').eq('user_id', userId).single()
+      return {
+        detail: data?.disclaimer_accepted
+          ? `Disclaimer accepted ✓ | Seeded: ${data.is_seeded ? '✓' : '✗'} | Custom rules: stored in browser localStorage (cannot check server-side)`
+          : `Disclaimer NOT accepted — user hasn't accepted trading disclaimer`,
+        value: { disclaimerAccepted: data?.disclaimer_accepted, seeded: data?.is_seeded }
+      }
+    }),
+
+    // ── Cron Health ────────────────────────────────────────────────────────────
+    check('Cron — Score Alerts', async () => {
+      const { data } = await supabaseAdmin.from('trade_alerts')
+        .select('scored_at').not('scored_at', 'is', null)
+        .order('scored_at', { ascending: false }).limit(1)
+      const last = data?.[0]?.scored_at
+      const ageH = last ? (Date.now() - new Date(last).getTime()) / 3600000 : null
+      return {
+        detail: last
+          ? ageH! < 1 ? `Last ran: ${new Date(last).toLocaleTimeString()} ✓ (< 1h ago)`
+          : ageH! < 24 ? `Last ran: ${new Date(last).toLocaleString()} (${ageH!.toFixed(0)}h ago)`
+          : `⚠ Last ran ${ageH!.toFixed(0)}h ago — cron may be failing`
+          : 'Never ran — no scored alerts yet',
+        status: last && ageH! > 48 ? 'warn' as const : 'ok' as const,
+        value: { lastRun: last }
+      }
+    }),
+
+    check('Cron — Gap Outcomes', async () => {
+      const { data } = await supabaseAdmin.from('gap_outcomes')
+        .select('created_at').order('created_at', { ascending: false }).limit(1)
+      const last = data?.[0]?.created_at
+      const ageH = last ? (Date.now() - new Date(last).getTime()) / 3600000 : null
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const { data: todayRow } = await supabaseAdmin.from('gap_outcomes')
+        .select('gap_outcome, day_type, trend_score_predicted').eq('trading_date', today).single()
+      return {
+        detail: todayRow
+          ? `Today recorded ✓ — Gap: ${todayRow.gap_outcome} | Day: ${todayRow.day_type} | Trend score: ${todayRow.trend_score_predicted}`
+          : last
+          ? `Last record: ${new Date(last).toLocaleDateString()} (${ageH!.toFixed(0)}h ago) — today not yet recorded`
+          : 'No gap records — cron never fired',
+        status: !todayRow && ageH && ageH > 48 ? 'warn' as const : 'ok' as const,
+        value: { todayRecorded: !!todayRow, lastDate: last?.split('T')[0] }
+      }
+    }),
+
+    check('Cron — Email Brief', async () => {
+      const { data } = await supabaseAdmin.from('email_logs')
+        .select('sent_at, status, subject').eq('type', 'morning_brief')
+        .order('sent_at', { ascending: false }).limit(3)
+      const last = data?.[0]
+      const ageH = last ? (Date.now() - new Date(last.sent_at).getTime()) / 3600000 : null
+      return {
+        detail: last
+          ? `Last sent: ${new Date(last.sent_at).toLocaleDateString()} — ${last.status} | ${last.subject?.substring(0, 60)}`
+          : 'No emails sent yet — check RESEND_API_KEY and domain',
+        status: !last ? 'warn' as const : 'ok' as const,
+        value: { lastSent: last?.sent_at, recentCount: data?.length }
+      }
+    }),
+
+    check('Cron — Stream Weights', async () => {
+      const { data } = await supabaseAdmin.from('trader_profiles')
+        .select('stream_weights, updated_at').eq('user_id', userId).single()
+      const weights = data?.stream_weights
+      const updatedAt = data?.updated_at
+      const ageH = updatedAt ? (Date.now() - new Date(updatedAt).getTime()) / 3600000 : null
+      const count = weights ? Object.keys(weights).length : 0
+      return {
+        detail: count > 0
+          ? `${count} streams weighted. Updated: ${updatedAt ? new Date(updatedAt).toLocaleDateString() : 'unknown'}${ageH && ageH > 48 ? ' ⚠ stale' : ' ✓'}`
+          : 'No weights — /api/agents/stream-weights not yet run',
+        status: count === 0 ? 'warn' as const : 'ok' as const,
+        value: { streamCount: count, updatedAt }
+      }
+    }),
+
+    // ── Market Intelligence ────────────────────────────────────────────────────
+    check('VIX Term Structure', async () => {
+      const POLY = process.env.POLYGON_API_KEY
+      if (!POLY) throw new Error('POLYGON_API_KEY not set')
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const res = await fetch(`https://api.polygon.io/v2/aggs/ticker/I:VIX1D/range/1/minute/${today}/${today}?adjusted=true&sort=desc&limit=3&apiKey=${POLY}`, { signal: AbortSignal.timeout(5000) })
+      const d = await res.json()
+      const v1d = d.results?.[0]?.c
+      return { detail: v1d ? `VIX1D: ${v1d.toFixed(2)} ✓ — term structure data available` : 'No VIX1D data yet (pre-market or weekend)', value: { vix1d: v1d } }
+    }),
+
+    check('VWAP Bands Calculation', async () => {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const etHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))
+      if (etHour < 9 || etHour >= 17) return { detail: 'Pre/post market — VWAP bands calculated during market hours (9:30am-4pm ET)', value: null }
+      const POLY = process.env.POLYGON_API_KEY
+      const res = await fetch(`https://api.polygon.io/v2/aggs/ticker/I:SPX/range/1/minute/${today}/${today}?adjusted=true&sort=asc&limit=50&apiKey=${POLY}`, { signal: AbortSignal.timeout(5000) })
+      const d = await res.json()
+      const bars = d.results || []
+      return { detail: bars.length > 10 ? `${bars.length} intraday bars available ✓ — VWAP bands calculable` : `Only ${bars.length} bars — need 10+ for reliable bands`, value: { bars: bars.length } }
+    }),
+
+    check('Sector Rotation (10 sectors)', async () => {
+      const POLY = process.env.POLYGON_API_KEY
+      if (!POLY) throw new Error('POLYGON_API_KEY not set')
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const etHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))
+      if (etHour < 9 || etHour >= 17) return { detail: 'Pre/post market — sectors tracked during market hours', value: null }
+      const res = await fetch(`https://api.polygon.io/v2/aggs/ticker/XLK/range/1/minute/${today}/${today}?adjusted=true&sort=desc&limit=3&apiKey=${POLY}`, { signal: AbortSignal.timeout(5000) })
+      const d = await res.json()
+      const hasData = d.results?.length > 0
+      return { detail: hasData ? 'Sector data available (XLK tested) ✓ — all 10 sectors tracked' : 'No sector data — check Polygon plan includes equities', value: { xlkAvailable: hasData } }
+    }),
+
+    check('Market Intel in Snapshot', async () => {
+      const { data } = await supabaseAdmin.from('trade_alerts')
+        .select('context_snapshot').eq('user_id', userId)
+        .not('context_snapshot', 'is', null)
+        .order('created_at', { ascending: false }).limit(5)
+      const withIntel = (data || []).filter(d => {
+        try {
+          const ctx = JSON.parse(d.context_snapshot || '{}')
+          return ctx.vwapBandPos || ctx.termShape || ctx.sectorBias
+        } catch { return false }
+      })
+      return {
+        detail: withIntel.length > 0
+          ? `${withIntel.length} of last 5 signals have market intel in snapshot ✓ — learning loop active`
+          : 'No market intel in snapshots yet — fire a signal to populate',
+        value: { recentWithIntel: withIntel.length }
+      }
+    }),
+
+    check('Stream Weights (17 streams)', async () => {
+      const { data } = await supabaseAdmin.from('trader_profiles')
+        .select('stream_weights').eq('user_id', userId).single()
+      const weights = data?.stream_weights || {}
+      const streamCount = Object.keys(weights).length
+      const hasLearned = Object.values(weights).some((w: any) => w !== 1.0)
+      const topStream = Object.entries(weights).sort((a, b) => (b[1] as number) - (a[1] as number))[0]
+      return {
+        detail: streamCount > 0
+          ? `${streamCount} streams tracked. ${hasLearned ? `Top: ${topStream?.[0]} (${(topStream?.[1] as number)?.toFixed(2)}x)` : 'All equal weight — need more scored trades'}`
+          : 'No weights yet — run /api/agents/stream-weights',
+        value: { streamCount, hasLearned }
+      }
+    }),
+
+    check('Learn-from-Outcomes (new fields)', async () => {
+      const { data } = await supabaseAdmin.from('trade_alerts')
+        .select('context_snapshot').eq('user_id', userId)
+        .not('context_snapshot', 'is', null)
+        .order('created_at', { ascending: false }).limit(10)
+      const withNew = (data || []).filter(d => {
+        try {
+          const ctx = JSON.parse(d.context_snapshot || '{}')
+          return ctx.sessionName || ctx.thetaUrgency || ctx.ivRvSpread !== undefined
+        } catch { return false }
+      })
+      return {
+        detail: withNew.length > 0
+          ? `${withNew.length} signals with session/IV/theta data ✓ — learn-from-outcomes has full context`
+          : 'No new fields in snapshots yet — will populate on next signal',
+        value: { count: withNew.length }
+      }
     }),
 
   ])

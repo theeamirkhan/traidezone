@@ -25,12 +25,52 @@ const STATUS_ICON: Record<string, string> = {
 interface Check { name: string; status: 'ok'|'warn'|'error'; detail: string; value?: any }
 
 const GROUPS: Record<string, string[]> = {
-  'Signal Pipeline': ['Signal Scoring (auto)', 'Context Snapshot Tracking', 'Stream Votes in Snapshot', 'Stream Weight Learning'],
-  'Learning Agents': ['Chat Learning (nightly)', 'Edge Profile Learning'],
-  'Gap + Trend': ['Gap Outcome Tracking', 'Trend Day Prediction'],
-  'Morning Brief': ['Morning Brief Generation', 'Daily Candle Patterns'],
-  'Companion': ['Chat Persistence', 'Trader Profile Seeded'],
-  'Integrations': ['Polygon API', 'Anthropic API', 'Resend Email', 'FlashAlpha GEX'],
+  'Signal Pipeline': [
+    'Signal Scoring (auto)',
+    'Context Snapshot Tracking',
+    'Stream Votes in Snapshot',
+    'Quality Gate (signal verdicts)',
+    'Breadth Data (TICK/TRIN/VVIX)',
+  ],
+  'Learning Loop': [
+    'Stream Weight Learning',
+    'Stream Weights (17 streams)',
+    'Market Intel in Snapshot',
+    'Learn-from-Outcomes (new fields)',
+    'Chat Learning (nightly)',
+    'Edge Profile Learning',
+  ],
+  'Market Intelligence': [
+    'VIX Term Structure',
+    'VWAP Bands Calculation',
+    'Sector Rotation (10 sectors)',
+  ],
+  'Probability Engine': [
+    'Gap Outcome Tracking',
+    'Gap Fill/Trend Rates (probability)',
+    'Trend Day Prediction',
+  ],
+  'Cron Health': [
+    'Cron — Score Alerts',
+    'Cron — Gap Outcomes',
+    'Cron — Email Brief',
+    'Cron — Stream Weights',
+  ],
+  'Morning Brief': [
+    'Morning Brief Generation',
+    'Daily Candle Patterns',
+  ],
+  'Companion': [
+    'Chat Persistence',
+    'Trader Profile Seeded',
+    'Custom Trading Rules',
+  ],
+  'Integrations': [
+    'Polygon API',
+    'Anthropic API',
+    'Resend Email',
+    'FlashAlpha GEX',
+  ],
 }
 
 // ── Admin user IDs — only these Clerk user IDs can access /admin ──────────────
