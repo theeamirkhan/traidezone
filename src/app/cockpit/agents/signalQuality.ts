@@ -22,6 +22,7 @@ export interface SignalQualityInput {
   signal:        'LONG' | 'SHORT' | 'WAIT' | 'NO TRADE'
   confidence:    number
   currentPrice:  number | null
+  streamWeights?: Record<string, number> | null
   vixPrice:      number | null
 
   // Microstructure
@@ -102,6 +103,26 @@ export function scoreSignalQuality(input: SignalQualityInput): SignalQualityResu
   const addStream = (name: string, vote: 1|-1|0, detail: string, available = true) => streams.push({ name, vote, detail, available })
   let maxVotes  = 0
   let finalConf = confidence
+
+  // ── Apply learned stream weights ────────────────────────────────────────────
+  if (input.streamWeights && streams.length > 0) {
+    const hasLearned = Object.values(input.streamWeights).some((w: number) => w !== 1.0)
+    if (hasLearned) {
+      let weightedScore = 0, totalWeight = 0
+      for (const s of streams) {
+        if (s.vote !== 0) {
+          const w = (input.streamWeights as Record<string,number>)[s.name] || 1.0
+          weightedScore += s.vote * w
+          totalWeight   += w
+        }
+      }
+      if (totalWeight > 0) {
+        const rawPct  = votes / Math.max(1, maxVotes)
+        const wPct    = weightedScore / totalWeight
+        votes = Math.round((wPct * 0.6 + rawPct * 0.4) * maxVotes)
+      }
+    }
+  }
 
   // ── HARD BLOCKERS (override everything) ───────────────────────────────────
 

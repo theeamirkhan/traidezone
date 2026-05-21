@@ -1776,6 +1776,7 @@ export default function CockpitPage() {
   const [historicalGapStats, setHistoricalGapStats] = useState<any>(null)
   const [gapPrediction, setGapPrediction] = useState<any>(null)
   const [insights, setInsights] = useState<any>(null)
+  const [streamWeights, setStreamWeights] = useState<Record<string,number> | null>(null)
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [morningBrief, setMorningBrief] = useState<any>(null)
   const [briefLoading, setBriefLoading] = useState(false)
@@ -3345,6 +3346,25 @@ export default function CockpitPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [macroRegime])
 
+  // Load stream weights from localStorage (updated by cron daily)
+  useEffect(() => {
+    const cached = localStorage.getItem('tz-stream-weights')
+    if (cached) {
+      try { setStreamWeights(JSON.parse(cached)) } catch {}
+    }
+    // Fetch fresh weights from API
+    fetch('/api/agents/stream-weights')
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'ok' && d.streams) {
+          const weights = Object.fromEntries(d.streams.map((s: any) => [s.name, s.weight]))
+          setStreamWeights(weights)
+          localStorage.setItem('tz-stream-weights', JSON.stringify(weights))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   // Seed profile on first login — runs once, skips if user has real data
   useEffect(() => {
     fetch('/api/agents/seed-profile', { method: 'POST' })
@@ -3754,11 +3774,18 @@ export default function CockpitPage() {
         }).join('\n')
       : 'No earnings data'
 
-    return `You are the trAIde Zone AI companion for an SPX intraday options trader. You have a voice and speak responses aloud. Keep responses under 3 sentences. Never more than 60 words. Be direct and specific. Reference real numbers. Challenge bad ideas directly.
+    return `You are the trAIde Zone AI companion for an SPX intraday options day trader. You have a voice and speak responses aloud. Keep responses under 3 sentences. Never more than 60 words. Be direct and specific. Reference real numbers. Challenge bad ideas directly.
 
 NEVER use markdown. No bold (**text**), no bullet points (- or *), no headers (#), no dashes for lists. Write in plain spoken sentences only — your response is read aloud.
 
 NEVER say you are text-only. Your responses ARE spoken aloud in real-time.
+
+OPTIONS DAY TRADING CONTEXT — always factor this in:
+The trader buys ITM SPX options (calls or puts) and closes same day. Not swing trading, not holding overnight.
+Time of day matters enormously: before 10am is noise, 10am-12pm is the sweet spot, after 2pm theta decay accelerates, after 3pm liquidity drops.
+A LONG signal at 3:30pm needs much stronger conviction than one at 10:30am.
+Stops are at VWAP reclaim or 200 EMA reclaim — not arbitrary dollar amounts.
+When discussing entries, factor in how much time is left in the session and whether theta decay makes the trade risky.
 
 STALE SIGNALS: If the trader questions a WAIT or old signal and conditions have clearly changed, acknowledge the signal may be stale and suggest they hit Get Signal for a fresh read. Don't defend a stale signal — the market moved.
 
@@ -4838,6 +4865,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     if (result) {
                       // ── Signal Quality Gate ─────────────────────────────
                       const quality = scoreSignalQuality({
+    streamWeights: streamWeights || null,
                         signal:        result.signal as any,
                         confidence:    result.confidence || 0,
                         currentPrice,
@@ -4911,6 +4939,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               qualityVerdict:    quality ? quality.verdict : null,
                               confirmers:        quality ? quality.confirmers.join('|') : null,
                               contradictors:     quality ? quality.contradictors.join('|') : null,
+                              streamVotes:       quality?.streamBreakdown ? JSON.stringify(quality.streamBreakdown.map((s: any) => ({ n: s.name, v: s.vote }))) : null,
                             }) } catch(e) { return null } })(),
                           })
                         })
