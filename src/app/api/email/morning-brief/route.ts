@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { detectDailyCandlePatterns } from '@/app/cockpit/lib/dailyCandlePatterns'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const FROM_EMAIL   = 'morning@traidezone.ai'
@@ -33,7 +34,7 @@ async function getPreMarketData() {
 
     // Detect daily candle patterns
     const patterns = spxBars.length >= 2
-      ? (await import('../../cockpit/lib/dailyCandlePatterns')).detectDailyCandlePatterns(
+      ? detectDailyCandlePatterns(
           [...spxBars].reverse(),
           { sma50: spxBars.length >= 10 ? spxBars.slice(0,10).reduce((s: number, b: any) => s + b.c, 0) / 10 : undefined }
         )
