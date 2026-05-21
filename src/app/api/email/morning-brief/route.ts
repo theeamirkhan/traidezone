@@ -281,7 +281,7 @@ export async function GET(req: NextRequest) {
     } catch (e) { console.warn('[morning-brief] market intel fetch failed:', e) }
 
     // 3. Generate brief with full context
-    const brief = await generateBrief(prevClose, prevVix, cronPatterns, marketIntelData)
+    const brief = await generateBrief(prevClose, prevVix, cronPatterns || [], marketIntelData)
 
     // 3. Build subject line
     const subject = `trAIde Zone · ${today} · ${brief.macroBias} · AI: ${brief.todaysBias}`
