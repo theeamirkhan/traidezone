@@ -36,7 +36,7 @@ async function getPreMarketData() {
 }
 
 // ── Generate brief via AI ──────────────────────────────────────────────────
-async function generateBrief(prevClose: number | null, prevVix: number | null) {
+async function generateBrief(prevClose: number | null, prevVix: number | null, patterns: any[] = [], marketIntel: any = null) {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
   const today = new Date().toLocaleDateString('en-US', {
     timeZone: 'America/New_York',
@@ -78,7 +78,23 @@ SPX prev close: ${prevClose ? prevClose.toFixed(2) : 'search for current'}
 VIX prev close: ${prevVix ? prevVix.toFixed(2) : 'search for current'}
 
 Search for: current SPX futures pre-market, today's economic calendar, overnight market news.
-Write the morning brief for an SPX intraday options trader.`
+
+DAILY CANDLE PATTERNS (yesterday's close):
+${cronPatterns?.length > 0 ? cronPatterns.map((p: any) => `${p.strength} ${p.name} (${p.type}): ${p.description} → ${p.actionable}`).join('\n') : 'No significant patterns'}
+
+VIX TERM STRUCTURE:
+${marketIntel?.termStructure ? `VIX1D: ${marketIntel.termStructure.vix1d} | VIX30: ${marketIntel.termStructure.vix30} | Shape: ${marketIntel.termStructure.termShape?.toUpperCase()} | Implied move today: ±${marketIntel.termStructure.impliedMoveToday}pts` : 'Fetch from market data'}
+
+VWAP BANDS (pre-market):
+${marketIntel?.vwapBands ? `Position: ${marketIntel.vwapBands.bandPosition} | ±1σ: ${marketIntel.vwapBands.band1Dn?.toFixed(0)}-${marketIntel.vwapBands.band1Up?.toFixed(0)} | ±2σ: ${marketIntel.vwapBands.band2Dn?.toFixed(0)}-${marketIntel.vwapBands.band2Up?.toFixed(0)}` : 'Not available pre-market'}
+
+IV vs REALIZED VOL:
+${marketIntel?.volSpread ? marketIntel.volSpread.signal : 'Not available'}
+
+SECTOR ROTATION:
+${marketIntel?.sectorRotation ? `${marketIntel.sectorRotation.rotationSignal} — Leading: ${marketIntel.sectorRotation.leading?.join(', ')} | Lagging: ${marketIntel.sectorRotation.lagging?.join(', ')}` : 'Not available pre-market'}
+
+Write the morning brief for an SPX intraday ITM options day trader. Reference candle patterns, VIX term structure, and sector rotation where relevant. Be specific and actionable.`
       }]
     })
   })
@@ -92,7 +108,7 @@ Write the morning brief for an SPX intraday options trader.`
 }
 
 // ── Build HTML email ───────────────────────────────────────────────────────
-function buildEmailHTML(brief: any, date: string) {
+function buildEmailHTML(brief: any, date: string, marketIntel: any = null) {
   const biasColor   = brief.todaysBias === 'LONG' ? '#00d4a0' : brief.todaysBias === 'SHORT' ? '#ff4d6d' : '#f59e0b'
   const macroColor  = brief.macroBias === 'BULLISH' ? '#00ff88' : brief.macroBias === 'BEARISH' ? '#ff4d6d' : '#f59e0b'
 
@@ -168,6 +184,38 @@ function buildEmailHTML(brief: any, date: string) {
       <div style="font-size:13px;color:#e2e8f0;line-height:1.75;">${brief.tradingPlan}</div>
     </div>
 
+    <!-- Market Intelligence -->
+    ${marketIntel ? `
+    <div style="background:#0a0d1a;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+      <div style="font-size:9px;font-weight:700;color:#4a5568;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">📊 Market Intelligence</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${marketIntel.termStructure ? `
+        <div>
+          <div style="font-size:9px;color:#4a5568;margin-bottom:3px;">VIX Term Structure</div>
+          <div style="font-size:12px;color:#e2e8f0;">VIX1D <strong style="color:#ff8fa3">${marketIntel.termStructure.vix1d?.toFixed(1) || 'n/a'}</strong> / VIX30 <strong style="color:#00e5ff">${marketIntel.termStructure.vix30?.toFixed(1) || 'n/a'}</strong></div>
+          <div style="font-size:11px;color:#6b7a9a;">Shape: ${marketIntel.termStructure.termShape?.toUpperCase() || 'n/a'} ${marketIntel.termStructure.impliedMoveToday ? `| ±${marketIntel.termStructure.impliedMoveToday}pts today` : ''}</div>
+        </div>` : ''}
+        ${marketIntel.volSpread ? `
+        <div>
+          <div style="font-size:9px;color:#4a5568;margin-bottom:3px;">IV vs Realized Vol</div>
+          <div style="font-size:12px;color:#e2e8f0;">IV <strong style="color:#00e5ff">${marketIntel.volSpread.impliedVol}%</strong> / RV <strong style="color:#7c6aff">${marketIntel.volSpread.realizedVol5d}%</strong></div>
+          <div style="font-size:11px;color:${marketIntel.volSpread.spread > 5 ? '#ff4d6d' : marketIntel.volSpread.spread < -3 ? '#00ff88' : '#6b7a9a'};">${marketIntel.volSpread.spread > 5 ? 'Options EXPENSIVE' : marketIntel.volSpread.spread < -3 ? 'Options CHEAP' : 'Fairly priced'}</div>
+        </div>` : ''}
+        ${marketIntel.sectorRotation ? `
+        <div>
+          <div style="font-size:9px;color:#4a5568;margin-bottom:3px;">Sector Rotation</div>
+          <div style="font-size:12px;font-weight:700;color:${marketIntel.sectorRotation.rotationBias === 'BULLISH' ? '#00ff88' : marketIntel.sectorRotation.rotationBias === 'BEARISH' ? '#ff4d6d' : '#f59e0b'}">${marketIntel.sectorRotation.rotationSignal}</div>
+          <div style="font-size:11px;color:#6b7a9a;">▲ ${marketIntel.sectorRotation.leading?.slice(0,2).join(', ')} | ▼ ${marketIntel.sectorRotation.lagging?.slice(0,2).join(', ')}</div>
+        </div>` : ''}
+        ${marketIntel.vwapBands ? `
+        <div>
+          <div style="font-size:9px;color:#4a5568;margin-bottom:3px;">VWAP Bands</div>
+          <div style="font-size:12px;color:#e2e8f0;">${marketIntel.vwapBands.band1Dn?.toFixed(0)} — <strong style="color:#00e5ff">${marketIntel.vwapBands.vwap?.toFixed(0)}</strong> — ${marketIntel.vwapBands.band1Up?.toFixed(0)}</div>
+          <div style="font-size:11px;color:${marketIntel.vwapBands.isExtended ? '#ff4d6d' : '#6b7a9a'};">${marketIntel.vwapBands.isExtended ? '⚠ EXTENDED' : marketIntel.vwapBands.bandPosition?.replace(/_/g,' ') || 'n/a'}</div>
+        </div>` : ''}
+      </div>
+    </div>` : ''}
+
     <!-- CTA -->
     <div style="text-align:center;margin-bottom:24px;">
       <a href="https://www.traidezone.ai/cockpit" style="display:inline-block;background:linear-gradient(135deg,#00d4a0,#00e5ff);color:#060810;font-size:13px;font-weight:800;padding:12px 32px;border-radius:8px;text-decoration:none;letter-spacing:1px;">→ OPEN COCKPIT</a>
@@ -223,14 +271,23 @@ export async function GET(req: NextRequest) {
     // 1. Get pre-market data
     const { prevClose, prevVix } = await getPreMarketData()
 
-    // 2. Generate brief (cronPatterns detected inline above in the route)
-    const brief = await generateBrief(prevClose, prevVix)
+    // 2. Fetch market intelligence in parallel
+    let marketIntelData: any = null
+    try {
+      const miRes = await fetch(`${req.nextUrl.origin}/api/market-intelligence`, {
+        signal: AbortSignal.timeout(15000)
+      })
+      if (miRes.ok) marketIntelData = await miRes.json()
+    } catch (e) { console.warn('[morning-brief] market intel fetch failed:', e) }
+
+    // 3. Generate brief with full context
+    const brief = await generateBrief(prevClose, prevVix, cronPatterns, marketIntelData)
 
     // 3. Build subject line
     const subject = `trAIde Zone · ${today} · ${brief.macroBias} · AI: ${brief.todaysBias}`
 
     // 4. Build HTML
-    const html = buildEmailHTML(brief, today)
+    const html = buildEmailHTML(brief, today, marketIntelData)
 
     if (isPreview && !isManual) {
       // Return HTML for preview without sending
