@@ -269,7 +269,7 @@ export async function GET(req: NextRequest) {
     })
 
     // 1. Get pre-market data
-    const { prevClose, prevVix } = await getPreMarketData()
+    const { prevClose, prevVix, patterns: dailyPatterns } = await getPreMarketData()
 
     // 2. Fetch market intelligence in parallel
     let marketIntelData: any = null
@@ -281,7 +281,8 @@ export async function GET(req: NextRequest) {
     } catch (e) { console.warn('[morning-brief] market intel fetch failed:', e) }
 
     // 3. Generate brief with full context
-    const brief = await generateBrief(prevClose, prevVix, cronPatterns || [], marketIntelData)
+    // Note: daily candle patterns are detected inside getPreMarketData() independently
+    const brief = await generateBrief(prevClose, prevVix, dailyPatterns || [], marketIntelData)
 
     // 3. Build subject line
     const subject = `trAIde Zone · ${today} · ${brief.macroBias} · AI: ${brief.todaysBias}`
