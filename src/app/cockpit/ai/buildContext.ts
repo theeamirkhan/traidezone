@@ -183,9 +183,55 @@ function buildEarningsSection(calendar: any[]): string {
 }
 
 function buildRecentCandles(candles: any[]): string {
-  return (candles || []).slice(-5).map(c =>
-    `O:${c.o?.toFixed(0)} H:${c.h?.toFixed(0)} L:${c.l?.toFixed(0)} C:${c.c?.toFixed(0)}`
-  ).join(' | ')
+  if (!candles?.length) return 'No candle data'
+  const recent = candles.slice(-20)
+  const cur    = recent[recent.length - 1]
+  const prev   = recent[recent.length - 2]
+
+  // Trend — are we making higher highs/lows or lower?
+  const last10 = recent.slice(-10)
+  const highs  = last10.map(c => c.h)
+  const lows   = last10.map(c => c.l)
+  const hhCount = highs.filter((h, i) => i > 0 && h > highs[i-1]).length
+  const llCount = lows.filter((l, i) => i > 0 && l < lows[i-1]).length
+  const trend   = hhCount >= 6 ? 'UPTREND (higher highs)' : llCount >= 6 ? 'DOWNTREND (lower lows)' : 'CHOPPY/RANGING'
+
+  // Momentum — last 3 candles direction
+  const last3   = recent.slice(-3)
+  const last3Dir = last3.map(c => c.c > c.o ? '▲' : c.c < c.o ? '▼' : '–').join('')
+  const momentum = last3.filter(c => c.c > c.o).length >= 2 ? 'Bullish momentum' : last3.filter(c => c.c < c.o).length >= 2 ? 'Bearish momentum' : 'Mixed'
+
+  // Current candle detail
+  const curBody  = Math.abs(cur.c - cur.o)
+  const curRange = cur.h - cur.l
+  const curBull  = cur.c > cur.o
+  const upperWick = cur.h - Math.max(cur.o, cur.c)
+  const lowerWick = Math.min(cur.o, cur.c) - cur.l
+
+  // Key candle patterns in last 5
+  const last5    = recent.slice(-5)
+  const patterns: string[] = []
+  if (cur.c > cur.o && curBody > curRange * 0.6) patterns.push('Strong bull candle')
+  if (cur.c < cur.o && curBody > curRange * 0.6) patterns.push('Strong bear candle')
+  if (lowerWick > curBody * 2 && curBull) patterns.push('Hammer/pin bar (bullish)')
+  if (upperWick > curBody * 2 && !curBull) patterns.push('Shooting star (bearish)')
+  if (curBody < curRange * 0.2) patterns.push('Doji — indecision')
+  if (prev && cur.c > prev.h) patterns.push('Gap up / breakout candle')
+  if (prev && cur.c < prev.l) patterns.push('Gap down / breakdown candle')
+
+  // Price change context
+  const chg5  = recent.length >= 5  ? ((cur.c - recent[recent.length-5].o)  / recent[recent.length-5].o * 100).toFixed(2) : null
+  const chg20 = recent.length >= 20 ? ((cur.c - recent[0].o) / recent[0].o * 100).toFixed(2) : null
+
+  return [
+    `Current: ${cur.c?.toFixed(2)} | O:${cur.o?.toFixed(0)} H:${cur.h?.toFixed(0)} L:${cur.l?.toFixed(0)} C:${cur.c?.toFixed(0)} | ${curBull ? 'BULL' : 'BEAR'} candle`,
+    `Range: ${curRange.toFixed(1)}pts | Body: ${curBody.toFixed(1)}pts (${Math.round(curBody/curRange*100)}% of range) | Upper wick: ${upperWick.toFixed(1)} | Lower wick: ${lowerWick.toFixed(1)}`,
+    `10-bar trend: ${trend} | Last 3 candles: ${last3Dir} | Momentum: ${momentum}`,
+    chg5  ? `5-bar change: ${parseFloat(chg5) > 0 ? '+' : ''}${chg5}%` : '',
+    chg20 ? `20-bar change: ${parseFloat(chg20) > 0 ? '+' : ''}${chg20}%` : '',
+    patterns.length > 0 ? `Patterns: ${patterns.join(', ')}` : '',
+    `Last 5 candles: ${last5.map(c => `${c.c > c.o ? '▲' : '▼'}${c.c?.toFixed(0)}(${Math.abs(c.c-c.o).toFixed(0)})`).join(' ')}`,
+  ].filter(Boolean).join('\n')
 }
 
 // ── Edge profile section ─────────────────────────────────────────────────────
@@ -386,7 +432,7 @@ Reference this scoring when setting your final confidence number.`,
     `LIVE (${timeNow} ET): SPX ${fmt(price)} | VWAP ${fmt(vwap)} ${vwapPos} | 200EMA ${fmt(ema)} ${emaPos}`,
     `PDH ${fmt(market.levels?.pdh ?? null)} | PDL ${fmt(market.levels?.pdl ?? null)} | Open ${fmt(market.levels?.dayOpen ?? null)}`,
     `VIX ${market.vixPrice?.toFixed(2) || '?'} | Breadth ${marketIntel?.breadth?.bias || '?'} | Tide ${marketTide?.bias || '?'} P/C ${marketTide?.putCallRatio || '?'}`,
-    `\n\u2550\u2550\u2550 5-MIN CANDLE ANALYSIS (SPX) \u2550\u2550\u2550\n${buildRecentCandles(market.candles)}`,
+    `\n═══ 5-MIN CANDLE ANALYSIS (SPX) ═══\n${buildRecentCandles(market.candles)}`,
     `Flow:\n${buildFlowSection(optionsFlow)}`,
     zeroDTESkew   ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : '',
     marketScore   ? `Score: ${marketScore.score}/100 ${marketScore.label}` : '',
@@ -510,6 +556,9 @@ UNMET: ${input.unmetChecks || 'All clear'}
 ${input.activePlaybook ? `${input.activePlaybook.name}\nEntry: ${input.activePlaybook.entry}\nStop: ${input.activePlaybook.stop}` : 'No playbook selected'}
 
 ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
+
+═══ 5-MIN CANDLE ANALYSIS (what price is actually doing right now) ═══
+${buildRecentCandles(market.candles)}
 
 ${(input as any).patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${(input as any).patternAnalysis.aiContext}` : ''}
 

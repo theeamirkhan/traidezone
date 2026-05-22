@@ -259,12 +259,12 @@ async function sendEmail(to: string, subject: string, html: string) {
 // ── Main handler ───────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   // Auth check — cron or admin only
-  const authHeader = req.headers.get('authorization')
-  const CRON_SECRET = process.env.CRON_SECRET
-  const isCron     = (!!CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`) || req.headers.get("x-vercel-cron") === "1"
-  const isPreview  = req.nextUrl.searchParams.get('preview') === 'true'
-  const isManual   = req.nextUrl.searchParams.get('send') === 'true'
-  // Preview and manual send are public (URL-guarded), cron requires auth header
+  const authHeader    = req.headers.get('authorization')
+  const CRON_SECRET   = process.env.CRON_SECRET
+  const isCron        = (CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`)
+                     || req.headers.get('x-vercel-cron') === '1'   // Vercel internal cron header
+  const isPreview     = req.nextUrl.searchParams.get('preview') === 'true'
+  const isManual      = req.nextUrl.searchParams.get('send') === 'true'
   if (!isCron && !isPreview && !isManual) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Only run on weekdays
@@ -331,6 +331,18 @@ export async function GET(req: NextRequest) {
 
   } catch (e: any) {
     console.error('[email/morning-brief]', e.message)
+    // Log failure to email_logs so admin dashboard can see it
+    try {
+      const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (SUPABASE_URL && SUPABASE_KEY) {
+        await fetch(`${SUPABASE_URL}/rest/v1/email_logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+          body: JSON.stringify({ type: 'morning_brief', status: 'error', subject: `ERROR: ${e.message}`, sent_at: new Date().toISOString() })
+        })
+      }
+    } catch {}
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
