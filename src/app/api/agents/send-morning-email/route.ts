@@ -98,12 +98,15 @@ async function fetchData() {
     : 37
 
   // Today's gap record
-  const { data: todayGap } = await supabaseAdmin
-    .from('gap_outcomes')
-    .select('gap_direction, gap_size, trend_score_predicted, catalyst_type')
-    .eq('trading_date', td)
-    .single()
-    .catch(() => ({ data: null })) as any
+  let todayGap: any = null
+  try {
+    const tgRes = await supabaseAdmin
+      .from('gap_outcomes')
+      .select('gap_direction, gap_size, trend_score_predicted, catalyst_type')
+      .eq('trading_date', td)
+      .single()
+    todayGap = tgRes.data
+  } catch {}
 
   return { prevClose, vixClose, vix1d, vwap, impliedMove, patterns, fillRate, trendRate, todayGap }
 }
