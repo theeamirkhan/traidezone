@@ -1832,6 +1832,8 @@ export default function CockpitPage() {
     sessionMemory,
   })
   const [flowAlerts, setFlowAlerts] = useState<any[]>([])
+  const [dpAlerts, setDpAlerts]    = useState<any[]>([])
+  const dpAlertShownRef            = useRef<Set<string>>(new Set())
   const [volumeAlerts, setVolumeAlerts] = useState<any[]>([])
   const volumeBaselineRef = useRef<number[]>([])  // rolling 20-bar volume baseline
   const flowAlertShownRef = useRef<Set<string>>(new Set())
@@ -5382,7 +5384,37 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               )}
             </div>
 
-            {/* Right — AI Companion (HERO) */}
+            )}
+
+      {/* Dark pool alerts — bottom right */}
+      {dpAlerts.length > 0 && (
+        <div style={{ position: 'fixed', bottom: 24, right: 500, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300 }}>
+          {dpAlerts.map((alert) => (
+            <div key={alert.id} onClick={() => setDpAlerts(prev => prev.filter(a => a.id !== alert.id))} style={{
+              background: 'rgba(6,8,16,0.97)', border: '1px solid rgba(124,106,255,0.4)',
+              borderLeft: '3px solid #7c6aff', borderRadius: 6, padding: '10px 14px',
+              display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.5)', animation: 'slideInLeft 0.3s ease',
+            }}>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ fontSize: 8, color: '#7c6aff', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>{alert.isAboveAsk ? '🏦 DARK POOL ⬆' : '🏦 DARK POOL'}</div>
+                <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: '#7c6aff' }}>{alert.ticker}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 900, color: '#f0f4ff' }}>{alert.notional}</span>
+                  {alert.isAboveAsk && <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(124,106,255,0.15)', color: '#7c6aff' }}>ABOVE ASK</span>}
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7a9a' }}>{alert.size.toLocaleString()} shares @ ${alert.price}</div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); setDpAlerts(prev => prev.filter(a => a.id !== alert.id)) }}
+                style={{ background: 'transparent', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 16 }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Right — AI Companion (HERO) */}
             {companionOpen && (
               <div style={{ width: 480, background: 'rgba(8,10,18,0.99)', borderLeft: '1px solid rgba(0,212,160,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-2px 0 20px rgba(0,0,0,0.5)' }}>
                 {/* Companion header */}
