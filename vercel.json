@@ -45,7 +45,7 @@
       "schedule": "5 20 * * 1-5"
     },
     {
-      "path": "/api/email/morning-brief",
+      "path": "/api/agents/send-morning-email",
       "schedule": "0 13 * * 1-5"
     },
     {
