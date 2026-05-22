@@ -5384,7 +5384,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Right — AI Companion (HERO) */}
             {companionOpen && (
-              <div style={{ width: 380, background: 'rgba(8,10,18,0.99)', borderLeft: '1px solid rgba(0,212,160,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-2px 0 20px rgba(0,0,0,0.5)' }}>
+              <div style={{ width: 480, background: 'rgba(8,10,18,0.99)', borderLeft: '1px solid rgba(0,212,160,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-2px 0 20px rgba(0,0,0,0.5)' }}>
                 {/* Companion header */}
                 <div style={{ padding: '10px 14px', background: 'linear-gradient(90deg, rgba(0,212,160,0.1), rgba(0,153,204,0.05))', borderBottom: '2px solid rgba(0,212,160,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid rgba(0,212,160,0.3)`, background: 'rgba(0,212,160,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, position: 'relative', boxShadow: '0 0 10px rgba(0,212,160,0.1)' }}>
@@ -5457,7 +5457,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {chatMessages.map((m, i) => (
                     <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
                       {m.role === 'assistant' && <div style={{ fontSize: 8, color: '#00d4a0', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, letterSpacing: '1.5px' }}><span style={{ width: 3, height: 3, borderRadius: '50%', background: C.teal, display: 'inline-block' }} />AI COMPANION</div>}
-                      <div style={{ padding: '10px 14px', fontSize: 13, lineHeight: 1.7, color: '#f0f4ff', background: m.role === 'user' ? 'rgba(0,229,255,0.06)' : 'rgba(0,212,160,0.06)', border: `1px solid ${m.role === 'user' ? 'rgba(0,229,255,0.18)' : 'rgba(0,212,160,0.15)'}`, borderLeft: m.role === 'assistant' ? '2px solid #00d4a0' : 'none', borderRight: m.role === 'user' ? '2px solid #00e5ff' : 'none', borderRadius: m.role === 'user' ? '8px 2px 2px 8px' : '2px 8px 8px 2px' }}>
+                      <div style={{ padding: '12px 16px', fontSize: 14, lineHeight: 1.8, color: '#f0f4ff', background: m.role === 'user' ? 'rgba(0,229,255,0.06)' : 'rgba(0,212,160,0.06)', border: `1px solid ${m.role === 'user' ? 'rgba(0,229,255,0.18)' : 'rgba(0,212,160,0.15)'}`, borderLeft: m.role === 'assistant' ? '3px solid #00d4a0' : 'none', borderRight: m.role === 'user' ? '3px solid #00e5ff' : 'none', borderRadius: m.role === 'user' ? '10px 3px 3px 10px' : '3px 10px 10px 3px' }}>
                         {m.content}
                       </div>
                     </div>
