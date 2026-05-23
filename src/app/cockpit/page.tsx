@@ -24,6 +24,7 @@ import type { EdgeProfile } from './ai/buildContext'
 import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
+import { calculateVolumeProfile } from './lib/volumeProfile'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
   fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
@@ -1796,6 +1797,7 @@ export default function CockpitPage() {
   })
   const [breadthData, setBreadthData]       = useState<any | null>(null)
   const [gexData, setGexData]               = useState<any | null>(null)
+  const [volumeProfile, setVolumeProfile]   = useState<any | null>(null)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
@@ -1809,6 +1811,7 @@ export default function CockpitPage() {
     spotGex:      marketIntel2?.spotGex      || null,
     uwIV:         marketIntel2?.uwIV         || null,
     econSurprise: marketIntel2?.econSurprise || null,
+    volumeProfile: volumeProfile             || null,
     market:           { currentPrice, levels, candles, vixPrice, changes },
     edgeProfile,
     executionStats,
@@ -2984,6 +2987,14 @@ export default function CockpitPage() {
         const gexRes = await fetch(`/api/gex?price=${currentPrice || 0}`)
         if (gexRes.ok) { const gd = await gexRes.json(); if (!gd.error) setGexData(gd) }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }
+
+      // ── Volume Profile — POC + Value Area from today's 5-min bars ──────────
+      try {
+        if (candles.length >= 6) {
+          const vp = calculateVolumeProfile(candles)
+          if (vp) setVolumeProfile(vp)
+        }
+      } catch (e) { console.warn('[VolumeProfile]', e) }
 
       // ── Market Microstructure — cumulative delta, dark pool, vol spike ──────
       try {
@@ -4811,6 +4822,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 {marketIntel2.vwapBands.band1Dn?.toFixed(0)}/{marketIntel2.vwapBands.band1Up?.toFixed(0)}
               </span>
               {marketIntel2.vwapBands.isExtended && <span style={{ fontSize: 8, color: '#ff4d6d', fontWeight: 800 }}>EXT</span>}
+            </div>
+          )}
+          {/* POC in header */}
+          {volumeProfile?.poc && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ fontSize: 7, color: '#00e5ff', fontWeight: 700, letterSpacing: 2, opacity: 0.8 }}>POC</span>
+              <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#00e5ff' }}>{volumeProfile.poc?.toFixed(0)}</span>
             </div>
           )}
           {/* Max pain in header */}
@@ -6802,6 +6820,56 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <span style={{ color: '#4a5568', fontSize: 9 }}>5-day</span>
                       </div>
                       <div style={{ fontSize: 10, color: '#6b7a9a' }}>{multiTFData.crossAsset.signal}</div>
+                    </div>
+                  )}
+
+                  {/* Volume Profile */}
+                  {volumeProfile && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(0,229,255,0.15)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#00e5ff', letterSpacing: 2, textTransform: 'uppercase' as const }}>Volume Profile</span>
+                        <span style={{ fontSize: 9, color: '#4a5568' }}>today's session</span>
+                      </div>
+                      {/* POC / VAH / VAL levels */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
+                        {[
+                          { label: 'POC', val: volumeProfile.poc?.toFixed(0), color: '#00e5ff', note: 'max volume' },
+                          { label: 'VAH', val: volumeProfile.vah?.toFixed(0), color: '#00ff88', note: 'value top' },
+                          { label: 'VAL', val: volumeProfile.val?.toFixed(0), color: '#ff4d6d', note: 'value bot' },
+                        ].map((item, i) => (
+                          <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: '6px 4px' }}>
+                            <div style={{ fontSize: 8, color: '#4a5568', marginBottom: 2 }}>{item.label}</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: item.color, fontFamily: fontDisplay }}>{item.val}</div>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>{item.note}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Mini volume bars — top 10 buckets */}
+                      {volumeProfile.buckets?.length > 0 && (() => {
+                        const maxPct = Math.max(...volumeProfile.buckets.map((b: any) => b.pct))
+                        const curr   = volumeProfile.buckets.find((b: any) => Math.abs(b.price - volumeProfile.poc) < 1.5)
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {volumeProfile.buckets.slice(0, 8).map((b: any, i: number) => {
+                              const isPoc  = Math.abs(b.price - volumeProfile.poc) < 1.5
+                              const isVah  = Math.abs(b.price - volumeProfile.vah) < 1.5
+                              const isVal  = Math.abs(b.price - volumeProfile.val) < 1.5
+                              const barColor = isPoc ? '#00e5ff' : isVah ? '#00ff88' : isVal ? '#ff4d6d' : 'rgba(255,255,255,0.15)'
+                              return (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span style={{ fontSize: 8, color: isPoc ? '#00e5ff' : '#4a5568', width: 36, textAlign: 'right' as const, fontWeight: isPoc ? 700 : 400 }}>{b.price.toFixed(0)}</span>
+                                  <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.04)', borderRadius: 1, overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${Math.round(b.pct / maxPct * 100)}%`, background: barColor, borderRadius: 1 }} />
+                                  </div>
+                                  <span style={{ fontSize: 8, color: '#4a5568', width: 22 }}>{b.pct}%</span>
+                                  {isPoc && <span style={{ fontSize: 7, color: '#00e5ff', fontWeight: 700 }}>POC</span>}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}
+                      <div style={{ fontSize: 10, color: '#6b7a9a', marginTop: 6 }}>{volumeProfile.signal?.split('|').pop()?.trim()}</div>
                     </div>
                   )}
 
