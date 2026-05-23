@@ -164,14 +164,29 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
     const proxy = (path: string) =>
       fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(path)}`).then(r => r.json()).catch(() => null)
 
-    const [wRes, dRes] = await Promise.all([
-      proxy(`/v2/aggs/ticker/${ticker}/range/1/week/${fmt(oneYearAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=60`),
-      proxy(`/v2/aggs/ticker/${ticker}/range/1/day/${fmt(sixMonthsAgo)}/${fmt(today)}?adjusted=true&sort=asc&limit=130`),
+    const todayStr     = fmt(today)
+    const fiveDaysAgo  = new Date(today); fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
+    const thirtyDays   = new Date(today); thirtyDays.setDate(thirtyDays.getDate() - 30)
+
+    const [wRes, dRes, h1Res, m15Res, dxyRes, tltRes, oilRes] = await Promise.all([
+      proxy(`/v2/aggs/ticker/${ticker}/range/1/week/${fmt(oneYearAgo)}/${todayStr}?adjusted=true&sort=asc&limit=60`),
+      proxy(`/v2/aggs/ticker/${ticker}/range/1/day/${fmt(sixMonthsAgo)}/${todayStr}?adjusted=true&sort=asc&limit=130`),
+      // 1-hour bars — last 10 sessions (intraday structure)
+      proxy(`/v2/aggs/ticker/${ticker}/range/1/hour/${fmt(fiveDaysAgo)}/${todayStr}?adjusted=true&sort=asc&limit=80`),
+      // 15-min bars — last 5 sessions (swing structure)
+      proxy(`/v2/aggs/ticker/${ticker}/range/15/minute/${fmt(fiveDaysAgo)}/${todayStr}?adjusted=true&sort=asc&limit=200`),
+      // Cross-asset: DXY (dollar), TLT (bonds), OIL
+      proxy(`/v2/aggs/ticker/DX:CURR/range/1/day/${fmt(thirtyDays)}/${todayStr}?adjusted=true&sort=asc&limit=30`).catch(() => null),
+      proxy(`/v2/aggs/ticker/TLT/range/1/day/${fmt(thirtyDays)}/${todayStr}?adjusted=true&sort=asc&limit=30`).catch(() => null),
+      proxy(`/v2/aggs/ticker/CL:COM/range/1/day/${fmt(thirtyDays)}/${todayStr}?adjusted=true&sort=asc&limit=30`).catch(() => null),
     ])
 
     const weekly = wRes?.results || []
     const daily  = dRes?.results || []
     if (!weekly.length || !daily.length) return null
+
+    const hourly  = h1Res?.results  || []
+    const m15bars = m15Res?.results || []
 
     const sma = (bars: any[], n: number) => {
       const sl = bars.slice(-n)
@@ -251,6 +266,86 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
     const dailyTrend  = dTrend
     const allAligned  = weeklyTrend === dailyTrend
 
+    // ── 15-min structure ────────────────────────────────────────────────────
+    const m15Analysis = (() => {
+      if (m15bars.length < 10) return null
+      const todayStr2 = fmt(today)
+      const today15 = m15bars.filter((b: any) => {
+        const d = new Date(b.t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        return d === todayStr2
+      })
+      if (today15.length < 4) return null
+      const highs = today15.map((b: any) => b.h)
+      const lows  = today15.map((b: any) => b.l)
+      const mHigh = Math.max(...highs)
+      const mLow  = Math.min(...lows)
+      const curr  = today15[today15.length - 1]?.c || 0
+      const range = mHigh - mLow
+      const firstThird = today15.slice(0, Math.ceil(today15.length / 3))
+      const lastThird  = today15.slice(-Math.ceil(today15.length / 3))
+      const firstAvg   = firstThird.reduce((s: number, b: any) => s + b.c, 0) / firstThird.length
+      const lastAvg    = lastThird.reduce((s: number, b: any) => s + b.c, 0) / lastThird.length
+      const m15Trend   = lastAvg > firstAvg + range * 0.1 ? 'BULLISH'
+                       : lastAvg < firstAvg - range * 0.1 ? 'BEARISH' : 'RANGING'
+      const rangePct   = range > 0 ? Math.round((curr - mLow) / range * 100) : 50
+      return {
+        trend: m15Trend, high: parseFloat(mHigh.toFixed(2)), low: parseFloat(mLow.toFixed(2)),
+        range: parseFloat(range.toFixed(1)), rangePct, curr: parseFloat(curr.toFixed(2)),
+        signal: `15-min: ${m15Trend} | Range ${mLow.toFixed(0)}-${mHigh.toFixed(0)} (${range.toFixed(0)}pts) | Price at ${rangePct}% of range`,
+      }
+    })()
+
+    // ── 1-hour structure ────────────────────────────────────────────────────
+    const h1Analysis = (() => {
+      if (hourly.length < 5) return null
+      const recent20 = hourly.slice(-20)
+      const closes   = recent20.map((b: any) => b.c)
+      const highs    = recent20.map((b: any) => b.h)
+      const lows     = recent20.map((b: any) => b.l)
+      const curr     = closes[closes.length - 1]
+      const h1High   = Math.max(...highs)
+      const h1Low    = Math.min(...lows)
+      const k        = 2 / 21
+      let h1Ema      = closes[0]
+      for (const c of closes) h1Ema = c * k + h1Ema * (1 - k)
+      const h1Trend  = curr > h1Ema + 5 ? 'BULLISH' : curr < h1Ema - 5 ? 'BEARISH' : 'RANGING'
+      return {
+        trend: h1Trend, ema20: parseFloat(h1Ema.toFixed(2)),
+        high20: parseFloat(h1High.toFixed(2)), low20: parseFloat(h1Low.toFixed(2)),
+        aboveEma: curr > h1Ema,
+        signal: `1hr: ${h1Trend} | EMA20(1h): ${h1Ema.toFixed(0)} | Price ${curr > h1Ema ? 'above' : 'below'} | Range ${h1Low.toFixed(0)}-${h1High.toFixed(0)}`,
+      }
+    })()
+
+    // ── Cross-asset analysis ─────────────────────────────────────────────────
+    const crossAsset = (() => {
+      const dxyBars = dxyRes?.results || []
+      const tltBars = tltRes?.results || []
+      const oilBars = oilRes?.results || []
+      const pctChg  = (bars: any[], n = 5) => {
+        if (bars.length < n) return null
+        const prev = bars[bars.length - n]?.c
+        const curr2 = bars[bars.length - 1]?.c
+        return prev && curr2 ? ((curr2 - prev) / prev * 100) : null
+      }
+      const dxy5d   = pctChg(dxyBars, 5)
+      const tlt5d   = pctChg(tltBars, 5)
+      const oil5d   = pctChg(oilBars, 5)
+      const dxyCurr = dxyBars[dxyBars.length - 1]?.c || null
+      const tltCurr = tltBars[tltBars.length - 1]?.c || null
+      let confirmation = 'NEUTRAL'
+      let signal = 'Cross-asset data unavailable'
+      if (dxy5d !== null && tlt5d !== null) {
+        const dxyUp = dxy5d > 0.3, dxyDn = dxy5d < -0.3
+        const tltUp = tlt5d > 0.3, tltDn = tlt5d < -0.3
+        if (dxyDn && tltDn)        { confirmation = 'RISK_ON';  signal = `Risk-on: DXY ${dxy5d.toFixed(1)}% + TLT ${tlt5d.toFixed(1)}% — dollar + bonds both selling, equity tailwind` }
+        else if (dxyUp && tltUp)   { confirmation = 'RISK_OFF'; signal = `Risk-off: DXY +${dxy5d.toFixed(1)}% + TLT +${tlt5d.toFixed(1)}% — dollar + bonds both bid, fear trade` }
+        else if (dxyUp && tltDn)   { confirmation = 'BEARISH';  signal = `Bearish: DXY +${dxy5d.toFixed(1)}% strong dollar + bonds selling = SPX headwind` }
+        else                        {                             signal = `Mixed: DXY ${dxy5d.toFixed(1)}% | TLT ${tlt5d.toFixed(1)}% | OIL ${oil5d?.toFixed(1) || 'n/a'}% (5d)` }
+      }
+      return { dxyCurr, tltCurr, dxy5d, tlt5d, oil5d, confirmation, signal }
+    })()
+
     // Last 5 daily candles narrative
     const last5 = daily.slice(-5).map((b: any) => {
       const d = new Date(b.t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' })
@@ -305,7 +400,11 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
       // Last 5 daily candles
       recentCandles: last5,
 
-      // Summary string for AI context
+      // ── New: 15-min, 1-hour, cross-asset ──────────────────────────────────
+      m15:        m15Analysis,
+      h1:         h1Analysis,
+      crossAsset: crossAsset,
+
       // ── Daily candle pattern detection ────────────────────────────────────
       patterns: detectDailyCandlePatterns(daily.slice(-10), {
         ema200:    dEMA200,
@@ -319,8 +418,11 @@ export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
         `Daily SMA: 20D ${Math.round(dSMA20)} (${pctFromD20}%) | 50D ${Math.round(dSMA50)} (${pctFromD50}%) | 200D SMA ${Math.round(dSMA200)} (${pctFromD200}%)`,
         `Daily 200 EMA: ${Math.round(dEMA200)} (${((dClose - dEMA200) / dEMA200 * 100).toFixed(1)}% from price) — KEY STOP LEVEL`,
         `Daily RSI: ${Math.round(dRSI)} | ATR: ${Math.round(dATR)}pts | ${cross}`,
+        m15Analysis ? `15-min: ${m15Analysis.signal}` : '',
+        h1Analysis  ? `1-hour: ${h1Analysis.signal}`  : '',
+        crossAsset  ? `Cross-asset: ${crossAsset.signal}` : '',
         `5-day candles: ${last5.join(' | ')}`,
-      ].join('\n'),
+      ].filter(Boolean).join('\n'),
     }
   } catch (e) { console.error('[multiTF]', e); return null }
 }

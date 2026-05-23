@@ -6742,6 +6742,66 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
 
+                  {/* Cross-asset */}
+                  {multiTFData?.crossAsset && (
+                    <div style={{ marginBottom: 8, padding: '8px 14px', borderRadius: 8, background: multiTFData.crossAsset.confirmation === 'RISK_OFF' ? 'rgba(255,77,109,0.04)' : multiTFData.crossAsset.confirmation === 'RISK_ON' ? 'rgba(0,255,136,0.04)' : 'rgba(0,0,0,0.2)', border: `1px solid ${multiTFData.crossAsset.confirmation === 'RISK_OFF' ? 'rgba(255,77,109,0.2)' : multiTFData.crossAsset.confirmation === 'RISK_ON' ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.06)'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>Cross-Asset</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: multiTFData.crossAsset.confirmation === 'RISK_ON' ? '#00ff88' : multiTFData.crossAsset.confirmation === 'RISK_OFF' ? '#ff4d6d' : multiTFData.crossAsset.confirmation === 'BEARISH' ? '#ff4d6d' : '#8899bb' }}>{multiTFData.crossAsset.confirmation?.replace('_', '-')}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 10, color: '#b0c4de', marginBottom: 4 }}>
+                        {multiTFData.crossAsset.dxy5d !== null && <span>DXY <strong style={{ color: multiTFData.crossAsset.dxy5d > 0.3 ? '#ff4d6d' : multiTFData.crossAsset.dxy5d < -0.3 ? '#00ff88' : '#e2e8f0' }}>{multiTFData.crossAsset.dxy5d > 0 ? '+' : ''}{multiTFData.crossAsset.dxy5d?.toFixed(1)}%</strong></span>}
+                        {multiTFData.crossAsset.tlt5d !== null && <span>TLT <strong style={{ color: multiTFData.crossAsset.tlt5d > 0.3 ? '#00ff88' : multiTFData.crossAsset.tlt5d < -0.3 ? '#ff4d6d' : '#e2e8f0' }}>{multiTFData.crossAsset.tlt5d > 0 ? '+' : ''}{multiTFData.crossAsset.tlt5d?.toFixed(1)}%</strong></span>}
+                        {multiTFData.crossAsset.oil5d !== null && <span>OIL <strong style={{ color: '#e2e8f0' }}>{multiTFData.crossAsset.oil5d > 0 ? '+' : ''}{multiTFData.crossAsset.oil5d?.toFixed(1)}%</strong></span>}
+                        <span style={{ color: '#4a5568', fontSize: 9 }}>5-day</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: '#6b7a9a' }}>{multiTFData.crossAsset.signal}</div>
+                    </div>
+                  )}
+
+                  {/* 15-min + 1-hour structure */}
+                  {(multiTFData?.m15 || multiTFData?.h1) && (
+                    <div style={{ marginBottom: 8, padding: '8px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>Intraday Structure</div>
+                      {multiTFData.h1 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 10 }}>
+                          <span style={{ color: '#6b7a9a' }}>1-hour</span>
+                          <span style={{ color: multiTFData.h1.trend === 'BULLISH' ? '#00ff88' : multiTFData.h1.trend === 'BEARISH' ? '#ff4d6d' : '#f59e0b', fontWeight: 700 }}>{multiTFData.h1.trend}</span>
+                          <span style={{ color: '#6b7a9a' }}>EMA20: {multiTFData.h1.ema20?.toFixed(0)}</span>
+                          <span style={{ color: multiTFData.h1.aboveEma ? '#00d4a0' : '#ff4d6d', fontSize: 9 }}>{multiTFData.h1.aboveEma ? 'above ▲' : 'below ▼'}</span>
+                        </div>
+                      )}
+                      {multiTFData.m15 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                          <span style={{ color: '#6b7a9a' }}>15-min</span>
+                          <span style={{ color: multiTFData.m15.trend === 'BULLISH' ? '#00ff88' : multiTFData.m15.trend === 'BEARISH' ? '#ff4d6d' : '#f59e0b', fontWeight: 700 }}>{multiTFData.m15.trend}</span>
+                          <span style={{ color: '#6b7a9a' }}>Range: {multiTFData.m15.low?.toFixed(0)}-{multiTFData.m15.high?.toFixed(0)}</span>
+                          <span style={{ color: '#6b7a9a', fontSize: 9 }}>{multiTFData.m15.rangePct}% of range</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* IV Rank */}
+                  {marketIntel2?.volSpread?.ivRank !== null && marketIntel2?.volSpread?.ivRank !== undefined && (
+                    <div style={{ marginBottom: 8, padding: '8px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>IV Rank</span>
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>IV Rank</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: marketIntel2.volSpread.ivRank > 70 ? '#ff4d6d' : marketIntel2.volSpread.ivRank < 30 ? '#00ff88' : '#f59e0b', fontFamily: fontDisplay }}>{marketIntel2.volSpread.ivRank}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>Percentile</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: '#7c6aff', fontFamily: fontDisplay }}>{marketIntel2.volSpread.ivPercentile}%</div>
+                        </div>
+                        <div style={{ fontSize: 9, color: '#6b7a9a', maxWidth: 160 }}>
+                          {marketIntel2.volSpread.ivRank > 70 ? 'VIX elevated — options expensive, size down' : marketIntel2.volSpread.ivRank < 30 ? 'VIX low — options cheap, good to buy' : 'VIX in normal range'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* SKEW */}
                   {marketIntel2?.termStructure?.skew && (
                     <div style={{ marginBottom: 8, padding: '8px 14px', borderRadius: 8, background: marketIntel2.termStructure.skewRegime === 'EXTREME_TAIL_RISK' ? 'rgba(255,77,109,0.05)' : 'rgba(0,0,0,0.2)', border: `1px solid ${marketIntel2.termStructure.skewRegime === 'EXTREME_TAIL_RISK' ? 'rgba(255,77,109,0.2)' : 'rgba(255,255,255,0.06)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
