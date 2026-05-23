@@ -1806,6 +1806,9 @@ export default function CockpitPage() {
 
   // Build validated SignalInput for runSignal calls
   const buildSignalInput = (overrides?: { flow?: any[]; tide?: any; intel?: any; tiingo?: any }) => ({
+    spotGex:      marketIntel2?.spotGex      || null,
+    uwIV:         marketIntel2?.uwIV         || null,
+    econSurprise: marketIntel2?.econSurprise || null,
     market:           { currentPrice, levels, candles, vixPrice, changes },
     edgeProfile,
     executionStats,
@@ -4951,9 +4954,18 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       </span>
                     )}
                     {aiResult && (aiResult.moveSize as number) > 0 && (
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#ffb700', fontFamily: fontDisplay }}>{aiResult.moveSize}pt POTENTIAL</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#ffb700', fontFamily: fontDisplay }}>{aiResult.moveSize}pt MOVE</span>
                     )}
-                    {(!aiResult || aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE') && (
+                    {aiResult?.confidence && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ width: 48, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${aiResult.confidence}%`, borderRadius: 2,
+                            background: aiResult.confidence >= 80 ? '#00ff88' : aiResult.confidence >= 65 ? '#ffb700' : '#ff4d6d' }} />
+                        </div>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: aiResult.confidence >= 80 ? '#00ff88' : aiResult.confidence >= 65 ? '#ffb700' : '#ff4d6d' }}>{aiResult.confidence}%</span>
+                      </div>
+                    )}
+                    {(!aiResult || aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE') && !(aiResult?.confidence) && (
                       <span style={{ fontSize: 7, color: 'rgba(255,183,0,0.4)', letterSpacing: 1 }}>RUN GET SIGNAL</span>
                     )}
                   </div>
@@ -6162,6 +6174,32 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         {aiResult.systemAlignmentNote && (
                           <div style={{ fontSize: 11, color: '#8899bb', marginTop: 5, fontStyle: 'italic' }}>{aiResult.systemAlignmentNote}</div>
                         )}
+                        {/* Multi-TF alignment + IV context + sizing */}
+                        {(aiResult.multiTFAlignment || aiResult.ivContext || aiResult.sizingNote) && (
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' as const }}>
+                            {aiResult.multiTFAlignment && (
+                              <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, fontWeight: 700, letterSpacing: 0.5,
+                                background: aiResult.multiTFAlignment.includes('all-bull') ? 'rgba(0,255,136,0.1)' : aiResult.multiTFAlignment.includes('all-bear') ? 'rgba(255,77,109,0.1)' : 'rgba(255,183,0,0.1)',
+                                color: aiResult.multiTFAlignment.includes('all-bull') ? '#00ff88' : aiResult.multiTFAlignment.includes('all-bear') ? '#ff4d6d' : '#ffb700',
+                                border: `1px solid ${aiResult.multiTFAlignment.includes('all-bull') ? 'rgba(0,255,136,0.3)' : aiResult.multiTFAlignment.includes('all-bear') ? 'rgba(255,77,109,0.3)' : 'rgba(255,183,0,0.3)'}`,
+                              }}>TF: {aiResult.multiTFAlignment}</span>
+                            )}
+                            {aiResult.ivContext && (
+                              <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, fontWeight: 700,
+                                background: aiResult.ivContext === 'cheap' ? 'rgba(0,255,136,0.1)' : aiResult.ivContext === 'expensive' ? 'rgba(255,77,109,0.1)' : 'rgba(255,255,255,0.06)',
+                                color: aiResult.ivContext === 'cheap' ? '#00ff88' : aiResult.ivContext === 'expensive' ? '#ff4d6d' : '#8899bb',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                              }}>IV: {aiResult.ivContext}</span>
+                            )}
+                            {aiResult.sizingNote && (
+                              <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, fontWeight: 700,
+                                background: aiResult.sizingNote.startsWith('full') ? 'rgba(0,229,255,0.1)' : aiResult.sizingNote.startsWith('half') ? 'rgba(255,183,0,0.1)' : 'rgba(255,77,109,0.1)',
+                                color: aiResult.sizingNote.startsWith('full') ? '#00e5ff' : aiResult.sizingNote.startsWith('half') ? '#ffb700' : '#ff4d6d',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                              }}>SIZE: {aiResult.sizingNote}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                     {aiResult.todaysEdge && (
@@ -6183,9 +6221,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       </div>
                     )}
                     {aiResult.waitReason && (aiResult.signal === 'WAIT' || aiResult.signal === 'NO TRADE') && (
-                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.1)', background: 'rgba(255,183,0,0.03)' }}>
-                        <div style={{ fontSize: 9, color: '#ffb700', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6 }}>⏳ Waiting For</div>
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,183,0,0.15)', background: 'rgba(255,183,0,0.04)', borderLeft: '3px solid rgba(255,183,0,0.5)' }}>
+                        <div style={{ fontSize: 9, color: '#ffb700', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 6 }}>⏳ Trigger to watch</div>
                         <div style={{ fontSize: 13, color: '#f0f4ff', lineHeight: 1.8 }}>{aiResult.waitReason}</div>
+                        {/* Show watch levels even on WAIT */}
+                        {aiResult.entryZone && aiResult.entryZone.low > 0 && (
+                          <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 10 }}>
+                            <span style={{ color: '#00e5ff' }}>Watch zone: {aiResult.entryZone.low?.toFixed(0)}–{aiResult.entryZone.high?.toFixed(0)}</span>
+                            {aiResult.stopLevel > 0 && <span style={{ color: '#ff4d6d' }}>Stop: {aiResult.stopLevel?.toFixed(0)}</span>}
+                            {aiResult.target1 > 0 && <span style={{ color: '#00ff88' }}>Target: {aiResult.target1?.toFixed(0)}</span>}
+                          </div>
+                        )}
                       </div>
                     )}
                     {/* Trade Zone placeholder now rendered below signal card — see standalone section */}
