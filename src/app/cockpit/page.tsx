@@ -4038,7 +4038,6 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       traderProfile, customRules,
       marketIntel2,
       probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: '',
-      activeTicket: ticket.status === 'open' ? ticket : null,
     })
     const context = companionCtx.systemPrompt
     try {

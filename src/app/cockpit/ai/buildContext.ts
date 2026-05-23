@@ -73,6 +73,10 @@ export interface SignalInput {
   marketScore:     any | null
   tradePatterns:   any | null
   multiTFData:     any | null
+  spotGex?:        any | null
+  uwIV?:           any | null
+  econSurprise?:   any | null
+  volumeProfile?:  any | null
 
   // From chart pattern recognition engine
   patternAnalysis: PatternAnalysis | null
@@ -355,14 +359,17 @@ Target: ${activePlaybook.target}`
 {
   "signal": "LONG" | "SHORT" | "WAIT" | "NO TRADE",
   "confidence": 0-100,
-  "marketConditions": "2-3 sentences on what the market is doing right now",
-  "aiView": "YOUR independent read — what do YOU see beyond the trader's plan? Cite specific data: microstructure, patterns, flow, fib levels, macro. Be direct even if it diverges from the plan.",
+  "marketConditions": "1-2 sentences — what is price doing RIGHT NOW, not what could happen. Use actual levels.",
+  "aiView": "YOUR quant read — cite 2-3 specific numbers (e.g. TICK +847, TRIN 0.68, GEX flip 5810, VWAP reclaim). No coaching.",
   "systemAlignment": "aligned" | "partial" | "divergent",
-  "systemAlignmentNote": "1 sentence — where does your view match or differ from the morning plan/playbook?",
-  "todaysEdge": "1-2 sentences on the specific edge present right now",
-  "accountability": "1 sentence on the biggest rule violation risk",
-  "riskFlag": "1 sentence on the single biggest risk to this trade",
-  "waitReason": "if WAIT or NO TRADE — exactly what you are waiting for",
+  "systemAlignmentNote": "1 sentence — where does your read match or differ from the morning plan?",
+  "multiTFAlignment": "all-bullish | all-bearish | mixed | 5min-only — which timeframes agree/disagree",
+  "ivContext": "cheap | normal | expensive — one line on premium-buying favorability",
+  "sizingNote": "full | half | quarter — with reason (e.g. half — 72% conf, THETA RISK session)",
+  "todaysEdge": "1 sentence — the SPECIFIC structural edge present right now",
+  "accountability": "1 sentence — biggest rule violation risk for THIS trader right now",
+  "riskFlag": "1 sentence — single biggest risk to this specific trade",
+  "waitReason": "WAIT/NO TRADE only — what SPECIFIC trigger changes this to LONG or SHORT",
   "entryZone": { "high": 0.00, "low": 0.00 },
   "stopLevel": 0.00,
   "target1": 0.00,
@@ -371,16 +378,18 @@ Target: ${activePlaybook.target}`
   "buyZones": [{ "type": "buy", "high": 0.00, "low": 0.00 }, { "type": "nobuy", "high": 0.00, "low": 0.00 }]
 }
 
-CRITICAL RULES:
-- aiView: cite 2-3 specific data points (e.g. "TICK +847, TRIN 0.68, GEX negative at 7380 flip — breakouts will run"). Be the quant, not the coach.
-- systemAlignment: "aligned" = data confirms plan. "divergent" = data contradicts plan. "partial" = mixed.
-- Keep marketConditions + aiView combined under 60 words. The trader wants signal, not analysis.
-- entryZone: specific 3-5pt wide zone at key S/R
-- stopLevel: below VWAP or 200 EMA — max 12pts from entry mid
-- target1: minimum 10-15pts from entry (SCALP). target2: 25-30pts (SWING)
-- moveSize: target1 minus entry midpoint, round to nearest 5
-- LONG → call option, SHORT → put option
-- For WAIT/NO TRADE: still populate entryZone/stopLevel/targets as levels to watch`
+CRITICAL OUTPUT RULES:
+- aiView: SPECIFIC numbers only. "TICK +847, TRIN 0.68, gamma flip 5810, 15min BEARISH" not vague phrases.
+- marketConditions: current structure, not prediction. "Price holding VWAP at 5821, 15min ranging 5815-5835" not "market could go either way".
+- marketConditions + aiView combined: under 55 words total.
+- entryZone: anchored to VWAP, 200EMA, or key S/R level — 3-5pt wide
+- stopLevel: VWAP or 200 EMA — max 12pts from entry midpoint
+- target1: ≥10pts from entry (scalp). target2: ≥25pts (swing)
+- moveSize: target1 minus entry midpoint, nearest 5
+- sizingNote: ALWAYS fill — even full size needs confirmation
+- multiTFAlignment: check 15min vs 1hr vs daily — conflicts reduce confidence
+- waitReason: must include the EXACT trigger (e.g. "VWAP reclaim + TICK cross +600")
+- LONG → call, SHORT → put`
 
   const systemPrompt = [
     `You are an elite SPX intraday options trading AI. The trader buys ITM SPX options (calls for LONG, puts for SHORT) and closes same day — NOT swing trading, NOT holding overnight.
@@ -394,11 +403,24 @@ CRITICAL OPTIONS CONTEXT:
 - A 5pt adverse move in SPX = meaningful P&L on ITM options. Stops matter.
 - WAIT signals should reflect: is there enough time left in the session for this trade to work?
 
-Your job: synthesize ALL available data (microstructure, GEX, TICK/TRIN/VVIX, options flow, patterns, dark pool, breadth) into one clean signal. Be direct, specific, and quantified. Reference actual numbers. Factor in time of day — a LONG signal at 3pm ET with theta burning is different from one at 10:30am.`,
+POSITION SIZING RULES:
+- Confidence >= 80% + PRIME session: full size.
+- Confidence 65-79% OR THETA RISK session: half size. Note this in riskFlag.
+- Confidence < 65%: WAIT regardless of direction.
+- DANGER session (after 3:30pm): no new entries unless confidence >= 85%.
+- Cross-asset RISK_OFF confirmation: reduce size 50%.
+
+MULTI-TIMEFRAME ALIGNMENT:
+- 15-min + 1-hour + daily trend all agree = highest conviction.
+- Only 5-min trend aligns = lower conviction, note in aiView.
+- 1-hour and 15-min in opposite directions = WAIT.
+
+Your job: synthesize ALL available data into one clean signal. Be direct, specific, quantified. Reference actual price numbers from the data provided.`,
     `COACHING STYLE: ${tone}`,
     morningSection,
     playbookSection,
     `TRADER STATS: ${statsSection}`,
+    // ── Logical signal prompt order: Macro → Structure → Micro → Options → Quality ──
     edgeSection ? `═══ HISTORICAL EDGE PROFILE ═══\n${edgeSection}` : '',
     tiingoLine,
     macroLine,
@@ -419,6 +441,9 @@ If confirmation is 70%+ → you may increase confidence by up to 10pts.
 Reference this scoring when setting your final confidence number.`,
     (input as any).gexData?.aiContext ? `═══ DEALER GAMMA EXPOSURE ═══\n${(input as any).gexData.aiContext}` : '',
     (input as any).marketIntel2?.aiContext ? `\n═══ MARKET INTELLIGENCE ═══\n${(input as any).marketIntel2.aiContext}` : '',
+    (input as any).spotGex?.signal ? `\nUW SPOT GEX (live): ${(input as any).spotGex.signal}` : '',
+    (input as any).uwIV?.signal ? `\nSPX IV RANK (UW): ${(input as any).uwIV.signal}` : '',
+    (input as any).econSurprise?.signal ? `\nECONOMIC MACRO: ${(input as any).econSurprise.signal}` : '',
     patternAnalysis?.structureSummary ? `PATTERN BIAS: ${patternAnalysis.structureSummary}` : '',
     JSON_SCHEMA,
   ].filter(Boolean).join('\n\n')
@@ -433,6 +458,7 @@ Reference this scoring when setting your final confidence number.`,
     `PDH ${fmt(market.levels?.pdh ?? null)} | PDL ${fmt(market.levels?.pdl ?? null)} | Open ${fmt(market.levels?.dayOpen ?? null)}`,
     `VIX ${market.vixPrice?.toFixed(2) || '?'} | Breadth ${marketIntel?.breadth?.bias || '?'} | Tide ${marketTide?.bias || '?'} P/C ${marketTide?.putCallRatio || '?'}`,
     `\n═══ 5-MIN CANDLE ANALYSIS (SPX) ═══\n${buildRecentCandles(market.candles)}`,
+    (input as any).volumeProfile ? `\n═══ VOLUME PROFILE (SESSION) ═══\n${(input as any).volumeProfile.aiContext}` : '',
     `Flow:\n${buildFlowSection(optionsFlow)}`,
     zeroDTESkew   ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : '',
     marketScore   ? `Score: ${marketScore.score}/100 ${marketScore.label}` : '',
@@ -450,6 +476,9 @@ Reference this scoring when setting your final confidence number.`,
         `Weekly RSI: ${multiTFData.weekly.rsi} | ${multiTFData.weekly.pctFrom52H}% from 52W high | ${multiTFData.weekly.pctFrom52L}% from 52W low`,
       ].join('\n') : '',
       multiTFData.recentCandles?.length ? `Recent daily candles:\n${multiTFData.recentCandles.join('\n')}` : '',
+      multiTFData.m15  ? `\n15-MIN STRUCTURE: ${multiTFData.m15.signal}` : '',
+      multiTFData.h1   ? `\n1-HOUR STRUCTURE: ${multiTFData.h1.signal}` : '',
+      multiTFData.crossAsset ? `\nCROSS-ASSET: ${multiTFData.crossAsset.signal}` : '',
       multiTFData.patterns?.length ? `\n═══ DAILY CANDLE SIGNALS ═══\n${multiTFData.patterns.map((p: any) => `${p.strength === 'STRONG' ? '🔴 STRONG' : '🟡 MODERATE'} ${p.name} (${p.type})\n${p.description}\n→ ${p.actionable}${p.keyLevel ? '\n📍 ' + p.keyLevel : ''}${p.confirmed ? '\n✓ CONFIRMED' : '\n⚠ Needs confirmation'}`).join('\n\n')}` : '\nNo significant daily candle patterns',
     ].filter(Boolean).join('\n') : '',
     tradePatterns?.revengePatterns > 2 ? '⚠ REVENGE TRADING PATTERN ACTIVE' : '',
@@ -473,6 +502,7 @@ export function buildCompanionContext(
     customRules?:    string
     lastAITime?:     string | null
     marketIntel2?:   any | null
+    activeTicket?:   any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -561,6 +591,15 @@ ${input.sessionMemory ? `MEMORY: ${input.sessionMemory}` : ''}
 ${buildRecentCandles(market.candles)}
 
 ${(input as any).patternAnalysis?.aiContext ? `═══ CHART PATTERN & FIBONACCI ANALYSIS ═══\n${(input as any).patternAnalysis.aiContext}` : ''}
+
+${(input as any).activeTicket?.status === 'open' ? `
+═══ ⚠ ACTIVE OPEN TRADE — MANAGE THIS POSITION ═══
+SPX ${(input as any).activeTicket.strike}${(input as any).activeTicket.optionType === 'call' ? ' CALL' : ' PUT'} ${(input as any).activeTicket.expiry || '0DTE'}
+Entry: $${(input as any).activeTicket.entryPrice} × ${(input as any).activeTicket.qty} contract(s) = $${(parseFloat((input as any).activeTicket?.entryPrice || '0') * parseInt((input as any).activeTicket?.qty || '1') * 100).toFixed(0)} cost basis
+Opened: ${(input as any).activeTicket.openedAt} ET | Current SPX: ${input.market.currentPrice?.toFixed(2) || 'n/a'}
+COACHING PRIORITY: You are a live trade manager. Reference this position in every response.
+Help with: hold vs exit decision, stop management, target levels, time decay risk, scaling.
+Be specific: use current price vs entry strike, session time remaining, charm/vanna context.` : ''}
 
 ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
 
