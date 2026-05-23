@@ -1798,6 +1798,21 @@ export default function CockpitPage() {
   const [breadthData, setBreadthData]       = useState<any | null>(null)
   const [gexData, setGexData]               = useState<any | null>(null)
   const [volumeProfile, setVolumeProfile]   = useState<any | null>(null)
+
+  // ── Active Trade Ticket ──────────────────────────────────────────────────
+  const [ticket, setTicket] = useState({
+    strike:     '',    // e.g. 5820
+    optionType: 'call' as 'call' | 'put',
+    expiry:     '',    // e.g. 0DTE
+    entryPrice: '',    // option premium paid
+    qty:        '1',   // number of contracts
+    exitPrice:  '',    // filled when closed
+    status:     'idle' as 'idle' | 'open' | 'closed',
+    openedAt:   null as string | null,
+    closedAt:   null as string | null,
+    notes:      '',
+  })
+  const [tradeSaving, setTradeSaving] = useState(false)
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
@@ -4019,7 +4034,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       sessionMemory,
       traderProfile, customRules,
       marketIntel2,
-      probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: ''
+      probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: '',
+      activeTicket: ticket.status === 'open' ? ticket : null,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -6353,9 +6369,199 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   }}>{aiLoading ? '⟳  Analyzing...' : '▶  Get AI Signal'}</button>
                 </div>
               </div>
-            </div>
 
-            {/* RIGHT — Checklist */}
+              {/* ── TRADE TICKET ──────────────────────────────────────────── */}
+              {(() => {
+                const isOpen   = ticket.status === 'open'
+                const isClosed = ticket.status === 'closed'
+                const entryNum  = parseFloat(ticket.entryPrice) || 0
+                const exitNum   = parseFloat(ticket.exitPrice)  || 0
+                const qtyNum    = parseInt(ticket.qty) || 1
+                const pnlPts    = exitNum - entryNum
+                const pnlDollar = pnlPts * qtyNum * 100
+                const pnlPct    = entryNum > 0 ? (pnlPts / entryNum * 100) : 0
+                const isProfit  = pnlDollar >= 0
+                const accentCol = isOpen ? '#f59e0b' : isClosed ? (isProfit ? '#00ff88' : '#ff4d6d') : '#00e5ff'
+
+                const handleBuy = () => {
+                  if (!ticket.strike || !ticket.entryPrice) return
+                  const now = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false })
+                  setTicket(t => ({ ...t, status: 'open', openedAt: now }))
+                }
+
+                const handleSell = async () => {
+                  if (!ticket.exitPrice) return
+                  const now = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false })
+                  const pnl = (parseFloat(ticket.exitPrice) - parseFloat(ticket.entryPrice)) * parseInt(ticket.qty) * 100
+                  setTicket(t => ({ ...t, status: 'closed', closedAt: now }))
+                  setTradeSaving(true)
+                  try {
+                    await fetch('/api/userdata', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        table: 'trade',
+                        data: {
+                          date:      new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
+                          time:      ticket.openedAt,
+                          symbol:    `SPX ${ticket.strike}${ticket.optionType === 'call' ? 'C' : 'P'} ${ticket.expiry || '0DTE'}`,
+                          direction: ticket.optionType === 'call' ? 'LONG' : 'SHORT',
+                          side:      'buy',
+                          qty:       parseInt(ticket.qty) || 1,
+                          price:     parseFloat(ticket.entryPrice),
+                          pnl:       parseFloat(pnl.toFixed(2)),
+                          inSystem:  true,
+                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}`,
+                        }
+                      })
+                    })
+                  } catch (e) { console.warn('Trade save failed:', e) }
+                  setTradeSaving(false)
+                }
+
+                const inp = { background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 5, padding: '7px 10px', color: '#e2e8f0', fontSize: 12, fontFamily: font, outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+                const lbl = { fontSize: 9, color: '#4a5568', fontWeight: 700, letterSpacing: 1 as const, marginBottom: 3, display: 'block', textTransform: 'uppercase' as const }
+
+                return (
+                  <div style={{ borderTop: `1px solid ${accentCol}20`, background: 'rgba(0,0,0,0.15)' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: accentCol, boxShadow: isOpen ? `0 0 8px ${accentCol}` : 'none' }} />
+                        <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 800, color: accentCol, letterSpacing: 1 }}>
+                          {isClosed ? 'TRADE CLOSED' : isOpen ? '● IN TRADE' : 'TRADE TICKET'}
+                        </span>
+                        {isOpen && ticket.openedAt && <span style={{ fontSize: 9, color: '#6b7a9a' }}>since {ticket.openedAt} ET</span>}
+                      </div>
+                      {(isOpen || isClosed) && (
+                        <button onClick={() => setTicket({ strike: '', optionType: 'call', expiry: '', entryPrice: '', qty: '1', exitPrice: '', status: 'idle', openedAt: null, closedAt: null, notes: '' })}
+                          style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#6b7a9a', cursor: 'pointer', fontFamily: font }}>New</button>
+                      )}
+                    </div>
+
+                    <div style={{ padding: '10px 16px 14px' }}>
+                      {/* Row 1: Strike + Type + Expiry */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 72px', gap: 7, marginBottom: 8 }}>
+                        <div><span style={lbl}>SPX Strike</span>
+                          <input type="number" placeholder={currentPrice ? Math.round(currentPrice).toString() : '5820'} value={ticket.strike}
+                            onChange={e => setTicket(t => ({ ...t, strike: e.target.value }))} disabled={isOpen || isClosed}
+                            style={{ ...inp, borderColor: ticket.strike ? 'rgba(0,229,255,0.3)' : 'rgba(255,255,255,0.08)' }} />
+                        </div>
+                        <div><span style={lbl}>Type</span>
+                          <select value={ticket.optionType} onChange={e => setTicket(t => ({ ...t, optionType: e.target.value as 'call' | 'put' }))}
+                            disabled={isOpen || isClosed}
+                            style={{ ...inp, color: ticket.optionType === 'call' ? '#00ff88' : '#ff4d6d', cursor: 'pointer', padding: '6px 6px' }}>
+                            <option value="call">CALL</option>
+                            <option value="put">PUT</option>
+                          </select>
+                        </div>
+                        <div><span style={lbl}>Expiry</span>
+                          <input type="text" placeholder="0DTE" value={ticket.expiry}
+                            onChange={e => setTicket(t => ({ ...t, expiry: e.target.value }))} disabled={isOpen || isClosed} style={inp} />
+                        </div>
+                      </div>
+
+                      {/* Row 2: Entry + Qty */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px', gap: 7, marginBottom: 8 }}>
+                        <div><span style={lbl}>Entry Premium ($)</span>
+                          <input type="number" step="0.05" placeholder="12.50" value={ticket.entryPrice}
+                            onChange={e => setTicket(t => ({ ...t, entryPrice: e.target.value }))} disabled={isOpen || isClosed}
+                            style={{ ...inp, borderColor: ticket.entryPrice ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.08)' }} />
+                        </div>
+                        <div><span style={lbl}>Contracts</span>
+                          <input type="number" min="1" placeholder="1" value={ticket.qty}
+                            onChange={e => setTicket(t => ({ ...t, qty: e.target.value }))} disabled={isOpen || isClosed} style={inp} />
+                        </div>
+                      </div>
+
+                      {/* BUY button */}
+                      {ticket.status === 'idle' && (
+                        <button onClick={handleBuy} disabled={!ticket.strike || !ticket.entryPrice}
+                          style={{ width: '100%', padding: '9px 0', borderRadius: 7, border: 'none', marginBottom: 2,
+                            cursor: !ticket.strike || !ticket.entryPrice ? 'not-allowed' : 'pointer',
+                            background: !ticket.strike || !ticket.entryPrice ? 'rgba(0,255,136,0.06)' : 'rgba(0,255,136,0.15)',
+                            color: !ticket.strike || !ticket.entryPrice ? 'rgba(0,255,136,0.25)' : '#00ff88',
+                            fontFamily: fontDisplay, fontSize: 13, fontWeight: 800, letterSpacing: 1 }}>
+                          {ticket.optionType === 'call' ? '📞' : '📉'} BUY {ticket.optionType.toUpperCase()}
+                        </button>
+                      )}
+
+                      {/* Open state: cost basis + exit + sell */}
+                      {isOpen && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginBottom: 8, marginTop: 2 }}>
+                            {[
+                              { label: 'Cost Basis', val: `$${(entryNum * qtyNum * 100).toFixed(0)}` },
+                              { label: 'Entry', val: `$${entryNum.toFixed(2)}` },
+                              { label: 'Contracts', val: `${qtyNum}` },
+                            ].map((s, i) => (
+                              <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(255,183,0,0.06)', borderRadius: 5, padding: '5px 3px', border: '1px solid rgba(255,183,0,0.1)' }}>
+                                <div style={{ fontSize: 8, color: '#4a5568' }}>{s.label}</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b', fontFamily: fontDisplay }}>{s.val}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ marginBottom: 8 }}>
+                            <span style={lbl}>Exit Price (to close)</span>
+                            <input type="number" step="0.05" placeholder="18.00" value={ticket.exitPrice}
+                              onChange={e => setTicket(t => ({ ...t, exitPrice: e.target.value }))}
+                              style={{ ...inp, borderColor: ticket.exitPrice ? 'rgba(255,77,109,0.35)' : 'rgba(255,255,255,0.08)' }} />
+                          </div>
+
+                          {ticket.exitPrice && exitNum > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginBottom: 8 }}>
+                              {[
+                                { label: 'P&L ($)', val: `${pnlDollar >= 0 ? '+' : ''}$${pnlDollar.toFixed(0)}` },
+                                { label: 'P&L (%)', val: `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%` },
+                                { label: 'Per Contract', val: `${pnlPts >= 0 ? '+' : ''}$${(pnlPts * 100).toFixed(0)}` },
+                              ].map((s, i) => (
+                                <div key={i} style={{ textAlign: 'center' as const, background: isProfit ? 'rgba(0,255,136,0.07)' : 'rgba(255,77,109,0.07)', borderRadius: 5, padding: '5px 3px', border: `1px solid ${isProfit ? 'rgba(0,255,136,0.15)' : 'rgba(255,77,109,0.15)'}` }}>
+                                  <div style={{ fontSize: 8, color: '#4a5568' }}>{s.label}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 800, color: isProfit ? '#00ff88' : '#ff4d6d', fontFamily: fontDisplay }}>{s.val}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+                            <button onClick={handleSell} disabled={!ticket.exitPrice || tradeSaving}
+                              style={{ padding: '9px 0', borderRadius: 7, border: 'none',
+                                cursor: !ticket.exitPrice || tradeSaving ? 'not-allowed' : 'pointer',
+                                background: !ticket.exitPrice ? 'rgba(255,77,109,0.06)' : 'rgba(255,77,109,0.15)',
+                                color: !ticket.exitPrice ? 'rgba(255,77,109,0.25)' : '#ff4d6d',
+                                fontFamily: fontDisplay, fontSize: 13, fontWeight: 800, letterSpacing: 1 }}>
+                              {tradeSaving ? '⟳ Saving...' : '✕ SELL / CLOSE'}
+                            </button>
+                            <input type="text" placeholder="Notes..." value={ticket.notes}
+                              onChange={e => setTicket(t => ({ ...t, notes: e.target.value }))}
+                              style={{ ...inp, fontSize: 10, padding: '7px 8px' }} />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Closed: final P&L */}
+                      {isClosed && (
+                        <div style={{ textAlign: 'center' as const, padding: '4px 0 2px' }}>
+                          <div style={{ fontSize: 30, fontWeight: 900, color: isProfit ? '#00ff88' : '#ff4d6d', fontFamily: fontDisplay, lineHeight: 1.1 }}>
+                            {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(0)}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 4, marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, color: isProfit ? '#00d4a0' : '#ff4d6d', fontWeight: 700 }}>{pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%</span>
+                            <span style={{ fontSize: 11, color: '#6b7a9a' }}>{entryNum.toFixed(2)} → {exitNum.toFixed(2)}</span>
+                            <span style={{ fontSize: 11, color: '#6b7a9a' }}>{qtyNum} ct</span>
+                          </div>
+                          <div style={{ fontSize: 9, color: '#4a5568' }}>
+                            {ticket.openedAt} → {ticket.closedAt} ET
+                            {tradeSaving && <span style={{ color: '#f59e0b', marginLeft: 8 }}>Saving...</span>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
             <div style={{ width: 280, background: 'rgba(12,15,26,0.98)', borderLeft: `1px solid rgba(0,212,160,0.1)`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: '#8899bb', letterSpacing: 1 }}>PRE-TRADE CHECK</div>
