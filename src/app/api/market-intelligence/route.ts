@@ -50,17 +50,27 @@ function yday() {
 // ── 1. VIX TERM STRUCTURE ────────────────────────────────────────────────────
 async function fetchVIXTermStructure() {
   const td = today()
-  const [vix1d, vix9d, vix, vvix] = await Promise.all([
+  const [vix1d, vix9d, vix, vvix, skew] = await Promise.all([
     polyGet(`/v2/aggs/ticker/I:VIX1D/range/1/minute/${td}/${td}?adjusted=true&sort=desc&limit=3`),
     polyGet(`/v2/aggs/ticker/I:VIX9D/range/1/minute/${td}/${td}?adjusted=true&sort=desc&limit=3`),
     polyGet(`/v2/aggs/ticker/I:VIX/range/1/minute/${td}/${td}?adjusted=true&sort=desc&limit=3`),
     polyGet(`/v2/aggs/ticker/I:VVIX/range/1/minute/${td}/${td}?adjusted=true&sort=desc&limit=3`),
+    polyGet(`/v2/aggs/ticker/I:SKEW/range/1/day/${yday()}/${td}?adjusted=true&sort=desc&limit=3`),
   ])
 
   const v1d  = vix1d?.results?.[0]?.c || null
   const v9d  = vix9d?.results?.[0]?.c || null
   const v30  = vix?.results?.[0]?.c   || null
   const vvx  = vvix?.results?.[0]?.c  || null
+  const skewVal = skew?.results?.[0]?.c || null
+  // SKEW > 130 = tail risk elevated (market buying downside protection aggressively)
+  // SKEW < 110 = complacency / normal
+  const skewRegime = skewVal
+    ? skewVal > 140 ? 'EXTREME_TAIL_RISK'
+    : skewVal > 130 ? 'ELEVATED_TAIL_RISK'
+    : skewVal > 115 ? 'NORMAL'
+    : 'LOW_FEAR'
+    : null
 
   // Daily implied move from VIX1D
   // VIX1D = expected % move today. Convert to SPX points
@@ -83,8 +93,10 @@ async function fetchVIXTermStructure() {
     vix30:           v30 ? parseFloat(v30.toFixed(2)) : null,
     vvix:            vvx ? parseFloat(vvx.toFixed(2)) : null,
     impliedMoveToday: impliedMoveToday ? parseFloat(impliedMoveToday.toFixed(1)) : null,
-    termShape,       // 'normal' | 'inverted' | 'calm'
-    contango,        // % - positive = normal (further > nearer), negative = backwardation
+    termShape,
+    contango,
+    skew:        skewVal ? parseFloat(skewVal.toFixed(1)) : null,
+    skewRegime,  // EXTREME_TAIL_RISK | ELEVATED_TAIL_RISK | NORMAL | LOW_FEAR
     signal: v1d && v30
       ? v1d > v30 * 1.1
         ? `⚠ INVERTED TERM STRUCTURE — today more uncertain than month. Elevated 0DTE premium.`
@@ -92,6 +104,9 @@ async function fetchVIXTermStructure() {
         ? `Calm term structure — today's implied move smaller than monthly avg. Options cheap.`
         : `Normal term structure — VIX1D ${v1d?.toFixed(1)} / VIX ${v30?.toFixed(1)}`
       : 'Term structure unavailable',
+    skewSignal: skewVal
+      ? `SKEW ${skewVal.toFixed(0)} (${skewRegime?.replace(/_/g,' ')}) — ${skewVal > 130 ? 'market buying heavy downside protection — expect volatility' : skewVal < 110 ? 'low tail hedging — complacent market' : 'normal tail risk pricing'}`
+      : null,
   }
 }
 
@@ -212,16 +227,22 @@ async function fetchSectorRotation() {
     { ticker: 'XLRE', name: 'Real Estate' },
   ]
 
-  const results = await Promise.all(sectors.map(async s => {
-    const [today_res, yest_res] = await Promise.all([
-      polyGet(`/v2/aggs/ticker/${s.ticker}/range/1/minute/${td}/${td}?adjusted=true&sort=desc&limit=3`),
-      polyGet(`/v2/aggs/ticker/${s.ticker}/range/1/day/${yest}/${yest}?adjusted=true&sort=desc&limit=1`),
-    ])
-    const curr      = today_res?.results?.[0]?.c || null
-    const prevClose = yest_res?.results?.[0]?.c  || null
+  // Use snapshot endpoint for real-time prices (much faster than aggs)
+  const tickerList = sectors.map(s => s.ticker).join(',')
+  const [snapshotRes, yestBarsAll] = await Promise.all([
+    polyGet(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickerList}`),
+    Promise.all(sectors.map(s => polyGet(`/v2/aggs/ticker/${s.ticker}/range/1/day/${yest}/${yest}?adjusted=true&sort=desc&limit=1`))),
+  ])
+  const snapMap: Record<string, any> = {}
+  ;(snapshotRes?.tickers || []).forEach((t: any) => { snapMap[t.ticker] = t })
+
+  const results = sectors.map((s, i) => {
+    const snap      = snapMap[s.ticker]
+    const curr      = snap?.day?.c || snap?.lastTrade?.p || null
+    const prevClose = yestBarsAll[i]?.results?.[0]?.c || snap?.prevDay?.c || null
     const chgPct    = curr && prevClose ? ((curr - prevClose) / prevClose * 100) : null
     return { ...s, curr, prevClose, chgPct: chgPct ? parseFloat(chgPct.toFixed(2)) : null }
-  }))
+  })
 
   const valid   = results.filter(s => s.chgPct !== null)
   const sorted  = [...valid].sort((a, b) => (b.chgPct || 0) - (a.chgPct || 0))
@@ -337,18 +358,103 @@ async function fetchPreMarketQuality() {
   }
 }
 
+// ── 7. SPX OPTIONS CHAIN — max pain + OI concentration ──────────────────────
+async function fetchOptionsChain() {
+  // Polygon options snapshot for SPX (0DTE = today's expiry SPXW)
+  const td = today()
+  // Get SPX options expiring today
+  const [todayChain, weekChain] = await Promise.all([
+    polyGet(`/v3/snapshot/options/I:SPX?expiration_date=${td}&limit=250&sort=strike_price&order=asc`),
+    polyGet(`/v3/snapshot/options/I:SPX?expiration_date.gte=${td}&expiration_date.lte=${new Date(Date.now()+5*86400000).toLocaleDateString('en-CA')}&limit=100&sort=expiration_date&order=asc`),
+  ])
+
+  const contracts = todayChain?.results || []
+  if (contracts.length < 5) {
+    // Fallback: try SPXW (weekly SPX options)
+    const spxw = await polyGet(`/v3/snapshot/options/SPXW?expiration_date=${td}&limit=250&sort=strike_price&order=asc`)
+    if (spxw?.results?.length > 0) contracts.push(...(spxw.results || []))
+  }
+
+  if (contracts.length < 5) return null
+
+  // Calculate max pain — strike where total options premium expires worthless
+  const strikes: Record<number, { callOI: number; putOI: number; callPain: number; putPain: number }> = {}
+
+  for (const c of contracts) {
+    const strike = c.details?.strike_price || c.strike_price
+    const oi     = c.open_interest || c.day?.open_interest || 0
+    const type   = c.details?.contract_type || c.contract_type
+    if (!strike || !oi) continue
+    if (!strikes[strike]) strikes[strike] = { callOI: 0, putOI: 0, callPain: 0, putPain: 0 }
+    if (type === 'call') strikes[strike].callOI += oi
+    if (type === 'put')  strikes[strike].putOI  += oi
+  }
+
+  // For each possible expiry price, calculate total pain ($ value of all options expiring ITM)
+  const strikeList = Object.keys(strikes).map(Number).sort((a,b)=>a-b)
+  let   maxPainStrike = 0
+  let   minPain = Infinity
+
+  for (const testStrike of strikeList) {
+    let totalPain = 0
+    for (const s of strikeList) {
+      // Call pain: calls below test strike expire worthless, calls above are ITM
+      if (s > testStrike) totalPain += strikes[s].callOI * (s - testStrike)
+      // Put pain: puts above test strike expire worthless, puts below are ITM
+      if (s < testStrike) totalPain += strikes[s].putOI  * (testStrike - s)
+    }
+    if (totalPain < minPain) { minPain = totalPain; maxPainStrike = testStrike }
+  }
+
+  // Find highest OI strikes (call wall, put wall)
+  let callWallStrike = 0, callWallOI = 0
+  let putWallStrike  = 0, putWallOI  = 0
+
+  for (const [s, data] of Object.entries(strikes)) {
+    const strike = Number(s)
+    if (data.callOI > callWallOI) { callWallOI = data.callOI; callWallStrike = strike }
+    if (data.putOI  > putWallOI)  { putWallOI  = data.putOI;  putWallStrike  = strike }
+  }
+
+  // Top 5 strikes by total OI (gamma gravity zones)
+  const topStrikes = strikeList
+    .map(s => ({ strike: s, totalOI: strikes[s].callOI + strikes[s].putOI, callOI: strikes[s].callOI, putOI: strikes[s].putOI }))
+    .sort((a,b) => b.totalOI - a.totalOI)
+    .slice(0, 5)
+
+  // P/C ratio for 0DTE
+  const totalCallOI = strikeList.reduce((s, k) => s + strikes[k].callOI, 0)
+  const totalPutOI  = strikeList.reduce((s, k) => s + strikes[k].putOI,  0)
+  const zeroDtePCR  = totalCallOI > 0 ? parseFloat((totalPutOI / totalCallOI).toFixed(2)) : null
+
+  return {
+    maxPain:       maxPainStrike,
+    callWall:      callWallStrike,
+    putWall:       putWallStrike,
+    callWallOI:    callWallOI,
+    putWallOI:     putWallOI,
+    topStrikes,
+    zeroDtePCR,
+    contractCount: contracts.length,
+    signal: maxPainStrike > 0
+      ? `Max pain: ${maxPainStrike} | Call wall: ${callWallStrike} (${(callWallOI/1000).toFixed(0)}K OI) | Put wall: ${putWallStrike} (${(putWallOI/1000).toFixed(0)}K OI) | 0DTE P/C: ${zeroDtePCR}`
+      : 'Options chain unavailable',
+  }
+}
+
 // ── MAIN HANDLER ─────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const section = req.nextUrl.searchParams.get('section') || 'all'
 
   try {
     // Run all fetches in parallel
-    const [termStructure, vwapBands, volSpread, sectorRotation, preMarket] = await Promise.all([
-      section === 'all' || section === 'vix'     ? fetchVIXTermStructure()   : Promise.resolve(null),
-      section === 'all' || section === 'vwap'    ? fetchVWAPBands()          : Promise.resolve(null),
-      section === 'all' || section === 'vol'     ? fetchVolSpread()          : Promise.resolve(null),
-      section === 'all' || section === 'sectors' ? fetchSectorRotation()     : Promise.resolve(null),
-      section === 'all' || section === 'premarket'? fetchPreMarketQuality()  : Promise.resolve(null),
+    const [termStructure, vwapBands, volSpread, sectorRotation, preMarket, optionsChain] = await Promise.all([
+      section === 'all' || section === 'vix'     ? fetchVIXTermStructure()  : Promise.resolve(null),
+      section === 'all' || section === 'vwap'    ? fetchVWAPBands()         : Promise.resolve(null),
+      section === 'all' || section === 'vol'     ? fetchVolSpread()         : Promise.resolve(null),
+      section === 'all' || section === 'sectors' ? fetchSectorRotation()    : Promise.resolve(null),
+      section === 'all' || section === 'premarket'? fetchPreMarketQuality() : Promise.resolve(null),
+      section === 'all' || section === 'options' ? fetchOptionsChain()      : Promise.resolve(null),
     ])
 
     const timeContext = getTimeOfDayContext()
@@ -363,6 +469,8 @@ export async function GET(req: NextRequest) {
       sectorRotation ? `SECTORS: ${sectorRotation.signal}` : '',
       `SESSION: ${timeContext.signal}`,
       preMarket      ? `PRE-MARKET: ${preMarket.signal}` : '',
+      optionsChain   ? `OPTIONS CHAIN (0DTE): ${optionsChain.signal}` : '',
+      termStructure?.skewSignal ? `SKEW: ${termStructure.skewSignal}` : '',
     ].filter(Boolean).join('\n')
 
     return NextResponse.json({
@@ -373,6 +481,7 @@ export async function GET(req: NextRequest) {
       timeContext,
       preMarket,
       aiContext,
+      optionsChain,
       fetchedAt: new Date().toISOString(),
     })
 
