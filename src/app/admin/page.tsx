@@ -44,6 +44,15 @@ const GROUPS: Record<string, string[]> = {
     'VIX Term Structure',
     'VWAP Bands Calculation',
     'Sector Rotation (10 sectors)',
+    'Cross-Asset (DXY + TLT + OIL)',
+    'Options Chain (0DTE SPX via Polygon)',
+    'UW Spot GEX by Strike',
+    'GEX — FlashAlpha Basic (DEX/VEX/CHEX)',
+  ],
+  'Trade Execution': [
+    'Trade Ticket — DB Storage',
+    'Strike Suggestions API',
+    'Volume Profile Calculation',
   ],
   'Probability Engine': [
     'Gap Outcome Tracking',

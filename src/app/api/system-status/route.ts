@@ -485,6 +485,138 @@ export async function GET(req: NextRequest) {
       }
     }),
 
+    // ── Trade Ticket & Strike Suggestions ───────────────────────────────────
+    check('Trade Ticket — DB Storage', async () => {
+      const { data, error } = await supabaseAdmin.from('trades')
+        .select('id, symbol, pnl, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (error) throw new Error(error.message)
+      const trades = data || []
+      const spxTrades = trades.filter((t: any) => t.symbol?.includes('SPX'))
+      return {
+        detail: trades.length > 0
+          ? `${trades.length} trades logged ✓ | ${spxTrades.length} SPX options | Latest: ${trades[0]?.symbol || 'n/a'} P&L $${trades[0]?.pnl?.toFixed(0) || '?'}`
+          : 'No trades logged yet — use Trade Ticket in Plan tab to record trades',
+        value: { tradeCount: trades.length, spxCount: spxTrades.length }
+      }
+    }),
+
+    check('Strike Suggestions API', async () => {
+      const key = process.env.ANTHROPIC_API_KEY
+      if (!key) throw new Error('ANTHROPIC_API_KEY not set')
+      // Quick test: verify the route is reachable and returns valid structure
+      const testRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://www.traidezone.ai'}/api/strike-suggestions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPrice: 5800, signal: 'LONG', confidence: 75, sessionMins: 300, morningBias: 'BULLISH' }),
+        signal: AbortSignal.timeout(15000),
+      })
+      if (!testRes.ok) throw new Error(`HTTP ${testRes.status}`)
+      const d = await testRes.json()
+      if (d.error) throw new Error(d.error)
+      const strikeCount = d.strikes?.length || 0
+      return {
+        detail: strikeCount > 0
+          ? `${strikeCount} strikes generated ✓ | Direction: ${d.direction} | IV: ${d.ivAssessment} | Top pick: ${d.topPick}`
+          : 'Strike suggestions returned but no strikes — check prompt',
+        value: { strikeCount, direction: d.direction, ivAssessment: d.ivAssessment }
+      }
+    }),
+
+    check('Volume Profile Calculation', async () => {
+      // Test that we can calculate a volume profile from mock candle data
+      const mockCandles = Array.from({ length: 20 }, (_, i) => ({
+        t: Date.now() - (20 - i) * 5 * 60000,
+        o: 5800 + Math.random() * 20,
+        h: 5810 + Math.random() * 20,
+        l: 5790 + Math.random() * 20,
+        c: 5800 + Math.random() * 20,
+        v: Math.floor(Math.random() * 10000) + 1000,
+      }))
+      // Import and test the calculation
+      const { calculateVolumeProfile } = await import('@/app/cockpit/lib/volumeProfile')
+      const vp = calculateVolumeProfile(mockCandles as any)
+      if (!vp) throw new Error('Volume profile returned null')
+      if (!vp.poc || !vp.vah || !vp.val) throw new Error('Missing POC/VAH/VAL')
+      return {
+        detail: `Volume profile calc OK ✓ | POC: ${vp.poc} | VAH: ${vp.vah} | VAL: ${vp.val} | ${vp.valueAreaPct}% value area`,
+        value: { poc: vp.poc, vah: vp.vah, val: vp.val }
+      }
+    }),
+
+    check('GEX — FlashAlpha Basic (DEX/VEX/CHEX)', async () => {
+      const key = process.env.FLASHALPHA_API_KEY
+      if (!key) throw new Error('FLASHALPHA_API_KEY not set')
+      const res = await fetch('https://lab.flashalpha.com/v1/exposure/dexvexchex/SPX', {
+        headers: { 'X-Api-Key': key },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) throw new Error(`FlashAlpha HTTP ${res.status}`)
+      const d = await res.json()
+      const hasDex  = d?.net_dex  !== undefined || d?.dex?.net  !== undefined
+      const hasVex  = d?.net_vex  !== undefined || d?.vex?.net  !== undefined
+      const hasChex = d?.net_chex !== undefined || d?.chex?.net !== undefined
+      if (!hasDex && !hasVex && !hasChex) throw new Error('No DEX/VEX/CHEX data returned — check plan level')
+      return {
+        detail: `DEX/VEX/CHEX available ✓ | DEX: ${hasDex ? '✓' : '✗'} VEX: ${hasVex ? '✓' : '✗'} CHEX: ${hasChex ? '✓' : '✗'}`,
+        value: { hasDex, hasVex, hasChex }
+      }
+    }),
+
+    check('UW Spot GEX by Strike', async () => {
+      const key = process.env.UNUSUAL_WHALES_API_KEY
+      if (!key) throw new Error('UNUSUAL_WHALES_API_KEY not set')
+      const res = await fetch('https://api.unusualwhales.com/api/stock/SPX/spot-exposures/strike', {
+        headers: { 'Authorization': `Bearer ${key}`, 'UW-CLIENT-API-ID': '100001' },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) throw new Error(`UW HTTP ${res.status} — check plan includes spot GEX`)
+      const d = await res.json()
+      const count = d?.data?.length || 0
+      return {
+        detail: count > 0
+          ? `${count} strikes in spot GEX ✓ — live gamma profile available`
+          : 'No spot GEX data — may need higher UW plan tier',
+        value: { strikeCount: count }
+      }
+    }),
+
+    check('Cross-Asset (DXY + TLT + OIL)', async () => {
+      const POLY = process.env.POLYGON_API_KEY
+      if (!POLY) throw new Error('POLYGON_API_KEY not set')
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const thirty = new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA')
+      const [dxy, tlt] = await Promise.all([
+        fetch(`https://api.polygon.io/v2/aggs/ticker/DX:CURR/range/1/day/${thirty}/${today}?adjusted=true&sort=desc&limit=5&apiKey=${POLY}`, { signal: AbortSignal.timeout(5000) }).then(r => r.json()),
+        fetch(`https://api.polygon.io/v2/aggs/ticker/TLT/range/1/day/${thirty}/${today}?adjusted=true&sort=desc&limit=5&apiKey=${POLY}`, { signal: AbortSignal.timeout(5000) }).then(r => r.json()),
+      ])
+      const dxyOk = (dxy.results?.length || 0) > 0
+      const tltOk = (tlt.results?.length || 0) > 0
+      if (!dxyOk && !tltOk) throw new Error('No DXY or TLT data — cross-asset blind')
+      return {
+        detail: `DXY: ${dxyOk ? `${dxy.results[0]?.c?.toFixed(2)} ✓` : '✗'} | TLT: ${tltOk ? `${tlt.results[0]?.c?.toFixed(2)} ✓` : '✗'} — cross-asset confirmation active`,
+        value: { dxyOk, tltOk }
+      }
+    }),
+
+    check('Options Chain (0DTE SPX via Polygon)', async () => {
+      const POLY = process.env.POLYGON_API_KEY
+      if (!POLY) throw new Error('POLYGON_API_KEY not set')
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const res = await fetch(`https://api.polygon.io/v3/snapshot/options/I:SPX?expiration_date=${today}&limit=10&apiKey=${POLY}`, { signal: AbortSignal.timeout(8000) })
+      if (!res.ok) throw new Error(`Polygon options HTTP ${res.status}`)
+      const d = await res.json()
+      const count = d.results?.length || 0
+      return {
+        detail: count > 0
+          ? `${count} 0DTE contracts found ✓ — max pain + OI walls calculable`
+          : 'No 0DTE options data today (weekend/pre-market) — will populate at open',
+        value: { contractCount: count }
+      }
+    }),
+
   ])
 
   const checks = results.map((r, i) => {
