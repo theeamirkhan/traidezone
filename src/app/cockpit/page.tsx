@@ -7163,6 +7163,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {tab === 'learn' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
 
+            {/* ── AI LEARNING DASHBOARD header + signal stats (always top) ── */}
             {insights && !insightsLoading && (() => {
               const s = insights.summary
               const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0' }
@@ -7174,21 +7175,18 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               )
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
+                <div style={{ marginBottom: 14 }}>
                   {/* Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 800, color: '#7c6aff', letterSpacing: 2 }}>🧠 AI LEARNING DASHBOARD</div>
                     <button onClick={() => { setInsights(null); setInsightsLoading(true); fetch('/api/insights').then(r => r.json()).then(d => { setInsights(d); setInsightsLoading(false) }).catch(() => setInsightsLoading(false)) }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(124,106,255,0.3)', background: 'transparent', color: '#7c6aff', cursor: 'pointer', fontFamily: font }}>↺ Refresh</button>
                   </div>
-
                   {/* Data quality banner */}
-                  <div style={{ padding: '8px 12px', borderRadius: 6, background: s.total < 10 ? 'rgba(245,158,11,0.08)' : 'rgba(0,255,136,0.05)', border: `1px solid ${s.total < 10 ? 'rgba(245,158,11,0.2)' : 'rgba(0,255,136,0.15)'}`, fontSize: 11, color: s.total < 10 ? '#f59e0b' : '#00ff88' }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 6, marginBottom: 10, background: s.total < 10 ? 'rgba(245,158,11,0.08)' : 'rgba(0,255,136,0.05)', border: `1px solid ${s.total < 10 ? 'rgba(245,158,11,0.2)' : 'rgba(0,255,136,0.15)'}`, fontSize: 11, color: s.total < 10 ? '#f59e0b' : '#00ff88' }}>
                     {insights.dataQuality.note}
                   </div>
-
                   {/* Signal performance stats */}
-                  <div>
+                  <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Signal Performance</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                       {statBox('Win Rate', `${s.winRate}%`, `${s.total} signals`, s.winRate >= 55 ? C2.green : s.winRate >= 45 ? C2.yellow : C2.red)}
@@ -7197,7 +7195,6 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       {statBox('SHORT WR', s.shortWinRate !== null ? `${s.shortWinRate}%` : 'n/a', 'puts', s.shortWinRate >= 55 ? C2.green : C2.yellow)}
                     </div>
                   </div>
-
                   {/* Last 5 days */}
                   {s.recent5d.count > 0 && (
                     <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -7205,132 +7202,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       <span style={{ fontSize: 13, fontWeight: 800, color: s.recent5d.winRate >= 55 ? C2.green : s.recent5d.winRate >= 45 ? C2.yellow : C2.red }}>{s.recent5d.winRate}% win rate</span>
                     </div>
                   )}
-
-                  {/* Confidence calibration */}
-                  {insights.confidenceCalibration?.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Confidence Calibration</div>
-                      <div style={{ fontSize: 10, color: C2.muted, marginBottom: 6 }}>Does the AI's confidence actually predict outcomes?</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {insights.confidenceCalibration.map((c: any, i: number) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            <span style={{ fontSize: 10, color: C2.muted, width: 70 }}>{c.range}</span>
-                            <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${c.winRate}%`, background: c.winRate >= 60 ? C2.green : c.winRate >= 45 ? C2.yellow : C2.red, borderRadius: 3 }} />
-                            </div>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: c.winRate >= 60 ? C2.green : c.winRate >= 45 ? C2.yellow : C2.red, width: 40 }}>{c.winRate}%</span>
-                            <span style={{ fontSize: 9, color: C2.muted }}>{c.count} signals{c.note ? ` · ${c.note}` : ''}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* VIX performance */}
-                  {insights.vixPerformance?.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Performance by VIX Regime</div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {insights.vixPerformance.map((v: any, i: number) => (
-                          <div key={i} style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' as const }}>
-                            <div style={{ fontSize: 9, color: C2.muted, marginBottom: 4 }}>{v.regime}</div>
-                            <div style={{ fontSize: 18, fontWeight: 800, color: v.winRate >= 55 ? C2.green : v.winRate >= 45 ? C2.yellow : C2.red }}>{v.winRate}%</div>
-                            <div style={{ fontSize: 9, color: C2.muted }}>{v.count} signals</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Plan alignment */}
-                  {insights.alignment?.alignedWinRate !== null && (
-                    <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Plan Alignment Impact</div>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <div style={{ flex: 1, textAlign: 'center' as const }}>
-                          <div style={{ fontSize: 9, color: C2.muted, marginBottom: 4 }}>Following Plan</div>
-                          <div style={{ fontSize: 20, fontWeight: 800, color: C2.green }}>{insights.alignment.alignedWinRate}%</div>
-                          <div style={{ fontSize: 9, color: C2.muted }}>{insights.alignment.alignedCount} signals</div>
-                        </div>
-                        <div style={{ flex: 1, textAlign: 'center' as const }}>
-                          <div style={{ fontSize: 9, color: C2.muted, marginBottom: 4 }}>Diverging</div>
-                          <div style={{ fontSize: 20, fontWeight: 800, color: insights.alignment.divergentWinRate >= insights.alignment.alignedWinRate ? C2.yellow : C2.red }}>{insights.alignment.divergentWinRate}%</div>
-                          <div style={{ fontSize: 9, color: C2.muted }}>{insights.alignment.divergentCount} signals</div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 10, color: '#7c6aff', marginTop: 8, textAlign: 'center' as const }}>{insights.alignment.note}</div>
-                    </div>
-                  )}
-
-                  {/* What the AI has learned */}
-                  {insights.aiLearnings?.chatLearnings?.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>What the AI Has Learned (Last 7 Sessions)</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {insights.aiLearnings.chatLearnings.map((l: any, i: number) => (
-                          <div key={i} style={{ background: 'rgba(124,106,255,0.05)', borderRadius: 6, padding: '8px 12px', border: '1px solid rgba(124,106,255,0.1)', fontSize: 11, color: C2.text, lineHeight: 1.6 }}>
-                            <span style={{ fontSize: 9, color: '#7c6aff', fontWeight: 700, marginRight: 6 }}>{l.date || `Session ${i+1}`}</span>
-                            {l.summary || l.observations || JSON.stringify(l).substring(0, 150)}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Identified weaknesses */}
-                  {insights.aiLearnings?.weaknesses?.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.red, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Identified Weaknesses</div>
-                      {insights.aiLearnings.weaknesses.map((w: any, i: number) => (
-                        <div key={i} style={{ fontSize: 11, color: '#ffb0b8', padding: '5px 0', borderBottom: '1px solid rgba(255,77,109,0.08)' }}>• {typeof w === 'string' ? w : w.description || JSON.stringify(w)}</div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Identified strengths */}
-                  {insights.aiLearnings?.strengths?.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.green, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>✓ Identified Strengths</div>
-                      {insights.aiLearnings.strengths.map((s: any, i: number) => (
-                        <div key={i} style={{ fontSize: 11, color: '#a7f3d0', padding: '5px 0', borderBottom: '1px solid rgba(0,255,136,0.08)' }}>• {typeof s === 'string' ? s : s.description || JSON.stringify(s)}</div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Recent losses */}
-                  {insights.recentLosses?.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Recent Losses — What Went Wrong</div>
-                      {insights.recentLosses.map((l: any, i: number) => (
-                        <div key={i} style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,77,109,0.04)', border: '1px solid rgba(255,77,109,0.1)', marginBottom: 4 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: C2.red }}>{l.signal}</span>
-                            <span style={{ fontSize: 10, color: C2.muted }}>{l.date} · {l.confidence}% confidence · VIX {l.vix?.toFixed(1)}</span>
-                          </div>
-                          {l.aiView && <div style={{ fontSize: 10, color: C2.muted }}>{l.aiView}</div>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
                 </div>
               )
+            })()}
 
-            {(pulseLoading && !pulse) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
-                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize: 11, color: '#4a5568' }}>Loading learning data...</span>
-              </div>
-            )}
-
-            {insightsLoading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 20 }}>
-                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize: 11, color: C.textMuted }}>Loading insights...</span>
-              </div>
-            )}
-
-            {/* ── Learning Pulse — system diagnostic ── */}
             {/* ── Learning Pulse — always shown first ── */}
             {pulse && (() => {
               const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0', cyan: '#00e5ff' }
@@ -7460,6 +7335,141 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               )
             })()}
 
+            {(pulseLoading && !pulse) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 11, color: '#4a5568' }}>Loading learning data...</span>
+              </div>
+            )}
+
+            {insightsLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 20 }}>
+                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 11, color: C.textMuted }}>Loading insights...</span>
+              </div>
+            )}
+            {insights && !insightsLoading && (() => {
+              const s = insights.summary
+              const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0' }
+              const statBox = (label: string, value: string | number, sub?: string, color = C2.text) => (
+                <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color, fontFamily: fontDisplay }}>{value}</div>
+                  {sub && <div style={{ fontSize: 9, color: C2.muted, marginTop: 2 }}>{sub}</div>}
+                </div>
+              )
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                  {/* Confidence calibration */}
+                  {insights.confidenceCalibration?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Confidence Calibration</div>
+                      <div style={{ fontSize: 10, color: C2.muted, marginBottom: 6 }}>Does the AI's confidence actually predict outcomes?</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {insights.confidenceCalibration.map((c: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <span style={{ fontSize: 10, color: C2.muted, width: 70 }}>{c.range}</span>
+                            <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${c.winRate}%`, background: c.winRate >= 60 ? C2.green : c.winRate >= 45 ? C2.yellow : C2.red, borderRadius: 3 }} />
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: c.winRate >= 60 ? C2.green : c.winRate >= 45 ? C2.yellow : C2.red, width: 40 }}>{c.winRate}%</span>
+                            <span style={{ fontSize: 9, color: C2.muted }}>{c.count} signals{c.note ? ` · ${c.note}` : ''}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VIX performance */}
+                  {insights.vixPerformance?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Performance by VIX Regime</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {insights.vixPerformance.map((v: any, i: number) => (
+                          <div key={i} style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 9, color: C2.muted, marginBottom: 4 }}>{v.regime}</div>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: v.winRate >= 55 ? C2.green : v.winRate >= 45 ? C2.yellow : C2.red }}>{v.winRate}%</div>
+                            <div style={{ fontSize: 9, color: C2.muted }}>{v.count} signals</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Plan alignment */}
+                  {insights.alignment?.alignedWinRate !== null && (
+                    <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Plan Alignment Impact</div>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <div style={{ flex: 1, textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 9, color: C2.muted, marginBottom: 4 }}>Following Plan</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: C2.green }}>{insights.alignment.alignedWinRate}%</div>
+                          <div style={{ fontSize: 9, color: C2.muted }}>{insights.alignment.alignedCount} signals</div>
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 9, color: C2.muted, marginBottom: 4 }}>Diverging</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: insights.alignment.divergentWinRate >= insights.alignment.alignedWinRate ? C2.yellow : C2.red }}>{insights.alignment.divergentWinRate}%</div>
+                          <div style={{ fontSize: 9, color: C2.muted }}>{insights.alignment.divergentCount} signals</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 10, color: '#7c6aff', marginTop: 8, textAlign: 'center' as const }}>{insights.alignment.note}</div>
+                    </div>
+                  )}
+
+                  {/* What the AI has learned */}
+                  {insights.aiLearnings?.chatLearnings?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>What the AI Has Learned (Last 7 Sessions)</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {insights.aiLearnings.chatLearnings.map((l: any, i: number) => (
+                          <div key={i} style={{ background: 'rgba(124,106,255,0.05)', borderRadius: 6, padding: '8px 12px', border: '1px solid rgba(124,106,255,0.1)', fontSize: 11, color: C2.text, lineHeight: 1.6 }}>
+                            <span style={{ fontSize: 9, color: '#7c6aff', fontWeight: 700, marginRight: 6 }}>{l.date || `Session ${i+1}`}</span>
+                            {l.summary || l.observations || JSON.stringify(l).substring(0, 150)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Identified weaknesses */}
+                  {insights.aiLearnings?.weaknesses?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.red, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚠ Identified Weaknesses</div>
+                      {insights.aiLearnings.weaknesses.map((w: any, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: '#ffb0b8', padding: '5px 0', borderBottom: '1px solid rgba(255,77,109,0.08)' }}>• {typeof w === 'string' ? w : w.description || JSON.stringify(w)}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Identified strengths */}
+                  {insights.aiLearnings?.strengths?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.green, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>✓ Identified Strengths</div>
+                      {insights.aiLearnings.strengths.map((s: any, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: '#a7f3d0', padding: '5px 0', borderBottom: '1px solid rgba(0,255,136,0.08)' }}>• {typeof s === 'string' ? s : s.description || JSON.stringify(s)}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Recent losses */}
+                  {insights.recentLosses?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Recent Losses — What Went Wrong</div>
+                      {insights.recentLosses.map((l: any, i: number) => (
+                        <div key={i} style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,77,109,0.04)', border: '1px solid rgba(255,77,109,0.1)', marginBottom: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: C2.red }}>{l.signal}</span>
+                            <span style={{ fontSize: 10, color: C2.muted }}>{l.date} · {l.confidence}% confidence · VIX {l.vix?.toFixed(1)}</span>
+                          </div>
+                          {l.aiView && <div style={{ fontSize: 10, color: C2.muted }}>{l.aiView}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                </div>
+              )
             })()}
           </div>
         )}
