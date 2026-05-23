@@ -6865,6 +6865,64 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
 
+                  {/* UW Spot GEX by Strike */}
+                  {marketIntel2?.spotGex && marketIntel2.spotGex.topGammaStrikes?.length > 0 && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(124,106,255,0.15)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#7c6aff', letterSpacing: 2, textTransform: 'uppercase' as const }}>UW Spot GEX (live)</span>
+                        <span style={{ fontSize: 9, color: '#4a5568' }}>{marketIntel2.spotGex.strikeCount} strikes</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' as const }}>
+                        {marketIntel2.spotGex.topGammaStrikes.slice(0, 5).map((s: any, i: number) => (
+                          <div key={i} style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: 'rgba(124,106,255,0.1)', color: '#7c6aff', border: '1px solid rgba(124,106,255,0.2)' }}>{s.strike}</div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 14, fontSize: 10 }}>
+                        {marketIntel2.spotGex.callWall && <span style={{ color: '#ff4d6d' }}>Call wall: <strong>{marketIntel2.spotGex.callWall}</strong></span>}
+                        {marketIntel2.spotGex.putWall  && <span style={{ color: '#00ff88' }}>Put wall: <strong>{marketIntel2.spotGex.putWall}</strong></span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* UW IV Rank */}
+                  {marketIntel2?.uwIV && marketIntel2.uwIV.ivRank !== null && (
+                    <div style={{ marginBottom: 8, padding: '8px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>SPX IV Rank (UW)</span>
+                      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center' as const }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>IV Rank</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: marketIntel2.uwIV.ivRank > 70 ? '#ff4d6d' : marketIntel2.uwIV.ivRank < 30 ? '#00ff88' : '#f59e0b', fontFamily: fontDisplay }}>{marketIntel2.uwIV.ivRank?.toFixed(0)}</div>
+                        </div>
+                        {marketIntel2.uwIV.putCallRatio && (
+                          <div style={{ textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>P/C Ratio</div>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: marketIntel2.uwIV.putCallRatio > 1.2 ? '#00ff88' : marketIntel2.uwIV.putCallRatio < 0.7 ? '#ff4d6d' : '#e2e8f0', fontFamily: fontDisplay }}>{marketIntel2.uwIV.putCallRatio?.toFixed(2)}</div>
+                          </div>
+                        )}
+                        <div style={{ fontSize: 9, color: '#6b7a9a', maxWidth: 140 }}>
+                          {marketIntel2.uwIV.ivRank > 70 ? 'Elevated — options pricey' : marketIntel2.uwIV.ivRank < 30 ? 'Suppressed — options cheap' : 'Normal vol regime'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Economic Surprise Score */}
+                  {marketIntel2?.econSurprise?.surprises?.length > 0 && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: marketIntel2.econSurprise.bias === 'MACRO_BULLISH' ? 'rgba(0,255,136,0.04)' : marketIntel2.econSurprise.bias === 'MACRO_BEARISH' ? 'rgba(255,77,109,0.04)' : 'rgba(0,0,0,0.2)', border: `1px solid ${marketIntel2.econSurprise.bias === 'MACRO_BULLISH' ? 'rgba(0,255,136,0.15)' : marketIntel2.econSurprise.bias === 'MACRO_BEARISH' ? 'rgba(255,77,109,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#8899bb', letterSpacing: 2, textTransform: 'uppercase' as const }}>Economic Surprises</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: marketIntel2.econSurprise.bias === 'MACRO_BULLISH' ? '#00ff88' : marketIntel2.econSurprise.bias === 'MACRO_BEARISH' ? '#ff4d6d' : '#8899bb' }}>{marketIntel2.econSurprise.bias?.replace('_', ' ')}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                        {marketIntel2.econSurprise.surprises.map((s: any, i: number) => (
+                          <div key={i} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4, background: s.direction === 'BULLISH_SURPRISE' ? 'rgba(0,255,136,0.1)' : s.direction === 'BEARISH_SURPRISE' ? 'rgba(255,77,109,0.1)' : 'rgba(255,255,255,0.05)', color: s.direction === 'BULLISH_SURPRISE' ? '#00ff88' : s.direction === 'BEARISH_SURPRISE' ? '#ff4d6d' : '#8899bb', fontWeight: 600 }}>
+                            {s.indicator} {s.surprise > 0 ? '+' : ''}{s.surprise.toFixed(1)}%
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               )}
 
