@@ -19,6 +19,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/gap-outcomes(.*)',
   '/api/morning-brief(.*)',
   '/api/insights',
+  '/api/learning-pulse',
   '/api/market-intelligence',
   '/api/system-status',
   '/admin',
