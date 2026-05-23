@@ -1813,6 +1813,9 @@ export default function CockpitPage() {
     notes:      '',
   })
   const [tradeSaving, setTradeSaving] = useState(false)
+  const [strikeSuggestions, setStrikeSuggestions] = useState<any>(null)
+  const [strikeLoading, setStrikeLoading]         = useState(false)
+  const [strikeLastRefresh, setStrikeLastRefresh] = useState<string>('')
   const [showTradeZone, setShowTradeZone] = useState(false)
   const [levelProximity, setLevelProximity] = useState<any>(null)
   const [edgeAlerts, setEdgeAlerts] = useState<any[]>([])
@@ -5277,7 +5280,11 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
-                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
+                    if (result) {
+                      setAiResult(result)
+                      setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
+                      setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
+                    }
                     setAiLoading(false)
                   }} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', borderRadius: 4, background: 'transparent', border: '1px solid rgba(0,212,160,0.2)', color: '#6b7a9a', cursor: 'pointer', marginTop: 4, display: 'block' }}>↻ refresh</button>
                   </div>
@@ -6359,7 +6366,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
-                    if (result) { setAiResult(result); setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})); setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400) }
+                    if (result) {
+                      setAiResult(result)
+                      setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
+                      setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
+                      // Auto-refresh strike suggestions with new signal
+                      setTimeout(async () => {
+                        if (!currentPrice) return
+                        setStrikeLoading(true)
+                        try {
+                          const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+                          const minsLeft = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
+                          const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: result.signal, confidence: result.confidence, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: minsLeft, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias }) })
+                          if (sr.ok) { const sd = await sr.json(); if (!sd.error) { setStrikeSuggestions(sd); setStrikeLastRefresh(new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })) } }
+                        } catch {}
+                        setStrikeLoading(false)
+                      }, 800)
+                    }
                     setAiLoading(false)
                   }} disabled={aiLoading} style={{
                     width: '100%', background: aiLoading ? 'rgba(240,244,250,0.8)' : 'rgba(0,212,160,0.08)',
@@ -6562,6 +6585,140 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 )
               })()}
             </div>
+
+            {/* ── STRIKE SUGGESTIONS PANEL ─────────────────────────────── */}
+            <div style={{ width: 300, background: 'rgba(6,8,16,0.98)', borderLeft: '1px solid rgba(0,229,255,0.08)', overflowY: 'auto', flexShrink: 0 }}>
+              {/* Header */}
+              <div style={{ padding: '11px 13px 8px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'rgba(6,8,16,0.99)', zIndex: 2 }}>
+                <div>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 800, color: '#00e5ff', letterSpacing: 2 }}>🎯 STRIKE IDEAS</div>
+                  {strikeLastRefresh && <div style={{ fontSize: 8, color: '#4a5568', marginTop: 1 }}>Updated {strikeLastRefresh} ET</div>}
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!currentPrice) return
+                    setStrikeLoading(true)
+                    try {
+                      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+                      const ml = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
+                      const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: aiResult?.signal || null, confidence: aiResult?.confidence || null, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: ml, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias }) })
+                      if (sr.ok) { const sd = await sr.json(); if (!sd.error) { setStrikeSuggestions(sd); setStrikeLastRefresh(new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })) } }
+                    } catch {}
+                    setStrikeLoading(false)
+                  }}
+                  disabled={strikeLoading || !currentPrice}
+                  style={{ fontSize: 9, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(0,229,255,0.2)', background: 'transparent', color: '#00e5ff', cursor: strikeLoading || !currentPrice ? 'not-allowed' : 'pointer', fontFamily: font, opacity: strikeLoading || !currentPrice ? 0.4 : 1 }}
+                >{strikeLoading ? '⟳' : '↺'}</button>
+              </div>
+
+              <div style={{ padding: '10px 12px' }}>
+                {strikeLoading && !strikeSuggestions && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '20px 0', justifyContent: 'center' }}>
+                    <div style={{ width: 10, height: 10, border: '1.5px solid rgba(0,229,255,0.2)', borderTopColor: '#00e5ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: 11, color: '#4a5568' }}>Analyzing levels...</span>
+                  </div>
+                )}
+
+                {!strikeSuggestions && !strikeLoading && (
+                  <div style={{ padding: '16px 4px', textAlign: 'center' as const }}>
+                    <div style={{ fontSize: 20, marginBottom: 8 }}>🎯</div>
+                    <div style={{ fontSize: 10, color: '#4a5568', marginBottom: 8 }}>Get a signal to see AI-ranked strike recommendations</div>
+                    <div style={{ fontSize: 9, color: '#333d50', lineHeight: 1.6 }}>Uses VWAP · POC · GEX walls · Max pain · IV rank · Session time · Implied move</div>
+                  </div>
+                )}
+
+                {strikeSuggestions && (() => {
+                  const s = strikeSuggestions
+                  const dc = s.direction === 'LONG' ? '#00ff88' : s.direction === 'SHORT' ? '#ff4d6d' : '#f59e0b'
+                  const tc = (t: string) => t === 'AGGRESSIVE' ? '#ff4d6d' : t === 'STANDARD' ? '#00e5ff' : '#00d4a0'
+                  return (
+                    <div>
+                      {/* Direction + IV */}
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 9px', borderRadius: 4, background: `${dc}12`, color: dc, border: `1px solid ${dc}28`, fontFamily: fontDisplay }}>{s.direction === 'LONG' ? '📞 CALL' : s.direction === 'SHORT' ? '📉 PUT' : '⟳'}</span>
+                        <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4, fontWeight: 700, background: s.ivAssessment === 'expensive' ? 'rgba(255,77,109,0.1)' : s.ivAssessment === 'cheap' ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.05)', color: s.ivAssessment === 'expensive' ? '#ff4d6d' : s.ivAssessment === 'cheap' ? '#00ff88' : '#8899bb', border: '1px solid rgba(255,255,255,0.07)' }}>IV {s.ivAssessment?.toUpperCase()}</span>
+                      </div>
+
+                      {/* Entry window */}
+                      {s.bestEntryWindow && (
+                        <div style={{ padding: '7px 9px', borderRadius: 5, background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.12)', marginBottom: 8 }}>
+                          <div style={{ fontSize: 8, color: '#00e5ff', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>BEST ENTRY WINDOW</div>
+                          <div style={{ fontSize: 10, color: '#b0c4de', lineHeight: 1.5 }}>{s.bestEntryWindow}</div>
+                        </div>
+                      )}
+
+                      {/* Warnings */}
+                      {(s.charmWarning || s.setupWarning) && (
+                        <div style={{ padding: '6px 9px', borderRadius: 5, background: 'rgba(255,183,0,0.05)', border: '1px solid rgba(255,183,0,0.18)', marginBottom: 8 }}>
+                          {s.charmWarning && <div style={{ fontSize: 9, color: '#f59e0b', marginBottom: 1 }}>⚠ {s.charmWarning}</div>}
+                          {s.setupWarning && <div style={{ fontSize: 9, color: '#f59e0b' }}>⚠ {s.setupWarning}</div>}
+                        </div>
+                      )}
+
+                      {/* Strikes */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {(s.strikes || []).map((st: any, i: number) => {
+                          const isTop = st.strike === s.topPick
+                          const c = tc(st.tier)
+                          const pnl = st.targetExit && st.entryPremiumHigh ? `+$${((st.targetExit - st.entryPremiumHigh) * 100).toFixed(0)}` : null
+                          return (
+                            <div key={i}
+                              onClick={() => setTicket(t => ({ ...t, strike: st.strike.toString(), optionType: st.type, entryPrice: st.entryPremiumLow?.toFixed(2) || '' }))}
+                              style={{ borderRadius: 7, border: `1px solid ${isTop ? c + '45' : 'rgba(255,255,255,0.06)'}`, background: isTop ? `${c}07` : 'rgba(0,0,0,0.18)', padding: '9px 11px', cursor: 'pointer', position: 'relative' as const }}>
+                              {isTop && <div style={{ position: 'absolute', top: -1, right: 7, fontSize: 7, fontWeight: 800, color: c, background: `${c}18`, padding: '1px 5px', borderRadius: '0 0 3px 3px', letterSpacing: 1 }}>★ TOP</div>}
+
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                  <span style={{ fontFamily: fontDisplay, fontSize: 19, fontWeight: 900, color: c }}>{st.strike}</span>
+                                  <span style={{ fontSize: 9, color: st.type === 'call' ? '#00ff88' : '#ff4d6d', fontWeight: 700 }}>{st.type?.toUpperCase()}</span>
+                                  {st.itmDepth > 0 && <span style={{ fontSize: 8, color: '#4a5568' }}>{st.itmDepth}pts ITM</span>}
+                                </div>
+                                <div style={{ textAlign: 'right' as const }}>
+                                  <div style={{ fontSize: 8, fontWeight: 700, color: c, letterSpacing: 0.5 }}>{st.tier}</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+                                    <div style={{ width: 32, height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 1, overflow: 'hidden' }}>
+                                      <div style={{ height: '100%', width: `${st.probabilityScore}%`, background: st.probabilityScore >= 70 ? '#00ff88' : st.probabilityScore >= 50 ? '#f59e0b' : '#ff4d6d', borderRadius: 1 }} />
+                                    </div>
+                                    <span style={{ fontSize: 8, color: '#6b7a9a' }}>{st.probabilityScore}%</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: 8, fontSize: 9, marginBottom: 4, flexWrap: 'wrap' as const }}>
+                                {st.entryPremiumLow && st.entryPremiumHigh && <span style={{ color: '#00ff88' }}>Entry ${st.entryPremiumLow?.toFixed(2)}–${st.entryPremiumHigh?.toFixed(2)}</span>}
+                                {st.targetExit && <span style={{ color: '#00e5ff' }}>→ ${st.targetExit?.toFixed(2)}</span>}
+                                {st.stopPremium && <span style={{ color: '#ff4d6d' }}>✕ ${st.stopPremium?.toFixed(2)}</span>}
+                                {pnl && <span style={{ color: '#00d4a0', fontWeight: 700 }}>{pnl}/ct</span>}
+                              </div>
+
+                              {st.keyLevel && <div style={{ fontSize: 8, color: '#4a5568', marginBottom: 3 }}>📍 {st.keyLevel}</div>}
+                              <div style={{ fontSize: 9, color: '#7a8aaa', lineHeight: 1.45 }}>{st.rationale}</div>
+                              {st.avoid && st.avoidReason && <div style={{ marginTop: 4, fontSize: 8, color: '#ff4d6d', background: 'rgba(255,77,109,0.07)', padding: '3px 6px', borderRadius: 3 }}>⚠ {st.avoidReason}</div>}
+                              <div style={{ marginTop: 4, fontSize: 7, color: '#333d50', textAlign: 'right' as const }}>tap → fill ticket</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Key levels */}
+                      {s.keyLevels?.length > 0 && (
+                        <div style={{ marginTop: 10, padding: '7px 9px', borderRadius: 5, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ fontSize: 8, color: '#333d50', fontWeight: 700, letterSpacing: 1, marginBottom: 5, textTransform: 'uppercase' as const }}>Levels Used</div>
+                          {s.keyLevels.slice(0, 8).map((l: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, padding: '1px 0', color: l.type === 'gravity' ? '#f59e0b' : l.type === 'gamma' ? '#7c6aff' : l.type === 'resistance' ? '#ff4d6d' : '#00ff88' }}>
+                              <span>{l.label}</span>
+                              <span style={{ fontFamily: fontDisplay, fontWeight: 700 }}>{l.price.toFixed(0)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+
+            {/* RIGHT — Checklist */}
             <div style={{ width: 280, background: 'rgba(12,15,26,0.98)', borderLeft: `1px solid rgba(0,212,160,0.1)`, overflowY: 'auto', padding: '14px 12px', flexShrink: 0, boxShadow: '-2px 0 8px rgba(100,140,220,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 700, color: '#8899bb', letterSpacing: 1 }}>PRE-TRADE CHECK</div>
