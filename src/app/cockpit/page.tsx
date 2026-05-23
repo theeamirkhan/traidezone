@@ -7163,148 +7163,6 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {tab === 'learn' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
 
-            {/* ── Learning Pulse — always shown first ── */}
-            {pulse && (() => {
-              const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0', cyan: '#00e5ff' }
-              const statusDot = (status: string) => status === 'LEARNING_ACTIVE' || status === 'FULL_INTEL' ? '🟢' : status.includes('NO_') ? '🔴' : '🟡'
-              return (
-                <div style={{ marginBottom: 14 }}>
-                  {/* Next steps — most important */}
-                  {pulse.nextSteps?.length > 0 && (
-                    <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ fontSize: 8, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>Learning Status</div>
-                      {pulse.nextSteps.map((s: string, i: number) => (
-                        <div key={i} style={{ fontSize: 11, color: s.startsWith('✅') ? C2.green : s.startsWith('🔴') ? C2.red : C2.yellow, padding: '3px 0', lineHeight: 1.5 }}>{s}</div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Signal pipeline */}
-                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const }}>Signal Pipeline</span>
-                      <span style={{ fontSize: 10 }}>{statusDot(pulse.signals?.total === 0 ? 'NO_SIGNALS_YET' : pulse.signals?.scored === 0 ? 'PENDING' : 'LEARNING_ACTIVE')}</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 6 }}>
-                      {[
-                        { label: 'Total', val: pulse.signals?.total || 0, color: C2.text },
-                        { label: 'Scored', val: pulse.signals?.scored || 0, color: C2.cyan },
-                        { label: 'Pending', val: pulse.signals?.pending || 0, color: pulse.signals?.pending > 0 ? C2.yellow : C2.muted },
-                        { label: 'Win Rate', val: pulse.signals?.winRate !== null ? `${pulse.signals?.winRate}%` : 'n/a', color: pulse.signals?.winRate >= 55 ? C2.green : pulse.signals?.winRate >= 40 ? C2.yellow : C2.muted },
-                      ].map((s, i) => (
-                        <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: '6px 4px' }}>
-                          <div style={{ fontSize: 8, color: C2.muted, marginBottom: 2 }}>{s.label}</div>
-                          <div style={{ fontSize: 14, fontWeight: 800, color: s.color, fontFamily: fontDisplay }}>{s.val}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 10, color: C2.muted }}>{pulse.signals?.message}</div>
-                  </div>
-
-                  {/* Stream weights */}
-                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const }}>Stream Weights ({pulse.streamWeights?.count || 0} streams)</span>
-                      <span style={{ fontSize: 10 }}>{pulse.streamWeights?.hasLearned ? '🟢' : '🟡'}</span>
-                    </div>
-                    {(pulse.streamWeights?.weights || []).slice(0, 10).map((w: any, i: number) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                        <span style={{ fontSize: 8, color: C2.muted, width: 90, flexShrink: 0 }}>{w.name}</span>
-                        <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${Math.min(100, w.weight * 50)}%`, background: w.direction === 'BOOSTED' ? C2.green : w.direction === 'REDUCED' ? C2.red : C2.muted, borderRadius: 2 }} />
-                        </div>
-                        <span style={{ fontSize: 8, fontWeight: 700, color: w.direction === 'BOOSTED' ? C2.green : w.direction === 'REDUCED' ? C2.red : C2.muted, width: 32, textAlign: 'right' as const }}>{w.weight.toFixed(2)}x</span>
-                      </div>
-                    ))}
-                    <div style={{ fontSize: 10, color: C2.muted, marginTop: 4 }}>{pulse.streamWeights?.message}</div>
-                  </div>
-
-                  {/* Signal timeline */}
-                  {pulse.timeline?.length > 0 && (
-                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>Recent Signals</div>
-                      {pulse.timeline.slice(0, 8).map((s: any, i: number) => {
-                        const isWin  = s.outcome === 'WIN' || s.outcome === 'HIT_T1' || s.outcome === 'HIT_T2'
-                        const isLoss = s.outcome === 'LOSS' || s.outcome === 'STOPPED_OUT'
-                        const col    = isWin ? C2.green : isLoss ? C2.red : s.outcome === 'PENDING' ? C2.yellow : C2.muted
-                        return (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: i < 7 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}>
-                            <span style={{ fontSize: 8, color: C2.muted, width: 50, flexShrink: 0 }}>{s.date?.slice(5)}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: s.signal === 'LONG' ? C2.green : s.signal === 'SHORT' ? C2.red : C2.muted, width: 40 }}>{s.signal}</span>
-                            <span style={{ fontSize: 9, color: C2.muted, width: 30 }}>{s.confidence}%</span>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: col, flex: 1 }}>{s.outcome}</span>
-                            <span title={s.hasIntel ? 'Full market intel' : s.hasSnapshot ? 'Basic snapshot' : 'No snapshot'}
-                              style={{ fontSize: 9, color: s.hasIntel ? C2.green : s.hasSnapshot ? C2.yellow : C2.red }}>
-                              {s.hasIntel ? '●' : s.hasSnapshot ? '◐' : '○'}
-                            </span>
-                          </div>
-                        )
-                      })}
-                      <div style={{ fontSize: 9, color: C2.muted, marginTop: 4 }}>● full intel ◐ basic snapshot ○ no snapshot</div>
-                    </div>
-                  )}
-
-                  {/* AI learnings */}
-                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const }}>AI Has Learned</span>
-                      <span style={{ fontSize: 10 }}>{pulse.aiLearnings?.chatLearningsCount > 0 ? '🟢' : '🟡'}</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
-                      {[
-                        { label: 'Sessions', val: pulse.aiLearnings?.chatLearningsCount || 0 },
-                        { label: 'Weaknesses', val: pulse.aiLearnings?.weaknessCount || 0 },
-                        { label: 'Strengths', val: pulse.aiLearnings?.strengthCount || 0 },
-                      ].map((s, i) => (
-                        <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: '6px 4px' }}>
-                          <div style={{ fontSize: 8, color: C2.muted, marginBottom: 2 }}>{s.label}</div>
-                          <div style={{ fontSize: 16, fontWeight: 800, color: s.val > 0 ? C2.purple : C2.muted, fontFamily: fontDisplay }}>{s.val}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {pulse.aiLearnings?.latestLearning && (
-                      <div style={{ fontSize: 10, color: C2.text, background: 'rgba(124,106,255,0.05)', borderRadius: 5, padding: '6px 8px', border: '1px solid rgba(124,106,255,0.1)' }}>
-                        <span style={{ fontSize: 8, color: C2.purple, fontWeight: 700 }}>LATEST: </span>
-                        {typeof pulse.aiLearnings.latestLearning === 'string'
-                          ? pulse.aiLearnings.latestLearning
-                          : pulse.aiLearnings.latestLearning?.summary || JSON.stringify(pulse.aiLearnings.latestLearning).substring(0, 150)}
-                      </div>
-                    )}
-                    {pulse.aiLearnings?.recentWeaknesses?.length > 0 && (
-                      <div style={{ marginTop: 6 }}>
-                        <div style={{ fontSize: 8, color: C2.red, fontWeight: 700, marginBottom: 3 }}>WEAKNESSES IDENTIFIED:</div>
-                        {pulse.aiLearnings.recentWeaknesses.map((w: any, i: number) => (
-                          <div key={i} style={{ fontSize: 10, color: '#ffb0b8', padding: '2px 0' }}>• {typeof w === 'string' ? w : w.description || JSON.stringify(w).substring(0, 100)}</div>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 10, color: C2.muted, marginTop: 6 }}>
-                      {pulse.aiLearnings?.chatDaysThisWeek || 0} chat days this week · {pulse.aiLearnings?.chatMsgsThisWeek || 0} messages
-                    </div>
-                  </div>
-
-                  {/* Refresh */}
-                  <button onClick={() => {
-                    setPulse(null); setPulseLoading(true)
-                    fetch('/api/learning-pulse').then(r => r.json()).then(d => { setPulse(d); setPulseLoading(false) }).catch(() => setPulseLoading(false))
-                  }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(124,106,255,0.3)', background: 'transparent', color: '#7c6aff', cursor: 'pointer', fontFamily: font, width: '100%' }}>↺ Refresh Learning Data</button>
-                </div>
-              )
-            })()}
-
-            {(pulseLoading && !pulse) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
-                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize: 11, color: '#4a5568' }}>Loading learning data...</span>
-              </div>
-            )}
-
-            {insightsLoading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 20 }}>
-                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize: 11, color: C.textMuted }}>Loading insights...</span>
-              </div>
-            )}
             {insights && !insightsLoading && (() => {
               const s = insights.summary
               const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0' }
@@ -7457,6 +7315,151 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
                 </div>
               )
+
+            {(pulseLoading && !pulse) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 11, color: '#4a5568' }}>Loading learning data...</span>
+              </div>
+            )}
+
+            {insightsLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 20 }}>
+                <div style={{ width: 10, height: 10, border: '1.5px solid rgba(124,106,255,0.2)', borderTopColor: '#7c6aff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 11, color: C.textMuted }}>Loading insights...</span>
+              </div>
+            )}
+
+            {/* ── Learning Pulse — system diagnostic ── */}
+            {/* ── Learning Pulse — always shown first ── */}
+            {pulse && (() => {
+              const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0', cyan: '#00e5ff' }
+              const statusDot = (status: string) => status === 'LEARNING_ACTIVE' || status === 'FULL_INTEL' ? '🟢' : status.includes('NO_') ? '🔴' : '🟡'
+              return (
+                <div style={{ marginBottom: 14 }}>
+                  {/* Next steps — most important */}
+                  {pulse.nextSteps?.length > 0 && (
+                    <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>Learning Status</div>
+                      {pulse.nextSteps.map((s: string, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: s.startsWith('✅') ? C2.green : s.startsWith('🔴') ? C2.red : C2.yellow, padding: '3px 0', lineHeight: 1.5 }}>{s}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Signal pipeline */}
+                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const }}>Signal Pipeline</span>
+                      <span style={{ fontSize: 10 }}>{statusDot(pulse.signals?.total === 0 ? 'NO_SIGNALS_YET' : pulse.signals?.scored === 0 ? 'PENDING' : 'LEARNING_ACTIVE')}</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 6 }}>
+                      {[
+                        { label: 'Total', val: pulse.signals?.total || 0, color: C2.text },
+                        { label: 'Scored', val: pulse.signals?.scored || 0, color: C2.cyan },
+                        { label: 'Pending', val: pulse.signals?.pending || 0, color: pulse.signals?.pending > 0 ? C2.yellow : C2.muted },
+                        { label: 'Win Rate', val: pulse.signals?.winRate !== null ? `${pulse.signals?.winRate}%` : 'n/a', color: pulse.signals?.winRate >= 55 ? C2.green : pulse.signals?.winRate >= 40 ? C2.yellow : C2.muted },
+                      ].map((s, i) => (
+                        <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: '6px 4px' }}>
+                          <div style={{ fontSize: 8, color: C2.muted, marginBottom: 2 }}>{s.label}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: s.color, fontFamily: fontDisplay }}>{s.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 10, color: C2.muted }}>{pulse.signals?.message}</div>
+                  </div>
+
+                  {/* Stream weights */}
+                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const }}>Stream Weights ({pulse.streamWeights?.count || 0} streams)</span>
+                      <span style={{ fontSize: 10 }}>{pulse.streamWeights?.hasLearned ? '🟢' : '🟡'}</span>
+                    </div>
+                    {(pulse.streamWeights?.weights || []).slice(0, 10).map((w: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                        <span style={{ fontSize: 8, color: C2.muted, width: 90, flexShrink: 0 }}>{w.name}</span>
+                        <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.min(100, w.weight * 50)}%`, background: w.direction === 'BOOSTED' ? C2.green : w.direction === 'REDUCED' ? C2.red : C2.muted, borderRadius: 2 }} />
+                        </div>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: w.direction === 'BOOSTED' ? C2.green : w.direction === 'REDUCED' ? C2.red : C2.muted, width: 32, textAlign: 'right' as const }}>{w.weight.toFixed(2)}x</span>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 10, color: C2.muted, marginTop: 4 }}>{pulse.streamWeights?.message}</div>
+                  </div>
+
+                  {/* Signal timeline */}
+                  {pulse.timeline?.length > 0 && (
+                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>Recent Signals</div>
+                      {pulse.timeline.slice(0, 8).map((s: any, i: number) => {
+                        const isWin  = s.outcome === 'WIN' || s.outcome === 'HIT_T1' || s.outcome === 'HIT_T2'
+                        const isLoss = s.outcome === 'LOSS' || s.outcome === 'STOPPED_OUT'
+                        const col    = isWin ? C2.green : isLoss ? C2.red : s.outcome === 'PENDING' ? C2.yellow : C2.muted
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: i < 7 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}>
+                            <span style={{ fontSize: 8, color: C2.muted, width: 50, flexShrink: 0 }}>{s.date?.slice(5)}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: s.signal === 'LONG' ? C2.green : s.signal === 'SHORT' ? C2.red : C2.muted, width: 40 }}>{s.signal}</span>
+                            <span style={{ fontSize: 9, color: C2.muted, width: 30 }}>{s.confidence}%</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: col, flex: 1 }}>{s.outcome}</span>
+                            <span title={s.hasIntel ? 'Full market intel' : s.hasSnapshot ? 'Basic snapshot' : 'No snapshot'}
+                              style={{ fontSize: 9, color: s.hasIntel ? C2.green : s.hasSnapshot ? C2.yellow : C2.red }}>
+                              {s.hasIntel ? '●' : s.hasSnapshot ? '◐' : '○'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                      <div style={{ fontSize: 9, color: C2.muted, marginTop: 4 }}>● full intel ◐ basic snapshot ○ no snapshot</div>
+                    </div>
+                  )}
+
+                  {/* AI learnings */}
+                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: 2, textTransform: 'uppercase' as const }}>AI Has Learned</span>
+                      <span style={{ fontSize: 10 }}>{pulse.aiLearnings?.chatLearningsCount > 0 ? '🟢' : '🟡'}</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
+                      {[
+                        { label: 'Sessions', val: pulse.aiLearnings?.chatLearningsCount || 0 },
+                        { label: 'Weaknesses', val: pulse.aiLearnings?.weaknessCount || 0 },
+                        { label: 'Strengths', val: pulse.aiLearnings?.strengthCount || 0 },
+                      ].map((s, i) => (
+                        <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: '6px 4px' }}>
+                          <div style={{ fontSize: 8, color: C2.muted, marginBottom: 2 }}>{s.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: s.val > 0 ? C2.purple : C2.muted, fontFamily: fontDisplay }}>{s.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {pulse.aiLearnings?.latestLearning && (
+                      <div style={{ fontSize: 10, color: C2.text, background: 'rgba(124,106,255,0.05)', borderRadius: 5, padding: '6px 8px', border: '1px solid rgba(124,106,255,0.1)' }}>
+                        <span style={{ fontSize: 8, color: C2.purple, fontWeight: 700 }}>LATEST: </span>
+                        {typeof pulse.aiLearnings.latestLearning === 'string'
+                          ? pulse.aiLearnings.latestLearning
+                          : pulse.aiLearnings.latestLearning?.summary || JSON.stringify(pulse.aiLearnings.latestLearning).substring(0, 150)}
+                      </div>
+                    )}
+                    {pulse.aiLearnings?.recentWeaknesses?.length > 0 && (
+                      <div style={{ marginTop: 6 }}>
+                        <div style={{ fontSize: 8, color: C2.red, fontWeight: 700, marginBottom: 3 }}>WEAKNESSES IDENTIFIED:</div>
+                        {pulse.aiLearnings.recentWeaknesses.map((w: any, i: number) => (
+                          <div key={i} style={{ fontSize: 10, color: '#ffb0b8', padding: '2px 0' }}>• {typeof w === 'string' ? w : w.description || JSON.stringify(w).substring(0, 100)}</div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 10, color: C2.muted, marginTop: 6 }}>
+                      {pulse.aiLearnings?.chatDaysThisWeek || 0} chat days this week · {pulse.aiLearnings?.chatMsgsThisWeek || 0} messages
+                    </div>
+                  </div>
+
+                  {/* Refresh */}
+                  <button onClick={() => {
+                    setPulse(null); setPulseLoading(true)
+                    fetch('/api/learning-pulse').then(r => r.json()).then(d => { setPulse(d); setPulseLoading(false) }).catch(() => setPulseLoading(false))
+                  }} style={{ fontSize: 9, padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(124,106,255,0.3)', background: 'transparent', color: '#7c6aff', cursor: 'pointer', fontFamily: font, width: '100%' }}>↺ Refresh Learning Data</button>
+                </div>
+              )
+            })()}
+
             })()}
           </div>
         )}
