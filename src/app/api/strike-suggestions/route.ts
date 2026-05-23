@@ -17,9 +17,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import Anthropic from '@anthropic-ai/sdk'
 
-const client = new Anthropic()
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -206,18 +205,27 @@ Respond ONLY with this JSON (no markdown):
 }`
 
   try {
-    const resp = await client.messages.create({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 1200,
-      messages: [{ role: 'user', content: prompt }],
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     })
 
-    const raw  = resp.content[0].type === 'text' ? resp.content[0].text : ''
+    const data = await resp.json()
+    const raw  = data.content?.[0]?.text || ''
     const clean = raw.replace(/```json|```/g, '').trim()
-    const data  = JSON.parse(clean)
+    const result = JSON.parse(clean)
 
     return NextResponse.json({
-      ...data,
+      ...result,
       keyLevels: keyLevels
         .filter(l => l.price > 4000 && l.price < 15000)
         .sort((a, b) => b.price - a.price)
