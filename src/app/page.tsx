@@ -97,7 +97,7 @@ export default function LandingPage() {
 
           <h1 className="h1 orb" style={{ fontSize:'clamp(34px, 7vw, 78px)', fontWeight:900, lineHeight:1.05, letterSpacing:'-1px', marginBottom:24, maxWidth:860 }}>
             AI signals.<br />
-            <span style={{ color:'#00e5ff', animation:'glow 3s ease-in-out infinite' }}>Disciplined</span>{' '}
+            <span style={{ color:'#00e5ff' }}>Disciplined</span>{' '}
             <span style={{ color:'#2d3748' }}>execution.</span>
           </h1>
 
@@ -171,15 +171,15 @@ export default function LandingPage() {
           <h2 className="orb" style={{ fontSize:'clamp(20px, 3.5vw, 36px)', fontWeight:900, marginBottom:40 }}>Institutional data. Personalized edge.</h2>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(250px, 1fr))', gap:10 }}>
             {[
-              { icon:'⚡', t:'Real-Time AI Signals',    d:'LONG / SHORT / WAIT with confidence, entry zone, stop, targets, and full reasoning. Calibrated against your historical accuracy.' },
-              { icon:'🎯', t:'Strike Suggestions',      d:'3-5 specific SPX contracts ranked AGGRESSIVE/STANDARD/CONSERVATIVE. Black-Scholes calculated premiums, deltas, and P&L estimates.' },
-              { icon:'📋', t:'Named Setup Evaluator',   d:'Score your 7 plays (VWAP retest, PDH breakout, double top, etc.) against live data — each with setup-specific weighted criteria.' },
-              { icon:'⚙️', t:'Dealer Mechanics Engine', d:'Gamma regime, asymmetric setups, charm pressure, options flow direction — see what market makers are forced to do.' },
-              { icon:'🧠', t:'AI Trading Companion',    d:'Real-time voice and chat coaching. Sees your active position, manages exits with you, adapts to your chosen tone.' },
-              { icon:'📊', t:'Visual Volume Profile',   d:'Full session POC/VAH/VAL with horizontal bar chart. Strong S/R zones visible at a glance.' },
+              { icon:'/SIGNAL/', t:'Real-Time AI Signals',    d:'LONG / SHORT / WAIT with confidence, entry zone, stop, targets, and full reasoning. Calibrated against your historical accuracy.' },
+              { icon:'/SETUP/', t:'Strike Suggestions',      d:'3-5 specific SPX contracts ranked AGGRESSIVE/STANDARD/CONSERVATIVE. Black-Scholes calculated premiums, deltas, and P&L estimates.' },
+              { icon:'/PLAY/', t:'Named Setup Evaluator',   d:'Score your 7 plays (VWAP retest, PDH breakout, double top, etc.) against live data — each with setup-specific weighted criteria.' },
+              { icon:'/MECH/', t:'Dealer Mechanics Engine', d:'Gamma regime, asymmetric setups, charm pressure, options flow direction — see what market makers are forced to do.' },
+              { icon:'/AI/', t:'AI Trading Companion',    d:'Real-time voice and chat coaching. Sees your active position, manages exits with you, adapts to your chosen tone.' },
+              { icon:'/DATA/', t:'Visual Volume Profile',   d:'Full session POC/VAH/VAL with horizontal bar chart. Strong S/R zones visible at a glance.' },
               { icon:'🎚', t:'Actionability Filter',   d:'Every signal labeled ACTIONABLE / WATCH / NOISE. Filters out stale signals, news blackouts, thin liquidity.' },
-              { icon:'📈', t:'Learning Loop',          d:'25+ data streams tracked per signal. After 20-30 trades, the system knows YOUR setups, hours, and conditions.' },
-              { icon:'☀️', t:'Personalized Morning Brief', d:'Daily AI-generated macro context with bias, levels, catalysts — tailored to your historical strengths and weaknesses.' },
+              { icon:'/STATS/', t:'Learning Loop',          d:'25+ data streams tracked per signal. After 20-30 trades, the system knows YOUR setups, hours, and conditions.' },
+              { icon:'/AM/', t:'Personalized Morning Brief', d:'Daily AI-generated macro context with bias, levels, catalysts — tailored to your historical strengths and weaknesses.' },
             ].map(({ icon, t, d }) => (
               <div key={t} className="fc">
                 <div style={{ fontSize:20, marginBottom:12 }}>{icon}</div>
@@ -260,7 +260,7 @@ export default function LandingPage() {
                 <ul style={{ listStyle:'none', padding:0, margin:'0 0 22px', fontSize:10.5, color:'#8899bb', lineHeight:1.9, flex:1 }}>
                   {tier.features.map((f, i) => (
                     <li key={i} style={{ marginBottom:5, paddingLeft:14, position:'relative' as const }}>
-                      <span style={{ position:'absolute' as const, left:0, color: tier.popular ? '#00e5ff' : '#4a5568' }}>✓</span>
+                      <span style={{ position:'absolute' as const, left:0, color: tier.popular ? '#00e5ff' : '#4a5568' }}>›</span>
                       {f}
                     </li>
                   ))}
@@ -272,7 +272,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div style={{ marginTop:24, textAlign:'center' as const, fontSize:9, color:'#4a5568', letterSpacing:1, lineHeight:1.7 }}>
-            🎙 Fair-use voice on all plans · Cancel anytime · No setup fees
+            Fair-use voice on all plans · Cancel anytime · No setup fees
           </div>
         </div>
 

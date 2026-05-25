@@ -73,7 +73,7 @@ function PlanContent() {
         ))}
       </div>
       <div style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: C.yellow }}>
-        ⚠ <strong>No plan = no trade.</strong> The system blocks signal evaluation if Morning Plan isn't saved.
+        ! <strong>No plan = no trade.</strong> The system blocks signal evaluation if Morning Plan isn't saved.
       </div>
     </div>
   )
@@ -113,16 +113,16 @@ function NamedPlayContent() {
         Before you take a trade, you must <strong style={{ color: C.text }}>name what you're playing</strong>. This is the discipline checkpoint. If you can't name it, you can't trade it.
       </p>
       <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 6, padding: '8px 12px' }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, letterSpacing: 1.5, marginBottom: 6 }}>📋 7 NAMED SETUPS</div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, letterSpacing: 1.5, marginBottom: 6 }}>7 NAMED PLAYS</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, fontSize: 10.5, color: C.muted }}>
-          <div>📞 VWAP Retest Bounce</div>
-          <div>📉 VWAP Retest Reject</div>
-          <div>📞 Prior Day High Breakout</div>
-          <div>📉 Prior Day Low Breakdown</div>
-          <div>📉 Double Top (Supply Zone)</div>
-          <div>📞 Double Bottom (Demand Zone)</div>
-          <div>📞 Trend Line Break (LONG)</div>
-          <div>📉 Trend Line Break (SHORT)</div>
+          <div>▲ VWAP Retest Bounce</div>
+          <div>▼ VWAP Retest Reject</div>
+          <div>▲ Prior Day High Breakout</div>
+          <div>▼ Prior Day Low Breakdown</div>
+          <div>▼ Double Top (Supply Zone)</div>
+          <div>▲ Double Bottom (Demand Zone)</div>
+          <div>▲ Trend Line Break (LONG)</div>
+          <div>▼ Trend Line Break (SHORT)</div>
         </div>
       </div>
       <p style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.75, margin: 0 }}>
@@ -159,9 +159,9 @@ function SignalContent() {
         ))}
       </div>
       <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: 6, padding: '8px 12px' }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: 1.5, marginBottom: 4 }}>⚡ ACTIONABILITY FILTER</div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: 1.5, marginBottom: 4 }}>ACTIONABILITY FILTER</div>
         <div style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.65 }}>
-          Above the signal, a banner shows <strong style={{ color: C.green }}>✓ ACTIONABLE</strong> / <strong style={{ color: C.yellow }}>⏳ WATCH</strong> / <strong style={{ color: C.red }}>✕ NOISE</strong> — combining signal quality, mechanical flow, news blackouts, and liquidity into one verdict.
+          Above the signal, a banner shows <strong style={{ color: C.green }}>✓ ACTIONABLE</strong> / <strong style={{ color: C.yellow }}>WATCH</strong> / <strong style={{ color: C.red }}>✕ NOISE</strong> — combining signal quality, mechanical flow, news blackouts, and liquidity into one verdict.
         </div>
       </div>
     </div>
@@ -190,7 +190,7 @@ function StrikesContent() {
         Each card shows entry premium range, target/stop in dollars, delta-adjusted P&L per contract, confluence score (HIGH/MEDIUM/LOW), and the exact levels anchoring the strike (VWAP+POC, GEX wall, PDH, etc.).
       </p>
       <div style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 10.5, color: C.yellow }}>
-        🎯 <strong>Tap any strike card</strong> to auto-fill the trade ticket with that contract and entry price.
+        <strong>Tap any strike card</strong> to auto-fill the trade ticket with that contract and entry price.
       </div>
     </div>
   )
@@ -233,7 +233,7 @@ function CompanionContent() {
         Your AI companion is always watching. When you open a trade, it shifts from signal-evaluation mode to trade-management mode — and sees everything you do.
       </p>
       <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 8, padding: '10px 14px' }}>
-        <div style={{ fontFamily: fontD, fontSize: 13, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>🧠 WHAT IT SEES IN-TRADE</div>
+        <div style={{ fontFamily: fontD, fontSize: 13, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>WHAT IT SEES IN-TRADE</div>
         <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.85 }}>
           • Your active strike, entry price, current P&L<br />
           • Time since entry, time to close<br />
@@ -247,7 +247,7 @@ function CompanionContent() {
         Ask "<em style={{ color: C.text }}>should I take partial here?</em>" or "<em style={{ color: C.text }}>is the setup still working?</em>" — it answers specifically about YOUR trade with current data, not generic advice.
       </p>
       <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 10.5, color: C.green }}>
-        💬 <strong>Pick your coaching tone</strong> in Settings — Drill Sergeant, Mentor, Analytical, Calm, or Encouraging. The companion's voice and energy adapt to how you want to be coached.
+        <strong>Pick your coaching tone</strong> in Settings — Drill Sergeant, Mentor, Analytical, Calm, or Encouraging. The companion's voice and energy adapt to how you want to be coached.
       </div>
     </div>
   )
