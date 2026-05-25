@@ -1980,12 +1980,9 @@ export default function CockpitPage() {
       const d = et.getDate()
       return d >= 15 && d <= 21
     })()
-    // FOMC days are explicit — would normally come from economic calendar
-    const isFomcDay = (economicCalendar || []).some((e: any) =>
-      (e.event || '').toLowerCase().includes('fomc') ||
-      (e.event || '').toLowerCase().includes('fed funds') ||
-      (e.event || '').toLowerCase().includes('rate decision')
-    )
+    // FOMC days — economicCalendar is a string summary; check for keywords
+    const calStr = (economicCalendar || '').toLowerCase()
+    const isFomcDay = calStr.includes('fomc') || calStr.includes('fed funds') || calStr.includes('rate decision')
 
     // Gap from prior close
     const gapPoints = (() => {
