@@ -207,7 +207,7 @@ export default function LandingPage() {
                   'AI Morning Brief',
                   'Volume Profile + key levels',
                   'Setup Evaluator (7 plays)',
-                  '60 min voice/month',
+                  'Voice + text companion',
                 ],
               },
               {
@@ -218,8 +218,8 @@ export default function LandingPage() {
                   'AI Signals (LONG/SHORT)',
                   'Strike Suggestions',
                   'Dealer Mechanics Engine',
-                  'AI Companion chat',
-                  '180 min voice/month',
+                  'Actionability Filter',
+                  'AI Companion coaching',
                 ],
               },
               {
@@ -231,7 +231,7 @@ export default function LandingPage() {
                   'Personalized Morning Brief',
                   'Setup win rate tracking',
                   'Behavioral pattern discovery',
-                  '480 min voice/month',
+                  'Conviction calibration',
                 ],
               },
               {
@@ -240,10 +240,10 @@ export default function LandingPage() {
                 features: [
                   'Everything in Elite',
                   'Priority data refresh',
-                  'Unlimited voice',
                   'Email morning brief',
                   'Advanced analytics export',
                   'Direct support',
+                  'Early access to new features',
                 ],
               },
             ].map(tier => (
@@ -270,6 +270,9 @@ export default function LandingPage() {
                 </button>
               </div>
             ))}
+          </div>
+          <div style={{ marginTop:24, textAlign:'center' as const, fontSize:9, color:'#4a5568', letterSpacing:1, lineHeight:1.7 }}>
+            🎙 Fair-use voice on all plans · Cancel anytime · No setup fees
           </div>
         </div>
 
