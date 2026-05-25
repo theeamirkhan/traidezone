@@ -112,6 +112,11 @@ export function evaluateSetup(setupId: SetupId, ctx: {
   // Pattern
   patternSummary:    string | null
   candlePatterns:    string | null
+  // Volume + move-size context (added for cross-setup normalization)
+  currentVolume:     number | null     // last bar volume
+  avgVolume:         number | null     // 20-bar average volume
+  impliedMove:       number | null     // today's expected SPX range in points
+  atr:               number | null     // 14-bar ATR for sizing context
 }): SetupEvaluation {
   const setup = SETUPS.find(s => s.id === setupId)
   if (!setup) throw new Error(`Unknown setup: ${setupId}`)
@@ -176,6 +181,84 @@ export function evaluateSetup(setupId: SetupId, ctx: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared baseline criteria — applied to all setups for consistency
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the standard mechanical-flow criteria that every setup should evaluate.
+ * - Mechanical score alignment with direction
+ * - Asymmetric setup match (AMPLIFY = great, RESISTED = headwind)
+ * - POC confluence (does a key level cluster near this play's level)
+ * - Volume confirmation (was this bar above average — confirms participation)
+ * - Move-size realism (is the target reasonable vs today's implied move/ATR)
+ */
+function baselineCriteria(c: any, direction: 'LONG' | 'SHORT', keyLevel: number | null): SetupCriterion[] {
+  const criteria: SetupCriterion[] = []
+  const isBull = direction === 'LONG'
+
+  // 1. Mechanical score alignment
+  criteria.push({
+    label:  `Mechanical flow ${isBull ? 'not bearish' : 'not bullish'}`,
+    status: c.mechanicalScore === null
+      ? 'NEUTRAL'
+      : isBull && c.mechanicalScore >= 10
+        ? 'PASS'
+        : isBull && c.mechanicalScore <= -30
+          ? 'FAIL'
+          : !isBull && c.mechanicalScore <= -10
+            ? 'PASS'
+            : !isBull && c.mechanicalScore >= 30
+              ? 'FAIL'
+              : 'NEUTRAL',
+    weight: 2,
+    detail: `Mech score: ${c.mechanicalScore !== null ? (c.mechanicalScore > 0 ? '+' : '') + c.mechanicalScore : 'n/a'}`,
+  })
+
+  // 2. Asymmetric setup match
+  const wantAmplify = isBull ? 'BULLISH_AMPLIFY' : 'BEARISH_AMPLIFY'
+  const opposeAmplify = isBull ? 'BEARISH_AMPLIFY' : 'BULLISH_AMPLIFY'
+  const ownResisted = isBull ? 'BULLISH_RESISTED' : 'BEARISH_RESISTED'
+  criteria.push({
+    label:  'Asymmetric setup aligned',
+    status: c.asymmetricSetup === wantAmplify
+      ? 'PASS'
+      : c.asymmetricSetup === opposeAmplify
+        ? 'FAIL'
+        : c.asymmetricSetup === ownResisted
+          ? 'FAIL'        // dealers will resist your direction
+          : 'NEUTRAL',
+    weight: 2,
+    detail: c.asymmetricSetup || 'NEUTRAL',
+  })
+
+  // 3. POC confluence — is POC clustering near our key level?
+  if (keyLevel !== null && c.poc !== null) {
+    const dist = Math.abs(c.poc - keyLevel)
+    criteria.push({
+      label:  'POC confluence at key level',
+      status: dist <= 3 ? 'PASS' : dist <= 8 ? 'NEUTRAL' : 'NEUTRAL',
+      weight: 1,
+      detail: dist <= 3
+        ? `POC ${c.poc.toFixed(0)} clustering with level (within ${dist.toFixed(1)}pts)`
+        : `POC ${c.poc.toFixed(0)} is ${dist.toFixed(0)}pts away from level`,
+    })
+  }
+
+  // 4. Volume confirmation
+  if (c.currentVolume !== null && c.avgVolume !== null && c.avgVolume > 0) {
+    const ratio = c.currentVolume / c.avgVolume
+    criteria.push({
+      label:  'Volume confirming move',
+      status: ratio > 1.3 ? 'PASS' : ratio < 0.6 ? 'FAIL' : 'NEUTRAL',
+      weight: 2,
+      detail: `Current bar volume ${Math.round(ratio * 100)}% of 20-bar avg`,
+    })
+  }
+
+  return criteria
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Per-setup evaluators — each scores its specific criteria
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -231,15 +314,7 @@ function evalVwapRetestLong(c: any): { criteria: SetupCriterion[]; invalidation:
     detail: c.gexRegime ? `GEX regime: ${c.gexRegime}` : 'GEX data unavailable',
   })
 
-  // 6. Mechanical flow not opposing
-  criteria.push({
-    label:  'Mechanical flow not bearish',
-    status: c.mechanicalScore !== null && c.mechanicalScore >= -10 ? 'PASS' : c.mechanicalScore !== null && c.mechanicalScore < -30 ? 'FAIL' : 'NEUTRAL',
-    weight: 2,
-    detail: `Mech score: ${c.mechanicalScore !== null ? (c.mechanicalScore > 0 ? '+' : '') + c.mechanicalScore : 'n/a'}`,
-  })
-
-  // 7. Higher timeframe alignment (1hr not bearish)
+  // 6. Higher timeframe alignment (1hr not bearish)
   criteria.push({
     label:  '1-hour trend not bearish',
     status: c.h1Trend === 'BULLISH' ? 'PASS' : c.h1Trend === 'BEARISH' ? 'FAIL' : 'NEUTRAL',
@@ -247,18 +322,7 @@ function evalVwapRetestLong(c: any): { criteria: SetupCriterion[]; invalidation:
     detail: `1hr: ${c.h1Trend || 'n/a'}`,
   })
 
-  // 8. POC near VWAP adds confluence
-  if (c.vwap && c.poc) {
-    const pocConfluence = Math.abs(c.poc - c.vwap) <= 4
-    criteria.push({
-      label:  'POC adds confluence at VWAP',
-      status: pocConfluence ? 'PASS' : 'NEUTRAL',
-      weight: 1,
-      detail: pocConfluence ? `POC ${c.poc.toFixed(0)} clustering with VWAP — strong zone` : `POC ${c.poc?.toFixed(0)} away from VWAP`,
-    })
-  }
-
-  // 9. Session timing
+  // 8. Session timing
   criteria.push({
     label:  'Session timing favorable',
     status: c.sessionMinsLeft > 120 ? 'PASS' : c.sessionMinsLeft < 60 ? 'FAIL' : 'NEUTRAL',
@@ -273,6 +337,9 @@ function evalVwapRetestLong(c: any): { criteria: SetupCriterion[]; invalidation:
     weight: 1,
     detail: `Flow: ${c.optionsFlowBias || 'n/a'}`,
   })
+
+  // Baseline criteria — mechanical flow + asymmetric + POC + volume (applied universally)
+  criteria.push(...baselineCriteria(c, 'LONG', c.vwap))
 
   const invalidation = c.vwap ? c.vwap - 3 : null
   const trigger = c.vwap && price > c.vwap + 3
@@ -303,10 +370,12 @@ function evalVwapRetestShort(c: any): any {
   criteria.push({ label: 'Cumulative delta supports SHORT', status: c.cumDelta === 'STRONG_SELL' || c.cumDelta === 'SELL' ? 'PASS' : c.cumDelta === 'STRONG_BUY' || c.cumDelta === 'BUY' ? 'FAIL' : 'NEUTRAL', weight: 3, detail: `Cum delta: ${c.cumDelta || 'n/a'}` })
   if (c.tickValue !== null) criteria.push({ label: 'NYSE TICK confirms broad selling', status: c.tickValue < -200 ? 'PASS' : c.tickValue > 200 ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `TICK ${c.tickValue > 0 ? '+' : ''}${c.tickValue}` })
   criteria.push({ label: 'Dealers positioning favors rejection', status: c.gexRegime === 'positive' ? 'PASS' : 'NEUTRAL', weight: 2, detail: c.gexRegime ? `GEX: ${c.gexRegime} (positive = VWAP rejects)` : 'n/a' })
-  criteria.push({ label: 'Mechanical flow not bullish', status: c.mechanicalScore !== null && c.mechanicalScore <= 10 ? 'PASS' : c.mechanicalScore !== null && c.mechanicalScore > 30 ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `Mech: ${c.mechanicalScore !== null ? (c.mechanicalScore > 0 ? '+' : '') + c.mechanicalScore : 'n/a'}` })
   criteria.push({ label: '1-hour trend not bullish', status: c.h1Trend === 'BEARISH' ? 'PASS' : c.h1Trend === 'BULLISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'}` })
   criteria.push({ label: 'Session timing favorable', status: c.sessionMinsLeft > 120 ? 'PASS' : c.sessionMinsLeft < 60 ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `${c.sessionMinsLeft}min left` })
   criteria.push({ label: 'Options flow not heavy calls', status: c.optionsFlowBias === 'PUT HEAVY' ? 'PASS' : c.optionsFlowBias === 'CALL HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 1, detail: `Flow: ${c.optionsFlowBias || 'n/a'}` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'SHORT', c.vwap))
 
   return {
     criteria,
@@ -334,9 +403,11 @@ function evalPdhBreakout(c: any): any {
     criteria.push({ label: 'No major call wall capping move', status: callWallAbove > 10 ? 'PASS' : callWallAbove > 0 ? 'NEUTRAL' : 'NEUTRAL', weight: 2, detail: callWallAbove > 10 ? `Call wall ${c.callWall.toFixed(0)} is ${callWallAbove.toFixed(0)}pts above PDH — room to run` : `Call wall ${c.callWall?.toFixed(0)} only ${callWallAbove.toFixed(0)}pts above PDH — limited room` })
   }
   criteria.push({ label: 'Options flow CALL HEAVY confirming', status: c.optionsFlowBias === 'CALL HEAVY' ? 'PASS' : c.optionsFlowBias === 'PUT HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `Flow: ${c.optionsFlowBias || 'n/a'}` })
-  criteria.push({ label: 'Asymmetric setup amplifies', status: c.asymmetricSetup === 'BULLISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BEARISH_AMPLIFY' || c.asymmetricSetup === 'BULLISH_RESISTED' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `${c.asymmetricSetup || 'NEUTRAL'}` })
   criteria.push({ label: '1-hour trend supports', status: c.h1Trend === 'BULLISH' ? 'PASS' : c.h1Trend === 'BEARISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'}` })
   criteria.push({ label: 'Session timing — midday best for breakouts', status: c.sessionMinsLeft > 60 && c.sessionMinsLeft < 330 ? 'PASS' : 'NEUTRAL', weight: 2, detail: `${c.sessionMinsLeft}min left — ${c.sessionMinsLeft > 60 && c.sessionMinsLeft < 330 ? 'midday window favorable' : 'sub-optimal timing'}` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'LONG', c.pdh))
 
   return {
     criteria,
@@ -362,9 +433,11 @@ function evalPdlBreakdown(c: any): any {
     criteria.push({ label: 'No major put wall holding floor', status: putWallBelow > 10 ? 'PASS' : 'NEUTRAL', weight: 2, detail: putWallBelow > 10 ? `Put wall ${c.putWall.toFixed(0)} is ${putWallBelow.toFixed(0)}pts below PDL — room to fall` : `Put wall close — may hold ${c.putWall?.toFixed(0)}` })
   }
   criteria.push({ label: 'Options flow PUT HEAVY confirming', status: c.optionsFlowBias === 'PUT HEAVY' ? 'PASS' : c.optionsFlowBias === 'CALL HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `Flow: ${c.optionsFlowBias || 'n/a'}` })
-  criteria.push({ label: 'Asymmetric setup amplifies', status: c.asymmetricSetup === 'BEARISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BULLISH_AMPLIFY' || c.asymmetricSetup === 'BEARISH_RESISTED' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: c.asymmetricSetup || 'NEUTRAL' })
   criteria.push({ label: '1-hour trend supports', status: c.h1Trend === 'BEARISH' ? 'PASS' : c.h1Trend === 'BULLISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'}` })
   criteria.push({ label: 'Dark pool selling pressure', status: c.darkPoolBias === 'SELL' ? 'PASS' : c.darkPoolBias === 'BUY' ? 'FAIL' : 'NEUTRAL', weight: 1, detail: `Dark pool: ${c.darkPoolBias || 'n/a'}` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'SHORT', c.pdl))
 
   return {
     criteria,
@@ -391,8 +464,11 @@ function evalDoubleTop(c: any): any {
   }
   criteria.push({ label: 'Options flow not heavily bullish', status: c.optionsFlowBias === 'PUT HEAVY' ? 'PASS' : c.optionsFlowBias === 'CALL HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `Flow: ${c.optionsFlowBias || 'n/a'}` })
   criteria.push({ label: 'Reversal pattern in candles', status: c.candlePatterns?.includes('doji') || c.candlePatterns?.includes('shooting_star') || c.candlePatterns?.includes('bearish_engulfing') ? 'PASS' : 'NEUTRAL', weight: 1, detail: c.candlePatterns ? `Patterns: ${c.candlePatterns}` : 'No patterns detected' })
-  criteria.push({ label: 'Mechanical flow not strongly bullish', status: c.mechanicalScore !== null && c.mechanicalScore < 20 ? 'PASS' : c.mechanicalScore !== null && c.mechanicalScore > 40 ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `Mech: ${c.mechanicalScore !== null ? (c.mechanicalScore > 0 ? '+' : '') + c.mechanicalScore : 'n/a'}` })
+  criteria.push({ label: '1-hour trend rolling over', status: c.h1Trend === 'BEARISH' ? 'PASS' : c.h1Trend === 'BULLISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'} — bullish trend makes top harder to hold` })
   criteria.push({ label: 'Session timing favorable', status: c.sessionMinsLeft > 60 ? 'PASS' : 'NEUTRAL', weight: 1, detail: `${c.sessionMinsLeft}min left` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'SHORT', c.intradayHigh))
 
   return {
     criteria,
@@ -419,7 +495,11 @@ function evalDoubleBottom(c: any): any {
   criteria.push({ label: 'Options flow not heavily bearish', status: c.optionsFlowBias === 'CALL HEAVY' ? 'PASS' : c.optionsFlowBias === 'PUT HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `Flow: ${c.optionsFlowBias || 'n/a'}` })
   criteria.push({ label: 'Bullish reversal pattern', status: c.candlePatterns?.includes('hammer') || c.candlePatterns?.includes('bullish_engulfing') || c.candlePatterns?.includes('doji') ? 'PASS' : 'NEUTRAL', weight: 1, detail: c.candlePatterns ? `Patterns: ${c.candlePatterns}` : 'None detected' })
   criteria.push({ label: 'Dark pool buying', status: c.darkPoolBias === 'BUY' ? 'PASS' : c.darkPoolBias === 'SELL' ? 'FAIL' : 'NEUTRAL', weight: 1, detail: `Dark pool: ${c.darkPoolBias || 'n/a'}` })
+  criteria.push({ label: '1-hour trend stabilizing', status: c.h1Trend === 'BULLISH' ? 'PASS' : c.h1Trend === 'BEARISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'} — bearish trend makes bottom harder to hold` })
   criteria.push({ label: 'Session timing favorable', status: c.sessionMinsLeft > 60 ? 'PASS' : 'NEUTRAL', weight: 1, detail: `${c.sessionMinsLeft}min left` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'LONG', c.intradayLow))
 
   return {
     criteria,
@@ -437,9 +517,11 @@ function evalTrendlineBreakLong(c: any): any {
   criteria.push({ label: 'Cumulative delta confirms break', status: c.cumDelta === 'STRONG_BUY' ? 'PASS' : c.cumDelta === 'BUY' ? 'NEUTRAL' : 'FAIL', weight: 3, detail: c.cumDelta || 'n/a' })
   if (c.tickValue !== null) criteria.push({ label: 'TICK strong positive', status: c.tickValue > 300 ? 'PASS' : c.tickValue < 0 ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `TICK ${c.tickValue > 0 ? '+' : ''}${c.tickValue}` })
   criteria.push({ label: 'Higher timeframe alignment', status: c.h1Trend === 'BULLISH' ? 'PASS' : c.h1Trend === 'BEARISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'}` })
-  criteria.push({ label: 'Asymmetric setup confirms', status: c.asymmetricSetup === 'BULLISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BEARISH_AMPLIFY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: c.asymmetricSetup || 'n/a' })
   criteria.push({ label: 'Options flow CALL HEAVY', status: c.optionsFlowBias === 'CALL HEAVY' ? 'PASS' : c.optionsFlowBias === 'PUT HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: c.optionsFlowBias || 'n/a' })
   criteria.push({ label: 'Session timing', status: c.sessionMinsLeft > 60 ? 'PASS' : 'FAIL', weight: 1, detail: `${c.sessionMinsLeft}min left` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'LONG', c.currentPrice))
 
   return {
     criteria,
@@ -456,9 +538,11 @@ function evalTrendlineBreakShort(c: any): any {
   criteria.push({ label: 'Cumulative delta confirms', status: c.cumDelta === 'STRONG_SELL' ? 'PASS' : c.cumDelta === 'SELL' ? 'NEUTRAL' : 'FAIL', weight: 3, detail: c.cumDelta || 'n/a' })
   if (c.tickValue !== null) criteria.push({ label: 'TICK strong negative', status: c.tickValue < -300 ? 'PASS' : c.tickValue > 0 ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `TICK ${c.tickValue}` })
   criteria.push({ label: 'Higher timeframe alignment', status: c.h1Trend === 'BEARISH' ? 'PASS' : c.h1Trend === 'BULLISH' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: `1hr: ${c.h1Trend || 'n/a'}` })
-  criteria.push({ label: 'Asymmetric setup confirms', status: c.asymmetricSetup === 'BEARISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BULLISH_AMPLIFY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: c.asymmetricSetup || 'n/a' })
   criteria.push({ label: 'Options flow PUT HEAVY', status: c.optionsFlowBias === 'PUT HEAVY' ? 'PASS' : c.optionsFlowBias === 'CALL HEAVY' ? 'FAIL' : 'NEUTRAL', weight: 2, detail: c.optionsFlowBias || 'n/a' })
   criteria.push({ label: 'Session timing', status: c.sessionMinsLeft > 60 ? 'PASS' : 'FAIL', weight: 1, detail: `${c.sessionMinsLeft}min left` })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'SHORT', c.currentPrice))
 
   return {
     criteria,
@@ -561,21 +645,16 @@ function evalOrbBreakoutLong(c: any): any {
     detail: `Flow: ${c.optionsFlowBias || 'n/a'}`,
   })
 
-  // 9. Asymmetric setup
-  criteria.push({
-    label:  'Asymmetric setup amplifies',
-    status: c.asymmetricSetup === 'BULLISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BEARISH_AMPLIFY' || c.asymmetricSetup === 'BULLISH_RESISTED' ? 'FAIL' : 'NEUTRAL',
-    weight: 2,
-    detail: c.asymmetricSetup || 'NEUTRAL',
-  })
-
-  // 10. 1-hour trend not bearish
+  // 9. 1-hour trend not bearish
   criteria.push({
     label:  '1-hour trend not bearish',
     status: c.h1Trend === 'BULLISH' ? 'PASS' : c.h1Trend === 'BEARISH' ? 'FAIL' : 'NEUTRAL',
     weight: 1,
     detail: `1hr: ${c.h1Trend || 'n/a'}`,
   })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'LONG', c.orbHigh))
 
   return {
     criteria,
@@ -675,18 +754,14 @@ function evalOrbBreakdownShort(c: any): any {
   })
 
   criteria.push({
-    label:  'Asymmetric setup amplifies',
-    status: c.asymmetricSetup === 'BEARISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BULLISH_AMPLIFY' || c.asymmetricSetup === 'BEARISH_RESISTED' ? 'FAIL' : 'NEUTRAL',
-    weight: 2,
-    detail: c.asymmetricSetup || 'NEUTRAL',
-  })
-
-  criteria.push({
     label:  '1-hour trend not bullish',
     status: c.h1Trend === 'BEARISH' ? 'PASS' : c.h1Trend === 'BULLISH' ? 'FAIL' : 'NEUTRAL',
     weight: 1,
     detail: `1hr: ${c.h1Trend || 'n/a'}`,
   })
+
+  // Baseline criteria
+  criteria.push(...baselineCriteria(c, 'SHORT', c.orbLow))
 
   return {
     criteria,

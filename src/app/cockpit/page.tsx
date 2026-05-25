@@ -1931,6 +1931,14 @@ export default function CockpitPage() {
         sessionName:     marketIntel2?.timeContext?.currentSession || null,
         patternSummary:  patternAnalysis?.structureSummary || null,
         candlePatterns:  multiTFData?.patterns?.map((p: any) => p.name).join('|') || null,
+        // Volume + move-size for normalized baseline checks
+        currentVolume:   candles[candles.length - 1]?.v || null,
+        avgVolume:       (() => {
+          const recent = candles.slice(-20).map(c => c.v || 0).filter(v => v > 0)
+          return recent.length > 0 ? recent.reduce((a, b) => a + b, 0) / recent.length : null
+        })(),
+        impliedMove:     morningPlan?.impliedMove ? parseFloat(morningPlan.impliedMove) : null,
+        atr:             multiTFData?.daily?.atr || null,
       })
       setSetupEval(result)
     } catch (e) { console.warn('[SetupEval]', e) }

@@ -615,6 +615,7 @@ export async function GET(req: NextRequest) {
         mechanicalScore: 35, asymmetricSetup: 'BULLISH_AMPLIFY',
         ivRank: 45, sessionMinsLeft: 200, sessionName: 'PRIME',
         patternSummary: null, candlePatterns: null,
+        currentVolume: 18000, avgVolume: 12000, impliedMove: 45, atr: 22,
       } as any)
       if (!result.rating) throw new Error('Missing rating')
       return {
