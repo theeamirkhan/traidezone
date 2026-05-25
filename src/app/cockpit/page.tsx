@@ -4115,6 +4115,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       traderProfile, customRules,
       marketIntel2,
       probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: '',
+      actionability: actionability,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -5320,6 +5321,68 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               weeklyTrend:       multiTFData?.weekly?.trend || null,
                               weeklyRsi:         multiTFData?.weekly?.rsi || null,
                               candlePatterns:    multiTFData?.patterns?.map((p: any) => p.name).join('|') || null,
+
+                              // ── Multi-TF intraday structure ──
+                              m15Trend:          multiTFData?.m15?.trend || null,
+                              m15RangePct:       multiTFData?.m15?.rangePct || null,
+                              h1Trend:           multiTFData?.h1?.trend || null,
+                              h1AboveEma:        multiTFData?.h1?.aboveEma || null,
+
+                              // ── Cross-asset ──
+                              crossAssetBias:    multiTFData?.crossAsset?.confirmation || null,
+                              dxy5d:             multiTFData?.crossAsset?.dxy5d || null,
+                              tlt5d:             multiTFData?.crossAsset?.tlt5d || null,
+
+                              // ── UW data ──
+                              uwIvRank:          marketIntel2?.uwIV?.ivRank || null,
+                              uwIvPercentile:    marketIntel2?.uwIV?.ivPercentile || null,
+                              uwPutCallRatio:    marketIntel2?.uwIV?.putCallRatio || null,
+                              spotGexCallWall:   marketIntel2?.spotGex?.callWall || null,
+                              spotGexPutWall:    marketIntel2?.spotGex?.putWall || null,
+                              economicBias:      marketIntel2?.econSurprise?.bias || null,
+
+                              // ── Volume profile ──
+                              poc:               volumeProfile?.poc || null,
+                              vah:               volumeProfile?.vah || null,
+                              val:               volumeProfile?.val || null,
+                              valueAreaPct:      volumeProfile?.valueAreaPct || null,
+
+                              // ── GEX / dealer mechanics ──
+                              gammaFlip:         gexData?.gammaFlip || null,
+                              callWall:          gexData?.callWall || null,
+                              putWall:           gexData?.putWall || null,
+                              netGex:            gexData?.netGex || null,
+                              gexRegime:         gexData?.regime || null,
+                              dexBias:           gexData?.dexBias || null,
+                              charmUrgency:      gexData?.charmUrgency || null,
+                              charmDollar:       gexData?.charmDollar || null,
+
+                              // ── Mechanical flow analysis (NEW) ──
+                              mechanicalBias:    mechanicalFlow?.mechanicalBias || null,
+                              mechanicalScore:   mechanicalFlow?.mechanicalScore || null,
+                              asymmetricSetup:   mechanicalFlow?.asymmetricSetup || null,
+                              hedgingDirection:  mechanicalFlow?.hedgingDirection || null,
+                              hedgingForce:      mechanicalFlow?.hedgingForce || null,
+                              hedgingFlowRemaining: mechanicalFlow?.hedgingFlowRemaining || null,
+                              charmIntensity:    mechanicalFlow?.charmIntensity || null,
+                              charmDirection:    mechanicalFlow?.charmDirection || null,
+
+                              // ── Actionability classification (NEW) ──
+                              actionabilityVerdict: actionability?.verdict || null,
+                              setupType:            actionability?.setupType || null,
+                              invalidationPrice:    actionability?.invalidationPrice || null,
+                              greenLightsCount:     actionability?.greenLights?.length || 0,
+                              redFlagsCount:        actionability?.redFlags?.length || 0,
+                              greenLights:          actionability?.greenLights?.join('|') || null,
+                              redFlags:             actionability?.redFlags?.join('|') || null,
+                              signalStaleness:      actionability?.staleness?.minutesOld || 0,
+                              newsBlackout:         actionability?.newsRisk?.blackout || false,
+                              liquidityOk:          actionability?.liquidityCheck?.ok || true,
+
+                              // ── Signal output fields (NEW from schema upgrade) ──
+                              multiTFAlignment:  result.multiTFAlignment || null,
+                              ivContextSignal:   result.ivContext || null,
+                              sizingNote:        result.sizingNote || null,
                             }) } catch(e) { return null } })(),
                           })
                         })
@@ -6575,6 +6638,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   } : null
                   // Capture predicted window from strike suggestions if available
                   const windowSnap = strikeSuggestions?.bestEntryWindow || null
+                  // Capture actionability verdict at trade entry
+                  const actSnap = actionability ? {
+                    verdict:    actionability.verdict,
+                    setupType:  actionability.setupType,
+                    greens:     actionability.greenLights?.length || 0,
+                    flags:      actionability.redFlags?.length || 0,
+                  } : null
                   try {
                     await fetch('/api/userdata', {
                       method: 'POST',
@@ -6591,7 +6661,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           price:     parseFloat(ticket.entryPrice),
                           pnl:       parseFloat(pnl.toFixed(2)),
                           inSystem:  true,
-                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}${windowSnap ? ' | Predicted window: ' + windowSnap.substring(0, 80) : ''}${mechSnap ? ' | Mech: ' + mechSnap.bias + ' ' + mechSnap.score + (mechSnap.asymmetric !== 'NEUTRAL' ? ' (' + mechSnap.asymmetric + ')' : '') : ''}`,
+                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}${windowSnap ? ' | Predicted window: ' + windowSnap.substring(0, 80) : ''}${mechSnap ? ' | Mech: ' + mechSnap.bias + ' ' + mechSnap.score + (mechSnap.asymmetric !== 'NEUTRAL' ? ' (' + mechSnap.asymmetric + ')' : '') : ''}${actSnap ? ' | Act: ' + actSnap.verdict + ' (' + actSnap.setupType + ', ' + actSnap.greens + 'G/' + actSnap.flags + 'R)' : ''}`,
                         }
                       })
                     })

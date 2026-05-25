@@ -22,6 +22,10 @@ export interface SignalResult {
   systemAlignment?:     'aligned' | 'partial' | 'divergent'
   systemAlignmentNote?: string
   waitReason?:          string
+  // Schema v2 additions
+  multiTFAlignment?:    string  // all-bullish | all-bearish | mixed | 5min-only
+  ivContext?:           string  // cheap | normal | expensive
+  sizingNote?:          string  // full | half | quarter
   // Trade levels
   entryZone:            { high: number; low: number }
   stopLevel:            number
@@ -32,7 +36,7 @@ export interface SignalResult {
   // Metadata
   _warnings:            string[]
   _timestamp:           string
-  currentPrice?:        number | null  // price at signal time — for staleness detection
+  currentPrice?:        number | null
 }
 
 export async function runSignal(input: SignalInput): Promise<SignalResult | null> {

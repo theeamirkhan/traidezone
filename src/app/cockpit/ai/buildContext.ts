@@ -505,6 +505,7 @@ export function buildCompanionContext(
     lastAITime?:     string | null
     marketIntel2?:   any | null
     activeTicket?:   any | null
+    actionability?:  any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -602,6 +603,16 @@ Opened: ${(input as any).activeTicket.openedAt} ET | Current SPX: ${input.market
 COACHING PRIORITY: You are a live trade manager. Reference this position in every response.
 Help with: hold vs exit decision, stop management, target levels, time decay risk, scaling.
 Be specific: use current price vs entry strike, session time remaining, charm/vanna context.` : ''}
+
+${(input as any).actionability ? `
+═══ SIGNAL ACTIONABILITY ═══
+Verdict: ${(input as any).actionability.verdict} — ${(input as any).actionability.headline}
+Setup type: ${(input as any).actionability.setupType}
+${(input as any).actionability.invalidationPrice ? `Invalidation: ${(input as any).actionability.invalidationPrice}` : ''}
+Green lights (${(input as any).actionability.greenLights?.length || 0}): ${(input as any).actionability.greenLights?.slice(0,3).join(' | ') || 'none'}
+Red flags (${(input as any).actionability.redFlags?.length || 0}): ${(input as any).actionability.redFlags?.slice(0,3).join(' | ') || 'none'}
+${(input as any).actionability.verdict === 'NOISE' ? 'IMPORTANT: This signal is classified NOISE — strongly advise the trader to stand aside.' : ''}
+${(input as any).actionability.verdict === 'WATCH' ? 'IMPORTANT: This signal is WATCH — wait for specific triggers, do not chase.' : ''}` : ''}
 
 ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
 

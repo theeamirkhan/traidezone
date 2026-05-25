@@ -113,6 +113,22 @@ export async function POST(req: NextRequest) {
       byDailyTrend:     feat('dailyTrend'),
       byWeeklyTrend:    feat('weeklyTrend'),
       byCandlePatterns: feat('candlePatterns'),
+      // New mechanical / actionability features
+      byMechBias:       feat('mechanicalBias'),
+      byAsymmetric:     feat('asymmetricSetup'),
+      bySetupType:      feat('setupType'),
+      byActionability:  feat('actionabilityVerdict'),
+      byCrossAsset:     feat('crossAssetBias'),
+      byH1Trend:        feat('h1Trend'),
+      byM15Trend:       feat('m15Trend'),
+      byEconomic:       feat('economicBias'),
+      byMultiTF:        feat('multiTFAlignment'),
+      byHedgingDir:     feat('hedgingDirection'),
+      byCharm:          feat('charmIntensity'),
+      newsBlackouts:    boolFeat('newsBlackout', 'news_blackout'),
+      poorLiquidity:    boolFeat('liquidityOk', 'liquidity_ok'),  // tracks both true and false outcomes
+      avgGreenLights:   parsed.length > 0 ? (parsed.reduce((s: number, a: any) => s + (a.greenLightsCount || 0), 0) / parsed.length).toFixed(1) : null,
+      avgRedFlags:      parsed.length > 0 ? (parsed.reduce((s: number, a: any) => s + (a.redFlagsCount || 0), 0) / parsed.length).toFixed(1) : null,
     }
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {

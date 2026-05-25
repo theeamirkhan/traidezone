@@ -38,6 +38,17 @@ const STREAM_NAMES = [
   'Weekly Trend',
   'Candle Patterns',
   'Pre-Market',
+  // New mechanical / actionability streams
+  'Mechanical Flow',
+  'Asymmetric Setup',
+  'Setup Type',
+  'Actionability Gate',
+  'Cross-Asset',
+  '1-Hour Trend',
+  '15-Min Trend',
+  'UW IV Rank',
+  'Economic Macro',
+  'Multi-TF Alignment',
 ]
 
 // Map context_snapshot fields to stream names for accuracy tracking
@@ -52,6 +63,17 @@ const INTEL_STREAM_MAP: Record<string, string> = {
   weeklyTrend:         'Weekly Trend',
   candlePatterns:      'Candle Patterns',
   preMarketConviction: 'Pre-Market',
+  // New mechanical / actionability streams
+  mechanicalBias:      'Mechanical Flow',
+  asymmetricSetup:     'Asymmetric Setup',
+  setupType:           'Setup Type',
+  actionabilityVerdict:'Actionability Gate',
+  crossAssetBias:      'Cross-Asset',
+  h1Trend:             '1-Hour Trend',
+  m15Trend:            '15-Min Trend',
+  uwIvRank:            'UW IV Rank',
+  economicBias:        'Economic Macro',
+  multiTFAlignment:    'Multi-TF Alignment',
 }
 
 // Determine if a market intelligence value is "bullish" or "bearish"
@@ -59,7 +81,7 @@ function intelVote(key: string, value: any, signal: string): 1 | -1 | 0 {
   const isBull = signal === 'LONG'
   const isBear = signal === 'SHORT'
   if (key === 'termShape') {
-    if (value === 'inverted') return 0  // inverted = uncertainty, not directional
+    if (value === 'inverted') return 0
     if (value === 'calm' && isBull) return 1
     if (value === 'normal') return 0
     return 0
@@ -69,10 +91,10 @@ function intelVote(key: string, value: any, signal: string): 1 | -1 | 0 {
     if (isBull && value === 'below_1sigma') return -1
     if (isBear && value === 'below_vwap') return 1
     if (isBear && value === 'above_1sigma') return -1
-    if (value === 'above_2sigma' || value === 'below_2sigma') return -1  // extended = risky
+    if (value === 'above_2sigma' || value === 'below_2sigma') return -1
     return 0
   }
-  if (key === 'optionsCheap' && value === true) return 1   // cheap options = good to buy
+  if (key === 'optionsCheap' && value === true) return 1
   if (key === 'optionsExpensive' && value === true) return -1
   if (key === 'sectorBias') {
     if (isBull && value === 'BULLISH') return 1
@@ -87,7 +109,7 @@ function intelVote(key: string, value: any, signal: string): 1 | -1 | 0 {
     if (value === 'HIGH NOISE' || value === 'CHOPPY') return -1
     return 0
   }
-  if (key === 'dailyTrend' || key === 'weeklyTrend') {
+  if (key === 'dailyTrend' || key === 'weeklyTrend' || key === 'h1Trend' || key === 'm15Trend') {
     if (isBull && value === 'BULLISH') return 1
     if (isBull && value === 'BEARISH') return -1
     if (isBear && value === 'BEARISH') return 1
@@ -95,8 +117,65 @@ function intelVote(key: string, value: any, signal: string): 1 | -1 | 0 {
     return 0
   }
   if (key === 'preMarketConviction') {
-    if (value === 'HIGH') return 1   // high conviction pre-market = gap likely holds
+    if (value === 'HIGH') return 1
     if (value === 'LOW') return -1
+    return 0
+  }
+  // ── Mechanical flow streams ──────────────────────────────────────────────
+  if (key === 'mechanicalBias') {
+    if (isBull && value === 'BULLISH') return 1
+    if (isBull && value === 'BEARISH') return -1
+    if (isBear && value === 'BEARISH') return 1
+    if (isBear && value === 'BULLISH') return -1
+    return 0
+  }
+  if (key === 'asymmetricSetup') {
+    if (isBull && value === 'BULLISH_AMPLIFY') return 1
+    if (isBull && value === 'BEARISH_AMPLIFY') return -1
+    if (isBear && value === 'BEARISH_AMPLIFY') return 1
+    if (isBear && value === 'BULLISH_AMPLIFY') return -1
+    if (value === 'BULLISH_RESISTED' && isBull) return -1  // setup says headwind
+    if (value === 'BEARISH_RESISTED' && isBear) return -1
+    return 0
+  }
+  if (key === 'setupType') {
+    // High-quality setup types are positive votes; NO_SETUP is negative
+    if (value === 'BREAKOUT' || value === 'BOUNCE' || value === 'TREND_CONTINUATION') return 1
+    if (value === 'NO_SETUP') return -1
+    if (value === 'FADE') return -1  // counter-trend = lower base rate
+    return 0
+  }
+  if (key === 'actionabilityVerdict') {
+    if (value === 'ACTIONABLE') return 1
+    if (value === 'NOISE') return -1
+    return 0  // WATCH = neutral
+  }
+  if (key === 'crossAssetBias') {
+    if (isBull && value === 'RISK_ON') return 1
+    if (isBull && (value === 'RISK_OFF' || value === 'BEARISH')) return -1
+    if (isBear && (value === 'RISK_OFF' || value === 'BEARISH')) return 1
+    if (isBear && value === 'RISK_ON') return -1
+    return 0
+  }
+  if (key === 'uwIvRank') {
+    const rank = parseFloat(value)
+    if (isNaN(rank)) return 0
+    if (rank < 30) return 1   // cheap options = good for buying
+    if (rank > 70) return -1  // expensive options = headwind
+    return 0
+  }
+  if (key === 'economicBias') {
+    if (isBull && value === 'MACRO_BULLISH') return 1
+    if (isBull && value === 'MACRO_BEARISH') return -1
+    if (isBear && value === 'MACRO_BEARISH') return 1
+    if (isBear && value === 'MACRO_BULLISH') return -1
+    return 0
+  }
+  if (key === 'multiTFAlignment') {
+    if (isBull && value === 'all-bullish') return 1
+    if (isBear && value === 'all-bearish') return 1
+    if (value === 'mixed') return -1
+    if (value === '5min-only') return -1
     return 0
   }
   return 0
