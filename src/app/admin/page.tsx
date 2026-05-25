@@ -211,6 +211,65 @@ export default function AdminPage() {
 
             {/* Right: Cron schedule + data flow */}
             <div>
+              {/* Signal Latency stats from localStorage */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#4a5568', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Signal Generation Performance</div>
+                <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)', padding: '14px' }}>
+                  {(() => {
+                    if (typeof window === 'undefined') return null
+                    let lats: any[] = []
+                    try { lats = JSON.parse(localStorage.getItem('signal_latencies') || '[]') } catch {}
+                    if (lats.length === 0) {
+                      return <div style={{ fontSize: 11, color: '#4a5568' }}>No signal generations yet (fire a signal to populate)</div>
+                    }
+                    const successes = lats.filter((l: any) => l.success)
+                    const failures = lats.filter((l: any) => !l.success)
+                    const sortedMs = successes.map((l: any) => l.ms).sort((a, b) => a - b)
+                    const p50 = sortedMs[Math.floor(sortedMs.length * 0.5)] || 0
+                    const p95 = sortedMs[Math.floor(sortedMs.length * 0.95)] || 0
+                    const avgMs = sortedMs.length > 0 ? sortedMs.reduce((a, b) => a + b, 0) / sortedMs.length : 0
+                    const sonnetCount = lats.filter((l: any) => l.success && l.model === 'claude-sonnet-4-6' && l.attempt === 1).length
+                    const retryCount = lats.filter((l: any) => l.success && l.attempt === 2).length
+                    const fallbackCount = lats.filter((l: any) => l.success && l.attempt === 3).length
+
+                    return (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
+                          <div style={{ textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>p50</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: p50 < 5000 ? '#00ff88' : p50 < 8000 ? '#f59e0b' : '#ff4d6d', fontFamily: fontMono }}>{(p50 / 1000).toFixed(1)}s</div>
+                          </div>
+                          <div style={{ textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>p95</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: p95 < 8000 ? '#00ff88' : p95 < 12000 ? '#f59e0b' : '#ff4d6d', fontFamily: fontMono }}>{(p95 / 1000).toFixed(1)}s</div>
+                          </div>
+                          <div style={{ textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>avg</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#00e5ff', fontFamily: fontMono }}>{(avgMs / 1000).toFixed(1)}s</div>
+                          </div>
+                          <div style={{ textAlign: 'center' as const }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>samples</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#b0c4de', fontFamily: fontMono }}>{lats.length}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 10, color: '#6b7a9a', flexWrap: 'wrap' as const }}>
+                          <span style={{ color: '#00ff88' }}>✓ Sonnet (1st try): {sonnetCount}</span>
+                          {retryCount > 0 && <span style={{ color: '#f59e0b' }}>↻ Retry succeeded: {retryCount}</span>}
+                          {fallbackCount > 0 && <span style={{ color: '#ff4d6d' }}>! Haiku fallback: {fallbackCount}</span>}
+                          {failures.length > 0 && <span style={{ color: '#ff4d6d' }}>✗ Total fails: {failures.length}</span>}
+                        </div>
+                        {p95 > 10000 && (
+                          <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(255,77,109,0.08)', borderRadius: 4, fontSize: 10, color: '#ff4d6d' }}>
+                            p95 latency {(p95 / 1000).toFixed(1)}s exceeds 10s — UX concern
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Cron schedule */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: '#4a5568', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Cron Schedule (All Weekdays)</div>
                 <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
