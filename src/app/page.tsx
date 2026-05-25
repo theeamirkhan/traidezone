@@ -97,7 +97,7 @@ export default function LandingPage() {
 
           <h1 className="h1 orb" style={{ fontSize:'clamp(34px, 7vw, 78px)', fontWeight:900, lineHeight:1.05, letterSpacing:'-1px', marginBottom:24, maxWidth:860 }}>
             AI signals.<br />
-            <span style={{ color:'#00e5ff' }}>Disciplined</span>{' '}
+            <span style={{ color:'#00e5ff', animation:'glow 3s ease-in-out infinite' }}>Disciplined</span>{' '}
             <span style={{ color:'#2d3748' }}>execution.</span>
           </h1>
 
