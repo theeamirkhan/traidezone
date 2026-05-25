@@ -601,6 +601,27 @@ export async function GET(req: NextRequest) {
       }
     }),
 
+    check('Setup Evaluator', async () => {
+      const { evaluateSetup } = await import('@/app/cockpit/lib/setupEvaluator')
+      const result = evaluateSetup('vwap_retest_long', {
+        currentPrice: 5820, vwap: 5820, vwapBand1Up: null, vwapBand1Dn: null,
+        pdh: null, pdl: null, prevClose: null, ema200: null,
+        poc: 5821, vah: null, val: null, intradayHigh: null, intradayLow: null,
+        gammaFlip: null, callWall: null, putWall: null, gexRegime: 'positive',
+        tickValue: 450, trinValue: 0.85, cumDelta: 'BUY',
+        optionsFlowBias: 'CALL HEAVY', darkPoolBias: 'BUY',
+        h1Trend: 'BULLISH', m15Trend: 'BULLISH', dailyTrend: 'BULLISH',
+        mechanicalScore: 35, asymmetricSetup: 'BULLISH_AMPLIFY',
+        ivRank: 45, sessionMinsLeft: 200, sessionName: 'PRIME',
+        patternSummary: null, candlePatterns: null,
+      })
+      if (!result.rating) throw new Error('Missing rating')
+      return {
+        detail: `Setup eval OK ✓ | ${result.setup.name}: ${result.rating} ${result.score}/100 | ${result.confirmingCount}✓ ${result.contradictingCount}✗`,
+        value: { rating: result.rating, score: result.score }
+      }
+    }),
+
     check('Actionability Engine', async () => {
       const { classifyActionability } = await import('@/app/cockpit/lib/actionability')
       const result = classifyActionability({

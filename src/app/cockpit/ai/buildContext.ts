@@ -506,6 +506,7 @@ export function buildCompanionContext(
     marketIntel2?:   any | null
     activeTicket?:   any | null
     actionability?:  any | null
+    setupEval?:      any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -613,6 +614,17 @@ Green lights (${(input as any).actionability.greenLights?.length || 0}): ${(inpu
 Red flags (${(input as any).actionability.redFlags?.length || 0}): ${(input as any).actionability.redFlags?.slice(0,3).join(' | ') || 'none'}
 ${(input as any).actionability.verdict === 'NOISE' ? 'IMPORTANT: This signal is classified NOISE — strongly advise the trader to stand aside.' : ''}
 ${(input as any).actionability.verdict === 'WATCH' ? 'IMPORTANT: This signal is WATCH — wait for specific triggers, do not chase.' : ''}` : ''}
+
+${(input as any).setupEval ? `
+═══ TRADER'S NAMED PLAY ═══
+The trader is evaluating: ${(input as any).setupEval.setup.name} (${(input as any).setupEval.setup.direction})
+Score: ${(input as any).setupEval.score}/100 — ${(input as any).setupEval.rating}
+${(input as any).setupEval.verdict}
+Criteria passing: ${(input as any).setupEval.confirmingCount} | Failing: ${(input as any).setupEval.contradictingCount}
+${(input as any).setupEval.triggerCondition ? `Waiting for: ${(input as any).setupEval.triggerCondition}` : ''}
+COACHING PRIORITY: Reference this specific setup by name. Help them stay disciplined on entry criteria.
+If score < 50, gently challenge whether the setup is actually present.
+If score ≥ 70, confirm the setup but reinforce stop discipline.` : ''}
 
 ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
 

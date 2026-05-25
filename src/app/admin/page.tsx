@@ -56,6 +56,7 @@ const GROUPS: Record<string, string[]> = {
     'Mechanical Flow Calculation',
     'Mechanical Flow Accuracy API',
     'Actionability Engine',
+    'Setup Evaluator',
   ],
   'Probability Engine': [
     'Gap Outcome Tracking',

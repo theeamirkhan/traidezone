@@ -27,6 +27,7 @@ import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBroker
 import { calculateVolumeProfile } from './lib/volumeProfile'
 import { calculateMechanicalFlow } from './lib/mechanicalFlow'
 import { classifyActionability, type ActionabilityResult } from './lib/actionability'
+import { evaluateSetup, SETUPS, type SetupEvaluation, type SetupId } from './lib/setupEvaluator'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
   fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
@@ -1803,6 +1804,10 @@ export default function CockpitPage() {
   const [mechanicalFlow, setMechanicalFlow] = useState<any | null>(null)
   const [mechAccuracy, setMechAccuracy]     = useState<any | null>(null)
   const [actionability, setActionability]   = useState<ActionabilityResult | null>(null)
+  const [setupEval, setSetupEval]           = useState<SetupEvaluation | null>(null)
+  const [selectedSetup, setSelectedSetup]   = useState<SetupId | null>(null)
+  const [intradayHigh, setIntradayHigh]     = useState<number | null>(null)
+  const [intradayLow, setIntradayLow]       = useState<number | null>(null)
 
   // ── Active Trade Ticket ──────────────────────────────────────────────────
   const [ticket, setTicket] = useState({
@@ -1872,6 +1877,53 @@ export default function CockpitPage() {
   const [showTutorial, setShowTutorial] = useState(false)
   const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'none'>('loading')
   const [subPlan, setSubPlan] = useState<string | null>(null)
+
+  // ── Setup evaluator — recomputes when selected setup or data changes ──
+  useEffect(() => {
+    if (!selectedSetup || !currentPrice) {
+      setSetupEval(null)
+      return
+    }
+    try {
+      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const minsLeft = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
+      const result = evaluateSetup(selectedSetup, {
+        currentPrice,
+        vwap:            levels?.spyVwap || null,
+        vwapBand1Up:     marketIntel2?.vwapBands?.band1Up || null,
+        vwapBand1Dn:     marketIntel2?.vwapBands?.band1Dn || null,
+        pdh:             levels?.pdh || null,
+        pdl:             levels?.pdl || null,
+        prevClose:       levels?.prevClose || null,
+        ema200:          levels?.ema200 || null,
+        poc:             volumeProfile?.poc || null,
+        vah:             volumeProfile?.vah || null,
+        val:             volumeProfile?.val || null,
+        intradayHigh,
+        intradayLow,
+        gammaFlip:       gexData?.gammaFlip || null,
+        callWall:        gexData?.callWall || null,
+        putWall:         gexData?.putWall || null,
+        gexRegime:       gexData?.regime || null,
+        tickValue:       breadthData?.tick?.value || null,
+        trinValue:       breadthData?.trin?.value || null,
+        cumDelta:        microstructure?.cumulativeDelta?.strength || null,
+        optionsFlowBias: microstructure?.optionsImbalance?.bias || null,
+        darkPoolBias:    microstructure?.darkPool?.netBias || null,
+        h1Trend:         multiTFData?.h1?.trend || null,
+        m15Trend:        multiTFData?.m15?.trend || null,
+        dailyTrend:      multiTFData?.daily?.trend || null,
+        mechanicalScore: mechanicalFlow?.mechanicalScore || null,
+        asymmetricSetup: mechanicalFlow?.asymmetricSetup || null,
+        ivRank:          marketIntel2?.uwIV?.ivRank || null,
+        sessionMinsLeft: minsLeft,
+        sessionName:     marketIntel2?.timeContext?.currentSession || null,
+        patternSummary:  patternAnalysis?.structureSummary || null,
+        candlePatterns:  multiTFData?.patterns?.map((p: any) => p.name).join('|') || null,
+      })
+      setSetupEval(result)
+    } catch (e) { console.warn('[SetupEval]', e) }
+  }, [selectedSetup, currentPrice, levels, marketIntel2, volumeProfile, intradayHigh, intradayLow, gexData, breadthData, microstructure, multiTFData, mechanicalFlow, patternAnalysis])
 
   // ── Actionability classifier — recomputes when signal or supporting data changes ──
   useEffect(() => {
@@ -3083,6 +3135,18 @@ export default function CockpitPage() {
         }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }
 
+      // ── Track intraday HOD/LOD for double top/bottom setups ──
+      if (candles.length > 0) {
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        const todaysCandles = candles.filter(c => new Date(c.t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === today)
+        if (todaysCandles.length > 0) {
+          const hod = Math.max(...todaysCandles.map(c => c.h))
+          const lod = Math.min(...todaysCandles.map(c => c.l))
+          setIntradayHigh(hod)
+          setIntradayLow(lod)
+        }
+      }
+
       // ── Volume Profile — POC + Value Area from today's 5-min bars ──────────
       try {
         if (candles.length >= 6) {
@@ -4116,6 +4180,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       marketIntel2,
       probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: '',
       actionability: actionability,
+      setupEval:     setupEval,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -5383,6 +5448,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               multiTFAlignment:  result.multiTFAlignment || null,
                               ivContextSignal:   result.ivContext || null,
                               sizingNote:        result.sizingNote || null,
+
+                              // ── Named setup the trader was evaluating ──
+                              setupName:         setupEval?.setup?.name || null,
+                              setupId:           setupEval?.setup?.id || null,
+                              setupDirection:    setupEval?.setup?.direction || null,
+                              setupScore:        setupEval?.score || null,
+                              setupRating:       setupEval?.rating || null,
+                              setupConfirming:   setupEval?.confirmingCount || null,
+                              setupContradicting: setupEval?.contradictingCount || null,
                             }) } catch(e) { return null } })(),
                           })
                         })
@@ -6603,6 +6677,81 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               </div>
 
+              {/* ── NAMED SETUP EVALUATOR — name your play, score it ──────── */}
+              <div style={{ borderTop: '1px solid rgba(124,106,255,0.15)', background: 'rgba(0,0,0,0.15)' }}>
+                <div style={{ padding: '10px 16px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontFamily: fontDisplay, fontSize: 10, fontWeight: 800, color: '#7c6aff', letterSpacing: 2 }}>📋 NAME YOUR PLAY</span>
+                    {selectedSetup && (
+                      <button onClick={() => { setSelectedSetup(null); setSetupEval(null) }} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#6b7a9a', cursor: 'pointer', fontFamily: font }}>Clear</button>
+                    )}
+                  </div>
+                  {/* Setup dropdown */}
+                  <select
+                    value={selectedSetup || ''}
+                    onChange={e => setSelectedSetup((e.target.value || null) as SetupId | null)}
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(124,106,255,0.25)', borderRadius: 5, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, fontFamily: font, marginBottom: 10, cursor: 'pointer' }}
+                  >
+                    <option value="">— Select setup to evaluate —</option>
+                    {SETUPS.map(s => (
+                      <option key={s.id} value={s.id}>{s.direction === 'LONG' ? '📞' : '📉'} {s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Evaluation result */}
+                {setupEval && (
+                  <div style={{ padding: '0 16px 14px' }}>
+                    {/* Score banner */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 7,
+                      background: setupEval.rating === 'STRONG' ? 'rgba(0,255,136,0.08)' : setupEval.rating === 'GOOD' ? 'rgba(0,229,255,0.06)' : setupEval.rating === 'NEUTRAL' ? 'rgba(255,183,0,0.06)' : 'rgba(255,77,109,0.06)',
+                      border: `1px solid ${setupEval.rating === 'STRONG' ? 'rgba(0,255,136,0.25)' : setupEval.rating === 'GOOD' ? 'rgba(0,229,255,0.2)' : setupEval.rating === 'NEUTRAL' ? 'rgba(255,183,0,0.2)' : 'rgba(255,77,109,0.2)'}`,
+                      marginBottom: 10,
+                    }}>
+                      <div>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 900, color: setupEval.rating === 'STRONG' ? '#00ff88' : setupEval.rating === 'GOOD' ? '#00e5ff' : setupEval.rating === 'NEUTRAL' ? '#ffb700' : setupEval.rating === 'WEAK' ? '#f59e0b' : '#ff4d6d' }}>{setupEval.rating}</div>
+                        <div style={{ fontSize: 10, color: '#8899bb', marginTop: 1 }}>{setupEval.verdict}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' as const }}>
+                        <div style={{ fontFamily: fontDisplay, fontSize: 28, fontWeight: 900, color: setupEval.rating === 'STRONG' ? '#00ff88' : setupEval.rating === 'GOOD' ? '#00e5ff' : setupEval.rating === 'NEUTRAL' ? '#ffb700' : '#ff4d6d', lineHeight: 1 }}>{setupEval.score}</div>
+                        <div style={{ fontSize: 8, color: '#6b7a9a', letterSpacing: 1 }}>SCORE /100</div>
+                      </div>
+                    </div>
+
+                    {/* Trigger condition (if not yet ready) */}
+                    {setupEval.triggerCondition && (
+                      <div style={{ padding: '7px 10px', borderRadius: 5, background: 'rgba(255,183,0,0.08)', border: '1px solid rgba(255,183,0,0.2)', marginBottom: 8 }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: '#ffb700', letterSpacing: 1, marginBottom: 3 }}>⏳ TRIGGER TO WATCH</div>
+                        <div style={{ fontSize: 10, color: '#f0f4ff' }}>{setupEval.triggerCondition}</div>
+                      </div>
+                    )}
+
+                    {/* Criteria list */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#6b7a9a', letterSpacing: 1, marginBottom: 5, textTransform: 'uppercase' as const }}>Criteria ({setupEval.confirmingCount} ✓ {setupEval.contradictingCount} ✗)</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+                        {setupEval.criteria.map((cr, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '4px 8px', borderRadius: 4, background: cr.status === 'PASS' ? 'rgba(0,255,136,0.04)' : cr.status === 'FAIL' ? 'rgba(255,77,109,0.04)' : 'rgba(255,255,255,0.02)' }}>
+                            <span style={{ fontSize: 11, color: cr.status === 'PASS' ? '#00ff88' : cr.status === 'FAIL' ? '#ff4d6d' : '#6b7a9a', width: 14, flexShrink: 0 }}>{cr.status === 'PASS' ? '✓' : cr.status === 'FAIL' ? '✗' : '○'}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 10, color: '#e2e8f0', marginBottom: 1 }}>{cr.label}</div>
+                              <div style={{ fontSize: 9, color: '#6b7a9a' }}>{cr.detail}</div>
+                            </div>
+                            <span style={{ fontSize: 8, color: '#4a5568', fontWeight: 700 }}>×{cr.weight}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Footer info */}
+                    <div style={{ display: 'flex', gap: 10, fontSize: 9, color: '#6b7a9a', flexWrap: 'wrap' as const, padding: '6px 9px', borderRadius: 4, background: 'rgba(0,0,0,0.2)' }}>
+                      {setupEval.invalidationPrice && <span>Invalid {setupEval.setup.direction === 'LONG' ? 'below' : 'above'} <strong style={{ color: '#ff4d6d', fontFamily: fontDisplay }}>{setupEval.invalidationPrice.toFixed(0)}</strong></span>}
+                      <span>⏱ {setupEval.timingWindow}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* ── TRADE TICKET ──────────────────────────────────────────── */}
               {(() => {
                 const isOpen   = ticket.status === 'open'
@@ -6645,6 +6794,12 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     greens:     actionability.greenLights?.length || 0,
                     flags:      actionability.redFlags?.length || 0,
                   } : null
+                  const setupSnap = setupEval ? {
+                    name:      setupEval.setup.name,
+                    id:        setupEval.setup.id,
+                    score:     setupEval.score,
+                    rating:    setupEval.rating,
+                  } : null
                   try {
                     await fetch('/api/userdata', {
                       method: 'POST',
@@ -6661,7 +6816,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           price:     parseFloat(ticket.entryPrice),
                           pnl:       parseFloat(pnl.toFixed(2)),
                           inSystem:  true,
-                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}${windowSnap ? ' | Predicted window: ' + windowSnap.substring(0, 80) : ''}${mechSnap ? ' | Mech: ' + mechSnap.bias + ' ' + mechSnap.score + (mechSnap.asymmetric !== 'NEUTRAL' ? ' (' + mechSnap.asymmetric + ')' : '') : ''}${actSnap ? ' | Act: ' + actSnap.verdict + ' (' + actSnap.setupType + ', ' + actSnap.greens + 'G/' + actSnap.flags + 'R)' : ''}`,
+                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}${windowSnap ? ' | Predicted window: ' + windowSnap.substring(0, 80) : ''}${mechSnap ? ' | Mech: ' + mechSnap.bias + ' ' + mechSnap.score + (mechSnap.asymmetric !== 'NEUTRAL' ? ' (' + mechSnap.asymmetric + ')' : '') : ''}${actSnap ? ' | Act: ' + actSnap.verdict + ' (' + actSnap.setupType + ', ' + actSnap.greens + 'G/' + actSnap.flags + 'R)' : ''}${setupSnap ? ' | Play: ' + setupSnap.name + ' ' + setupSnap.score + '/100 (' + setupSnap.rating + ')' : ''}`,
                         }
                       })
                     })
