@@ -1806,6 +1806,7 @@ export default function CockpitPage() {
   const [actionability, setActionability]   = useState<ActionabilityResult | null>(null)
   const [setupEval, setSetupEval]           = useState<SetupEvaluation | null>(null)
   const [selectedSetup, setSelectedSetup]   = useState<SetupId | null>(null)
+  const [setupDropdownOpen, setSetupDropdownOpen] = useState(false)
   const [intradayHigh, setIntradayHigh]     = useState<number | null>(null)
   const [intradayLow, setIntradayLow]       = useState<number | null>(null)
   const [orbHigh, setOrbHigh]               = useState<number | null>(null)
@@ -6732,16 +6733,52 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     )}
                   </div>
                   {/* Setup dropdown */}
-                  <select
-                    value={selectedSetup || ''}
-                    onChange={e => setSelectedSetup((e.target.value || null) as SetupId | null)}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(124,106,255,0.25)', borderRadius: 5, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, fontFamily: font, marginBottom: 10, cursor: 'pointer' }}
-                  >
-                    <option value="">— Select setup to evaluate —</option>
-                    {SETUPS.map(s => (
-                      <option key={s.id} value={s.id}>{s.direction === 'LONG' ? '▲' : '▼'} {s.name}</option>
-                    ))}
-                  </select>
+                  {/* Custom dropdown — native select can't reliably color options across browsers */}
+                  <div style={{ position: 'relative' as const, marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => setSetupDropdownOpen(v => !v)}
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(124,106,255,0.25)', borderRadius: 5, padding: '8px 10px', fontSize: 12, fontFamily: font, cursor: 'pointer', textAlign: 'left' as const, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        color: selectedSetup ? (SETUPS.find(s => s.id === selectedSetup)?.direction === 'LONG' ? '#00ff88' : '#ff4d6d') : '#e2e8f0',
+                      }}
+                    >
+                      <span>
+                        {selectedSetup
+                          ? `${SETUPS.find(s => s.id === selectedSetup)?.direction === 'LONG' ? '▲' : '▼'} ${SETUPS.find(s => s.id === selectedSetup)?.name}`
+                          : '— Select setup to evaluate —'}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#6b7a9a' }}>{setupDropdownOpen ? '▴' : '▾'}</span>
+                    </button>
+                    {setupDropdownOpen && (
+                      <div style={{ position: 'absolute' as const, top: '100%', left: 0, right: 0, marginTop: 2, background: '#0a0d18', border: '1px solid rgba(124,106,255,0.35)', borderRadius: 5, maxHeight: 320, overflowY: 'auto' as const, zIndex: 50, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                        <div
+                          onClick={() => { setSelectedSetup(null); setSetupDropdownOpen(false) }}
+                          style={{ padding: '8px 10px', fontSize: 11, color: '#6b7a9a', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)', fontStyle: 'italic' as const }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          — Clear selection —
+                        </div>
+                        {SETUPS.map(s => {
+                          const color = s.direction === 'LONG' ? '#00ff88' : '#ff4d6d'
+                          const arrow = s.direction === 'LONG' ? '▲' : '▼'
+                          return (
+                            <div
+                              key={s.id}
+                              onClick={() => { setSelectedSetup(s.id); setSetupDropdownOpen(false) }}
+                              style={{ padding: '8px 10px', fontSize: 11.5, color, cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: selectedSetup === s.id ? 700 : 500, background: selectedSetup === s.id ? 'rgba(124,106,255,0.08)' : 'transparent' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = selectedSetup === s.id ? 'rgba(124,106,255,0.12)' : 'rgba(255,255,255,0.04)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = selectedSetup === s.id ? 'rgba(124,106,255,0.08)' : 'transparent')}
+                            >
+                              <span style={{ width: 12, fontWeight: 800 }}>{arrow}</span>
+                              <span style={{ flex: 1 }}>{s.name}</span>
+                              <span style={{ fontSize: 8, color: '#4a5568', letterSpacing: 1, fontWeight: 700 }}>{s.direction}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Evaluation result */}
