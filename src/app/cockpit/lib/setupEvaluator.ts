@@ -22,6 +22,8 @@ export type SetupId =
   | 'double_bottom'
   | 'trendline_break_long'
   | 'trendline_break_short'
+  | 'orb_breakout_long'
+  | 'orb_breakdown_short'
 
 export interface SetupDefinition {
   id:           SetupId
@@ -34,6 +36,8 @@ export interface SetupDefinition {
 export const SETUPS: SetupDefinition[] = [
   { id: 'vwap_retest_long',     name: 'VWAP Retest Bounce',         direction: 'LONG',  description: 'Price pulls back to VWAP, bounces with bull confirmation', keyLevel: 'VWAP' },
   { id: 'vwap_retest_short',    name: 'VWAP Retest Reject',         direction: 'SHORT', description: 'Price rallies to VWAP from below, rejects with bear confirmation', keyLevel: 'VWAP' },
+  { id: 'orb_breakout_long',    name: 'Opening Range Breakout',     direction: 'LONG',  description: 'Price breaks above opening range high with momentum confirmation', keyLevel: 'OR High' },
+  { id: 'orb_breakdown_short',  name: 'Opening Range Breakdown',    direction: 'SHORT', description: 'Price breaks below opening range low with momentum confirmation', keyLevel: 'OR Low' },
   { id: 'pdh_breakout',         name: 'Prior Day High Breakout',    direction: 'LONG',  description: 'Price breaks above PDH and holds with momentum', keyLevel: 'PDH' },
   { id: 'pdl_breakdown',        name: 'Prior Day Low Breakdown',    direction: 'SHORT', description: 'Price breaks below PDL with continuation momentum', keyLevel: 'PDL' },
   { id: 'double_top',           name: 'Double Top (Supply Zone)',   direction: 'SHORT', description: 'Second test of intraday supply zone rejects with weakness', keyLevel: 'Intraday High' },
@@ -78,6 +82,10 @@ export function evaluateSetup(setupId: SetupId, ctx: {
   val:               number | null
   intradayHigh:      number | null
   intradayLow:       number | null
+  orbHigh:           number | null   // Opening range high (first 15-30min)
+  orbLow:            number | null   // Opening range low
+  orbWindowMins:     number | null   // How many minutes the OR window spans (typically 15 or 30)
+  minutesSinceOpen:  number          // Minutes since 9:30am ET
   // GEX
   gammaFlip:         number | null
   callWall:          number | null
@@ -130,6 +138,10 @@ export function evaluateSetup(setupId: SetupId, ctx: {
     ({ criteria, invalidation, trigger, timingWindow } = evalTrendlineBreakLong(ctx))
   } else if (setupId === 'trendline_break_short') {
     ({ criteria, invalidation, trigger, timingWindow } = evalTrendlineBreakShort(ctx))
+  } else if (setupId === 'orb_breakout_long') {
+    ({ criteria, invalidation, trigger, timingWindow } = evalOrbBreakoutLong(ctx))
+  } else if (setupId === 'orb_breakdown_short') {
+    ({ criteria, invalidation, trigger, timingWindow } = evalOrbBreakdownShort(ctx))
   }
 
   // ── Compute weighted score ──────────────────────────────────────────────
@@ -453,5 +465,237 @@ function evalTrendlineBreakShort(c: any): any {
     invalidation: c.currentPrice + 5,
     trigger: !c.patternSummary?.toLowerCase().includes('break') ? 'Waiting for confirmed trend line break' : null,
     timingWindow: 'Best when break occurs after consolidation',
+  }
+}
+
+function evalOrbBreakoutLong(c: any): any {
+  const criteria: SetupCriterion[] = []
+  const price = c.currentPrice
+  const orbWindow = c.orbWindowMins || 15
+
+  // 1. Opening range is established
+  criteria.push({
+    label:  `Opening range established (first ${orbWindow}min)`,
+    status: c.orbHigh && c.orbLow && c.minutesSinceOpen >= orbWindow ? 'PASS' : 'FAIL',
+    weight: 3,
+    detail: c.orbHigh && c.orbLow
+      ? `OR: ${c.orbLow.toFixed(0)} — ${c.orbHigh.toFixed(0)} (${(c.orbHigh - c.orbLow).toFixed(1)}pt range)`
+      : `Waiting — ${c.minutesSinceOpen}min since open, need ${orbWindow}min`,
+  })
+
+  // 2. Price above OR high (breakout confirmed)
+  if (c.orbHigh) {
+    const above = price > c.orbHigh
+    const clear = price > c.orbHigh + 1
+    criteria.push({
+      label:  'Price above OR high (>1pt clear)',
+      status: clear ? 'PASS' : above ? 'NEUTRAL' : 'FAIL',
+      weight: 3,
+      detail: above
+        ? `Price ${price.toFixed(0)} vs OR high ${c.orbHigh.toFixed(0)} (+${(price - c.orbHigh).toFixed(1)}pts)`
+        : `Price below OR high — no breakout yet`,
+    })
+  }
+
+  // 3. Negative gamma amplifies (breakouts run, not fade)
+  criteria.push({
+    label:  'Negative gamma amplifies breakout',
+    status: c.gexRegime === 'negative' ? 'PASS' : c.gexRegime === 'positive' ? 'FAIL' : 'NEUTRAL',
+    weight: 3,
+    detail: c.gexRegime === 'positive'
+      ? 'Positive gamma = dealers SELL rallies — ORB likely fades'
+      : c.gexRegime === 'negative'
+      ? 'Negative gamma = dealers chase — ORB runs'
+      : 'GEX regime unknown',
+  })
+
+  // 4. Cumulative delta confirming
+  criteria.push({
+    label:  'Cumulative delta strong buying',
+    status: c.cumDelta === 'STRONG_BUY' ? 'PASS' : c.cumDelta === 'BUY' ? 'NEUTRAL' : c.cumDelta === 'SELL' || c.cumDelta === 'STRONG_SELL' ? 'FAIL' : 'NEUTRAL',
+    weight: 3,
+    detail: `Cum delta: ${c.cumDelta || 'n/a'}`,
+  })
+
+  // 5. TICK strong (>400)
+  if (c.tickValue !== null) {
+    criteria.push({
+      label:  'NYSE TICK strong (>400)',
+      status: c.tickValue > 400 ? 'PASS' : c.tickValue < 0 ? 'FAIL' : 'NEUTRAL',
+      weight: 2,
+      detail: `TICK ${c.tickValue > 0 ? '+' : ''}${c.tickValue}`,
+    })
+  }
+
+  // 6. Timing — best in first 30-90min after OR completes
+  const idealWindow = c.minutesSinceOpen >= orbWindow && c.minutesSinceOpen <= 90
+  criteria.push({
+    label:  'Within ideal ORB window',
+    status: idealWindow ? 'PASS' : c.minutesSinceOpen > 120 ? 'FAIL' : 'NEUTRAL',
+    weight: 2,
+    detail: c.minutesSinceOpen < orbWindow
+      ? `Too early — OR not complete (${c.minutesSinceOpen}/${orbWindow}min)`
+      : c.minutesSinceOpen > 120
+      ? `Too late — ORB validity decays after ~2 hours (${c.minutesSinceOpen}min in)`
+      : `${c.minutesSinceOpen}min after open — within ORB window`,
+  })
+
+  // 7. No major call wall capping
+  if (c.callWall && c.orbHigh) {
+    const headroom = c.callWall - c.orbHigh
+    criteria.push({
+      label:  'Room above OR high (no call wall capping)',
+      status: headroom > 10 ? 'PASS' : headroom > 5 ? 'NEUTRAL' : 'FAIL',
+      weight: 2,
+      detail: headroom > 10
+        ? `Call wall ${c.callWall.toFixed(0)} is ${headroom.toFixed(0)}pts above OR high — room to run`
+        : `Call wall ${c.callWall.toFixed(0)} only ${headroom.toFixed(0)}pts above OR high — limited room`,
+    })
+  }
+
+  // 8. Options flow CALL HEAVY
+  criteria.push({
+    label:  'Options flow CALL HEAVY confirming',
+    status: c.optionsFlowBias === 'CALL HEAVY' ? 'PASS' : c.optionsFlowBias === 'PUT HEAVY' ? 'FAIL' : 'NEUTRAL',
+    weight: 2,
+    detail: `Flow: ${c.optionsFlowBias || 'n/a'}`,
+  })
+
+  // 9. Asymmetric setup
+  criteria.push({
+    label:  'Asymmetric setup amplifies',
+    status: c.asymmetricSetup === 'BULLISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BEARISH_AMPLIFY' || c.asymmetricSetup === 'BULLISH_RESISTED' ? 'FAIL' : 'NEUTRAL',
+    weight: 2,
+    detail: c.asymmetricSetup || 'NEUTRAL',
+  })
+
+  // 10. 1-hour trend not bearish
+  criteria.push({
+    label:  '1-hour trend not bearish',
+    status: c.h1Trend === 'BULLISH' ? 'PASS' : c.h1Trend === 'BEARISH' ? 'FAIL' : 'NEUTRAL',
+    weight: 1,
+    detail: `1hr: ${c.h1Trend || 'n/a'}`,
+  })
+
+  return {
+    criteria,
+    invalidation: c.orbHigh ? c.orbHigh - 1 : null,  // back inside OR = false break
+    trigger: c.orbHigh && c.minutesSinceOpen < orbWindow
+      ? `Wait for OR to complete (${c.minutesSinceOpen}/${orbWindow}min) before evaluating`
+      : c.orbHigh && price < c.orbHigh
+      ? `Wait for price to break above OR high ${c.orbHigh.toFixed(0)} (currently ${price.toFixed(0)})`
+      : null,
+    timingWindow: 'Best 9:45am-11:00am after 15min OR completes | Validity decays after 2 hours',
+  }
+}
+
+function evalOrbBreakdownShort(c: any): any {
+  const criteria: SetupCriterion[] = []
+  const price = c.currentPrice
+  const orbWindow = c.orbWindowMins || 15
+
+  criteria.push({
+    label:  `Opening range established (first ${orbWindow}min)`,
+    status: c.orbHigh && c.orbLow && c.minutesSinceOpen >= orbWindow ? 'PASS' : 'FAIL',
+    weight: 3,
+    detail: c.orbHigh && c.orbLow
+      ? `OR: ${c.orbLow.toFixed(0)} — ${c.orbHigh.toFixed(0)} (${(c.orbHigh - c.orbLow).toFixed(1)}pt range)`
+      : `Waiting — ${c.minutesSinceOpen}min since open, need ${orbWindow}min`,
+  })
+
+  if (c.orbLow) {
+    const below = price < c.orbLow
+    const clear = price < c.orbLow - 1
+    criteria.push({
+      label:  'Price below OR low (>1pt clear)',
+      status: clear ? 'PASS' : below ? 'NEUTRAL' : 'FAIL',
+      weight: 3,
+      detail: below
+        ? `Price ${price.toFixed(0)} vs OR low ${c.orbLow.toFixed(0)} (${(price - c.orbLow).toFixed(1)}pts)`
+        : `Price above OR low — no breakdown yet`,
+    })
+  }
+
+  criteria.push({
+    label:  'Negative gamma amplifies breakdown',
+    status: c.gexRegime === 'negative' ? 'PASS' : c.gexRegime === 'positive' ? 'FAIL' : 'NEUTRAL',
+    weight: 3,
+    detail: c.gexRegime === 'positive'
+      ? 'Positive gamma = dealers BUY dips — ORB likely fades'
+      : c.gexRegime === 'negative'
+      ? 'Negative gamma = dealers sell into weakness — ORB runs'
+      : 'GEX regime unknown',
+  })
+
+  criteria.push({
+    label:  'Cumulative delta strong selling',
+    status: c.cumDelta === 'STRONG_SELL' ? 'PASS' : c.cumDelta === 'SELL' ? 'NEUTRAL' : c.cumDelta === 'BUY' || c.cumDelta === 'STRONG_BUY' ? 'FAIL' : 'NEUTRAL',
+    weight: 3,
+    detail: `Cum delta: ${c.cumDelta || 'n/a'}`,
+  })
+
+  if (c.tickValue !== null) {
+    criteria.push({
+      label:  'NYSE TICK strong negative (<-400)',
+      status: c.tickValue < -400 ? 'PASS' : c.tickValue > 0 ? 'FAIL' : 'NEUTRAL',
+      weight: 2,
+      detail: `TICK ${c.tickValue}`,
+    })
+  }
+
+  const idealWindow = c.minutesSinceOpen >= orbWindow && c.minutesSinceOpen <= 90
+  criteria.push({
+    label:  'Within ideal ORB window',
+    status: idealWindow ? 'PASS' : c.minutesSinceOpen > 120 ? 'FAIL' : 'NEUTRAL',
+    weight: 2,
+    detail: c.minutesSinceOpen < orbWindow
+      ? `Too early — OR not complete (${c.minutesSinceOpen}/${orbWindow}min)`
+      : c.minutesSinceOpen > 120
+      ? `Too late — ORB validity decays after ~2 hours`
+      : `${c.minutesSinceOpen}min after open`,
+  })
+
+  if (c.putWall && c.orbLow) {
+    const headroom = c.orbLow - c.putWall
+    criteria.push({
+      label:  'Room below OR low (no put wall holding)',
+      status: headroom > 10 ? 'PASS' : headroom > 5 ? 'NEUTRAL' : 'FAIL',
+      weight: 2,
+      detail: headroom > 10
+        ? `Put wall ${c.putWall.toFixed(0)} is ${headroom.toFixed(0)}pts below OR low — room to fall`
+        : `Put wall ${c.putWall.toFixed(0)} close — may hold`,
+    })
+  }
+
+  criteria.push({
+    label:  'Options flow PUT HEAVY confirming',
+    status: c.optionsFlowBias === 'PUT HEAVY' ? 'PASS' : c.optionsFlowBias === 'CALL HEAVY' ? 'FAIL' : 'NEUTRAL',
+    weight: 2,
+    detail: `Flow: ${c.optionsFlowBias || 'n/a'}`,
+  })
+
+  criteria.push({
+    label:  'Asymmetric setup amplifies',
+    status: c.asymmetricSetup === 'BEARISH_AMPLIFY' ? 'PASS' : c.asymmetricSetup === 'BULLISH_AMPLIFY' || c.asymmetricSetup === 'BEARISH_RESISTED' ? 'FAIL' : 'NEUTRAL',
+    weight: 2,
+    detail: c.asymmetricSetup || 'NEUTRAL',
+  })
+
+  criteria.push({
+    label:  '1-hour trend not bullish',
+    status: c.h1Trend === 'BEARISH' ? 'PASS' : c.h1Trend === 'BULLISH' ? 'FAIL' : 'NEUTRAL',
+    weight: 1,
+    detail: `1hr: ${c.h1Trend || 'n/a'}`,
+  })
+
+  return {
+    criteria,
+    invalidation: c.orbLow ? c.orbLow + 1 : null,
+    trigger: c.orbLow && c.minutesSinceOpen < orbWindow
+      ? `Wait for OR to complete (${c.minutesSinceOpen}/${orbWindow}min)`
+      : c.orbLow && price > c.orbLow
+      ? `Wait for price to break below OR low ${c.orbLow.toFixed(0)} (currently ${price.toFixed(0)})`
+      : null,
+    timingWindow: 'Best 9:45am-11:00am after 15min OR completes | Validity decays after 2 hours',
   }
 }

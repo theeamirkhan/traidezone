@@ -113,10 +113,12 @@ function NamedPlayContent() {
         Before you take a trade, you must <strong style={{ color: C.text }}>name what you're playing</strong>. This is the discipline checkpoint. If you can't name it, you can't trade it.
       </p>
       <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 6, padding: '8px 12px' }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, letterSpacing: 1.5, marginBottom: 6 }}>7 NAMED PLAYS</div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, letterSpacing: 1.5, marginBottom: 6 }}>9 NAMED PLAYS</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, fontSize: 10.5, color: C.muted }}>
           <div>▲ VWAP Retest Bounce</div>
           <div>▼ VWAP Retest Reject</div>
+          <div>▲ Opening Range Breakout</div>
+          <div>▼ Opening Range Breakdown</div>
           <div>▲ Prior Day High Breakout</div>
           <div>▼ Prior Day Low Breakdown</div>
           <div>▼ Double Top (Supply Zone)</div>

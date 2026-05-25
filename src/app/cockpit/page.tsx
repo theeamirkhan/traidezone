@@ -1808,6 +1808,9 @@ export default function CockpitPage() {
   const [selectedSetup, setSelectedSetup]   = useState<SetupId | null>(null)
   const [intradayHigh, setIntradayHigh]     = useState<number | null>(null)
   const [intradayLow, setIntradayLow]       = useState<number | null>(null)
+  const [orbHigh, setOrbHigh]               = useState<number | null>(null)
+  const [orbLow, setOrbLow]                 = useState<number | null>(null)
+  const orbWindowMins = 15  // first 15min after 9:30am ET defines the opening range
 
   // ── Active Trade Ticket ──────────────────────────────────────────────────
   const [ticket, setTicket] = useState({
@@ -1901,6 +1904,14 @@ export default function CockpitPage() {
         val:             volumeProfile?.val || null,
         intradayHigh,
         intradayLow,
+        orbHigh,
+        orbLow,
+        orbWindowMins,
+        minutesSinceOpen: (() => {
+          const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+          const m = (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
+          return Math.max(0, m)
+        })(),
         gammaFlip:       gexData?.gammaFlip || null,
         callWall:        gexData?.callWall || null,
         putWall:         gexData?.putWall || null,
@@ -1923,7 +1934,7 @@ export default function CockpitPage() {
       })
       setSetupEval(result)
     } catch (e) { console.warn('[SetupEval]', e) }
-  }, [selectedSetup, currentPrice, levels, marketIntel2, volumeProfile, intradayHigh, intradayLow, gexData, breadthData, microstructure, multiTFData, mechanicalFlow, patternAnalysis])
+  }, [selectedSetup, currentPrice, levels, marketIntel2, volumeProfile, intradayHigh, intradayLow, orbHigh, orbLow, gexData, breadthData, microstructure, multiTFData, mechanicalFlow, patternAnalysis])
 
   // ── Actionability classifier — recomputes when signal or supporting data changes ──
   useEffect(() => {
@@ -3135,7 +3146,7 @@ export default function CockpitPage() {
         }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }
 
-      // ── Track intraday HOD/LOD for double top/bottom setups ──
+      // ── Track intraday HOD/LOD + Opening Range ──
       if (candles.length > 0) {
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
         const todaysCandles = candles.filter(c => new Date(c.t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === today)
@@ -3144,6 +3155,18 @@ export default function CockpitPage() {
           const lod = Math.min(...todaysCandles.map(c => c.l))
           setIntradayHigh(hod)
           setIntradayLow(lod)
+
+          // Opening Range — first N minutes of session (9:30am to 9:30am + window)
+          const orCandles = todaysCandles.filter(c => {
+            const ct = new Date(c.t)
+            const et = new Date(ct.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+            const minsSince930 = (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
+            return minsSince930 >= 0 && minsSince930 < orbWindowMins
+          })
+          if (orCandles.length > 0) {
+            setOrbHigh(Math.max(...orCandles.map(c => c.h)))
+            setOrbLow(Math.min(...orCandles.map(c => c.l)))
+          }
         }
       }
 

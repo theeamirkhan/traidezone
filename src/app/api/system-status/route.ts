@@ -607,6 +607,7 @@ export async function GET(req: NextRequest) {
         currentPrice: 5820, vwap: 5820, vwapBand1Up: null, vwapBand1Dn: null,
         pdh: null, pdl: null, prevClose: null, ema200: null,
         poc: 5821, vah: null, val: null, intradayHigh: null, intradayLow: null,
+        orbHigh: null, orbLow: null, orbWindowMins: 15, minutesSinceOpen: 60,
         gammaFlip: null, callWall: null, putWall: null, gexRegime: 'positive',
         tickValue: 450, trinValue: 0.85, cumDelta: 'BUY',
         optionsFlowBias: 'CALL HEAVY', darkPoolBias: 'BUY',
@@ -614,7 +615,7 @@ export async function GET(req: NextRequest) {
         mechanicalScore: 35, asymmetricSetup: 'BULLISH_AMPLIFY',
         ivRank: 45, sessionMinsLeft: 200, sessionName: 'PRIME',
         patternSummary: null, candlePatterns: null,
-      })
+      } as any)
       if (!result.rating) throw new Error('Missing rating')
       return {
         detail: `Setup eval OK ✓ | ${result.setup.name}: ${result.rating} ${result.score}/100 | ${result.confirmingCount}✓ ${result.contradictingCount}✗`,
