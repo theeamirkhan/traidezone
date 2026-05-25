@@ -28,6 +28,7 @@ import { calculateVolumeProfile } from './lib/volumeProfile'
 import { calculateMechanicalFlow } from './lib/mechanicalFlow'
 import { classifyActionability, type ActionabilityResult } from './lib/actionability'
 import { evaluateSetup, SETUPS, type SetupEvaluation, type SetupId } from './lib/setupEvaluator'
+import { forecastDayType, type DayTypeForecast } from './lib/dayTypeForecaster'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
   fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
@@ -1802,6 +1803,8 @@ export default function CockpitPage() {
   const [gexData, setGexData]               = useState<any | null>(null)
   const [volumeProfile, setVolumeProfile]   = useState<any | null>(null)
   const [mechanicalFlow, setMechanicalFlow] = useState<any | null>(null)
+  const [dayTypeForecast, setDayTypeForecast] = useState<any | null>(null)
+  const [dayTypeFired, setDayTypeFired]       = useState(false)  // tracks if 10am auto-fire happened
   const [mechAccuracy, setMechAccuracy]     = useState<any | null>(null)
   const [actionability, setActionability]   = useState<ActionabilityResult | null>(null)
   const [setupEval, setSetupEval]           = useState<SetupEvaluation | null>(null)
@@ -1944,6 +1947,111 @@ export default function CockpitPage() {
       setSetupEval(result)
     } catch (e) { console.warn('[SetupEval]', e) }
   }, [selectedSetup, currentPrice, levels, marketIntel2, volumeProfile, intradayHigh, intradayLow, orbHigh, orbLow, gexData, breadthData, microstructure, multiTFData, mechanicalFlow, patternAnalysis])
+
+  // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────
+  useEffect(() => {
+    if (!currentPrice) return
+    // Compute minutes since 9:30am ET
+    const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const minutesSinceOpen = (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
+
+    // Only fire after 10am ET (30+ min after open — OR has had time to form)
+    // and only if we haven't fired yet OR data has materially updated
+    const shouldFire = minutesSinceOpen >= 30 && orbHigh !== null && orbLow !== null
+
+    if (!shouldFire) return
+
+    // Compute TICK range from breadthData over last 15min if we have history
+    // For now we use the current value as both high and low — refine later when we add tick history
+    const tickHigh = breadthData?.tick?.value || null
+    const tickLow  = breadthData?.tick?.value || null
+
+    // Compute VIX change today
+    const vixChange = (() => {
+      if (!marketIntel2?.vixPrice || !marketIntel2?.vixPrevClose) return null
+      return ((marketIntel2.vixPrice - marketIntel2.vixPrevClose) / marketIntel2.vixPrevClose) * 100
+    })()
+
+    // Day of week + OPEX detection
+    const dayOfWeek = et.getDay()
+    const isOpex = (() => {
+      // 3rd Friday of the month
+      if (dayOfWeek !== 5) return false
+      const d = et.getDate()
+      return d >= 15 && d <= 21
+    })()
+    // FOMC days are explicit — would normally come from economic calendar
+    const isFomcDay = (economicCalendar || []).some((e: any) =>
+      (e.event || '').toLowerCase().includes('fomc') ||
+      (e.event || '').toLowerCase().includes('fed funds') ||
+      (e.event || '').toLowerCase().includes('rate decision')
+    )
+
+    // Gap from prior close
+    const gapPoints = (() => {
+      if (!levels?.prevClose || !candles.length) return null
+      // First bar of today
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const todaysCandles = candles.filter(c => new Date(c.t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === today)
+      if (todaysCandles.length === 0) return null
+      return todaysCandles[0].o - levels.prevClose
+    })()
+
+    // ES overnight trend — proxy from gap direction for now
+    const esOvernightTrend = gapPoints !== null
+      ? gapPoints > 3 ? 'BULLISH' as const : gapPoints < -3 ? 'BEARISH' as const : 'CHOPPY' as const
+      : null
+
+    // Yesterday's range
+    const yesterdayRange = (levels?.pdh && levels?.pdl) ? levels.pdh - levels.pdl : null
+
+    // Cum delta trend — derive from microstructure if available
+    const cumDeltaTrend = (() => {
+      const strength = microstructure?.cumulativeDelta?.strength
+      if (strength === 'STRONG_BUY' || strength === 'STRONG_SELL') return 'BUILDING' as const
+      if (strength === 'NEUTRAL') return 'NEUTRAL' as const
+      return 'NEUTRAL' as const
+    })()
+
+    try {
+      const forecast = forecastDayType({
+        netGex:               gexData?.netGex || null,
+        gexRegime:            gexData?.regime || null,
+        tickValue:            breadthData?.tick?.value || null,
+        tickHigh15m:          tickHigh,
+        tickLow15m:           tickLow,
+        cumDelta:             microstructure?.cumulativeDelta?.strength || null,
+        cumDeltaTrend,
+        vixPrice:             marketIntel2?.vixPrice || null,
+        vixChange,
+        vix1d:                marketIntel2?.termStructure?.vix1d || null,
+        vix30:                marketIntel2?.termStructure?.vix30 || null,
+        orbHigh,
+        orbLow,
+        orbWindowMins,
+        m15Trend:             multiTFData?.m15?.trend || null,
+        m15RangePct:          multiTFData?.m15?.rangePct || null,
+        crossAssetBias:       multiTFData?.crossAsset?.confirmation || null,
+        currentPrice,
+        pdh:                  levels?.pdh || null,
+        pdl:                  levels?.pdl || null,
+        esOvernightTrend,
+        gapPoints,
+        isOpex,
+        isFomcDay,
+        dayOfWeek,
+        minutesSinceOpen,
+        yesterdayRange,
+      })
+      setDayTypeForecast(forecast)
+      if (!dayTypeFired && minutesSinceOpen >= 30) setDayTypeFired(true)
+    } catch (e) {
+      console.warn('[DayType] forecast failed:', e)
+    }
+  }, [
+    currentPrice, orbHigh, orbLow, gexData, breadthData, microstructure,
+    multiTFData, marketIntel2, levels, candles, economicCalendar, dayTypeFired,
+  ])
 
   // ── Actionability classifier — recomputes when signal or supporting data changes ──
   useEffect(() => {
@@ -4227,6 +4335,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       probs: _probs, checklistScore: _score, checklistGrade: _grade, metChecks: _met, unmetChecks: _unmet, aiToneStr: '',
       actionability: actionability,
       setupEval:     setupEval,
+      dayTypeForecast,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -5166,6 +5275,155 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             {/* Left — Dashboard */}
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
 
+              {/* ── DAY TYPE FORECAST — fires at 10am ET, frames the whole session ── */}
+              {dayTypeForecast && (() => {
+                const f = dayTypeForecast
+                const isTrend = f.dayType === 'TREND'
+                const isRange = f.dayType === 'CONSOLIDATION'
+                const primary = isTrend ? '#7c6aff' : isRange ? '#00d4a0' : '#f59e0b'
+                const tagBg = isTrend ? 'rgba(124,106,255,0.12)' : isRange ? 'rgba(0,212,160,0.10)' : 'rgba(245,158,11,0.10)'
+                const tagBd = isTrend ? 'rgba(124,106,255,0.4)'  : isRange ? 'rgba(0,212,160,0.35)' : 'rgba(245,158,11,0.35)'
+                return (
+                  <div style={{ borderRadius: 10, background: tagBg, border: `1px solid ${tagBd}`, padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 800, letterSpacing: 2, color: primary, textTransform: 'uppercase' as const }}>
+                          Day Type Forecast
+                        </span>
+                        <span style={{ fontSize: 8, color: '#6b7a9a', fontWeight: 600, letterSpacing: 1 }}>
+                          {f.confidence} confidence
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 8, color: '#4a5568', fontFamily: font }}>
+                        {new Date(f.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })} ET
+                      </span>
+                    </div>
+
+                    {/* Headline */}
+                    <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 900, color: primary, letterSpacing: 0.5, marginBottom: 4 }}>
+                      {f.headline}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: '#b0c4de', lineHeight: 1.55, marginBottom: 12 }}>
+                      {f.reasoning}
+                    </div>
+
+                    {/* Probability bars */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <div style={{ flex: 1, textAlign: 'center' as const }}>
+                        <div style={{ fontSize: 7, fontWeight: 700, color: '#7c6aff', letterSpacing: 1, marginBottom: 2 }}>TREND</div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', marginBottom: 3 }}>
+                          <div style={{ height: '100%', width: `${f.trendProbability}%`, background: '#7c6aff', borderRadius: 3, transition: 'width 0.4s' }} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#7c6aff', fontFamily: fontDisplay }}>{f.trendProbability}%</div>
+                      </div>
+                      <div style={{ flex: 1, textAlign: 'center' as const }}>
+                        <div style={{ fontSize: 7, fontWeight: 700, color: '#00d4a0', letterSpacing: 1, marginBottom: 2 }}>CONSOLIDATION</div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', marginBottom: 3 }}>
+                          <div style={{ height: '100%', width: `${f.consolidationProbability}%`, background: '#00d4a0', borderRadius: 3, transition: 'width 0.4s' }} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#00d4a0', fontFamily: fontDisplay }}>{f.consolidationProbability}%</div>
+                      </div>
+                      <div style={{ flex: 1, textAlign: 'center' as const }}>
+                        <div style={{ fontSize: 7, fontWeight: 700, color: '#f59e0b', letterSpacing: 1, marginBottom: 2 }}>INDETERMINATE</div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', marginBottom: 3 }}>
+                          <div style={{ height: '100%', width: `${f.indeterminateProbability}%`, background: '#f59e0b', borderRadius: 3, transition: 'width 0.4s' }} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#f59e0b', fontFamily: fontDisplay }}>{f.indeterminateProbability}%</div>
+                      </div>
+                    </div>
+
+                    {/* Recommended setups */}
+                    {f.recommendedSetups && f.recommendedSetups.length > 0 && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: '#4a5568', letterSpacing: 1.5, marginBottom: 6 }}>RECOMMENDED PLAYS (probability they work today)</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {f.recommendedSetups.slice(0, 6).map((s: any, i: number) => {
+                            const dirColor = s.direction === 'LONG' ? '#00ff88' : '#ff4d6d'
+                            const arrow    = s.direction === 'LONG' ? '▲' : '▼'
+                            return (
+                              <div key={s.id}
+                                onClick={() => setSelectedSetup(s.id)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 8,
+                                  padding: '6px 10px',
+                                  background: selectedSetup === s.id ? 'rgba(124,106,255,0.12)' : 'rgba(0,0,0,0.2)',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                  border: selectedSetup === s.id ? '1px solid rgba(124,106,255,0.4)' : '1px solid transparent',
+                                  transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = selectedSetup === s.id ? 'rgba(124,106,255,0.12)' : 'rgba(0,0,0,0.2)')}
+                              >
+                                <span style={{ color: dirColor, fontWeight: 800, fontSize: 12, width: 14 }}>{arrow}</span>
+                                <span style={{ flex: 1, fontSize: 11, color: dirColor, fontWeight: 600 }}>{s.name}</span>
+                                <div style={{ minWidth: 80, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${s.probability}%`, background: s.probability >= 65 ? '#00ff88' : s.probability >= 55 ? '#f59e0b' : '#6b7a9a' }} />
+                                </div>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: s.probability >= 65 ? '#00ff88' : s.probability >= 55 ? '#f59e0b' : '#8899bb', fontFamily: fontDisplay, minWidth: 30, textAlign: 'right' as const }}>
+                                  {s.probability}%
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Avoid setups */}
+                    {f.avoidSetups && f.avoidSetups.length > 0 && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: '#ff4d6d', letterSpacing: 1.5, marginBottom: 4 }}>AVOID TODAY</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                          {f.avoidSetups.map((s: any) => (
+                            <div key={s.id} style={{ fontSize: 9.5, color: '#8899bb', padding: '3px 8px', background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.15)', borderRadius: 3, textDecoration: 'line-through' }}>
+                              {s.name}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#6b7a9a', marginTop: 4, fontStyle: 'italic' as const }}>
+                          {f.avoidSetups[0]?.reason}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sizing + stop recommendations */}
+                    <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ flex: 1, padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 4 }}>
+                        <div style={{ fontSize: 8, color: '#6b7a9a', letterSpacing: 1, fontWeight: 700 }}>SIZING</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: f.sizingRecommendation === 'FULL' ? '#00ff88' : f.sizingRecommendation === 'HALF' ? '#f59e0b' : '#ff4d6d', fontFamily: fontDisplay }}>
+                          {f.sizingRecommendation}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 4 }}>
+                        <div style={{ fontSize: 8, color: '#6b7a9a', letterSpacing: 1, fontWeight: 700 }}>STOP WIDTH</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#b0c4de', fontFamily: fontDisplay }}>
+                          {f.stopWidthRecommendation}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expandable signals detail */}
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ fontSize: 9, color: '#6b7a9a', cursor: 'pointer', letterSpacing: 1, fontWeight: 700, padding: '4px 0' }}>
+                        8 signals →
+                      </summary>
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {f.trendSignals.map((s: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, padding: '2px 4px' }}>
+                            <span style={{ width: 14, textAlign: 'center' as const, color: s.status === 'SUPPORTS_TREND' ? '#7c6aff' : s.status === 'SUPPORTS_RANGE' ? '#00d4a0' : '#6b7a9a', fontWeight: 800 }}>
+                              {s.status === 'SUPPORTS_TREND' ? '↗' : s.status === 'SUPPORTS_RANGE' ? '↔' : '○'}
+                            </span>
+                            <span style={{ width: 130, fontWeight: 600, color: '#b0c4de' }}>{s.name}</span>
+                            <span style={{ flex: 1, color: '#8899bb', fontSize: 9.5 }}>{s.detail}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                )
+              })()}
+
               {/* ── ACTIONABILITY VERDICT — clear filter: ACT vs WATCH vs NOISE ── */}
               {actionability && (
                 <div style={{ borderRadius: 10,
@@ -5503,6 +5761,19 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               setupRating:       setupEval?.rating || null,
                               setupConfirming:   setupEval?.confirmingCount || null,
                               setupContradicting: setupEval?.contradictingCount || null,
+                              // ── Day Type regime at signal time ──
+                              dayType:           dayTypeForecast?.dayType || null,
+                              dayTypeConfidence: dayTypeForecast?.confidence || null,
+                              dayTrendProb:      dayTypeForecast?.trendProbability || null,
+                              dayRangeProb:      dayTypeForecast?.consolidationProbability || null,
+                              dayDirectionalLean: dayTypeForecast?.directionalLean || null,
+                              dayRecommendedSizing: dayTypeForecast?.sizingRecommendation || null,
+                              // Was the trader's setup aligned with the day-type recommendation?
+                              setupAlignsWithDayType: (() => {
+                                if (!setupEval || !dayTypeForecast) return null
+                                const rec = (dayTypeForecast.recommendedSetups || []).find((s: any) => s.id === setupEval.setup.id)
+                                return rec ? true : false
+                              })(),
                             }) } catch(e) { return null } })(),
                           })
                         })
@@ -8563,7 +8834,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     insights.featureBreakdowns?.namedSetups?.length > 0) && (
                     <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.15)' }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: '#7c6aff', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Feature Performance Breakdowns</div>
-                      {['namedSetups', 'mechanical', 'asymmetric', 'actionability', 'setupType', 'crossAsset', 'session'].map((key) => {
+                      {['namedSetups', 'mechanical', 'asymmetric', 'actionability', 'setupType', 'crossAsset', 'session', 'dayType'].map((key) => {
                         const items = insights.featureBreakdowns[key] || []
                         if (!items.length) return null
                         return (

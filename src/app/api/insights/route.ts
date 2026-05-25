@@ -119,6 +119,7 @@ export async function GET(req: NextRequest) {
     const namedSetupBreakdown   = buildBreakdown('setupName',           'Play')
     const crossAssetBreakdown   = buildBreakdown('crossAssetBias',      'CrossA')
     const sessionBreakdown      = buildBreakdown('sessionName',         'Session')
+    const dayTypeBreakdown      = buildBreakdown('dayType',             'Day')
 
     // ── Setup quality scoring — do high score setups win more? ─────────────
     const setupScoreBuckets: Record<string, { wins: number; total: number }> = {
@@ -226,6 +227,7 @@ export async function GET(req: NextRequest) {
         namedSetups:   namedSetupBreakdown,
         crossAsset:    crossAssetBreakdown,
         session:       sessionBreakdown,
+        dayType:       dayTypeBreakdown,
       },
       setupScorePerformance,
       actionabilityEdge: {

@@ -507,6 +507,7 @@ export function buildCompanionContext(
     activeTicket?:   any | null
     actionability?:  any | null
     setupEval?:      any | null
+    dayTypeForecast?: any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -625,6 +626,17 @@ ${(input as any).setupEval.triggerCondition ? `Waiting for: ${(input as any).set
 COACHING PRIORITY: Reference this specific setup by name. Help them stay disciplined on entry criteria.
 If score < 50, gently challenge whether the setup is actually present.
 If score ≥ 70, confirm the setup but reinforce stop discipline.` : ''}
+
+${(input as any).dayTypeForecast ? `
+═══ DAY TYPE FORECAST (10am ET regime read) ═══
+Type: ${(input as any).dayTypeForecast.dayType} (${(input as any).dayTypeForecast.confidence} confidence)
+Probabilities: TREND ${(input as any).dayTypeForecast.trendProbability}% | CONSOLIDATION ${(input as any).dayTypeForecast.consolidationProbability}% | INDETERMINATE ${(input as any).dayTypeForecast.indeterminateProbability}%
+${(input as any).dayTypeForecast.directionalLean !== 'NEUTRAL' ? `Directional lean: ${(input as any).dayTypeForecast.directionalLean}` : ''}
+Reasoning: ${(input as any).dayTypeForecast.reasoning}
+Recommended sizing: ${(input as any).dayTypeForecast.sizingRecommendation} | Stop width: ${(input as any).dayTypeForecast.stopWidthRecommendation}
+${(input as any).dayTypeForecast.recommendedSetups?.length > 0 ? `Top plays today: ${(input as any).dayTypeForecast.recommendedSetups.slice(0, 3).map((s: any) => `${s.name} (${s.probability}%)`).join(', ')}` : ''}
+${(input as any).dayTypeForecast.avoidSetups?.length > 0 ? `AVOID today: ${(input as any).dayTypeForecast.avoidSetups.map((s: any) => s.name).join(', ')} — these setups fail in this regime` : ''}
+COACHING PRIORITY: If the trader's named play CONTRADICTS this regime forecast, gently flag the mismatch. If it ALIGNS, reinforce the high-probability setup.` : ''}
 
 ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
 
