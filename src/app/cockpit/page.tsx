@@ -4905,8 +4905,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           </div>
           <button onClick={() => signOut(() => router.push('/'))} style={{ fontFamily: font, fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: 'rgba(107,114,128,0.7)', cursor: 'pointer' }}>Sign Out</button>
           <button onClick={() => setShowTutorial(true)} title="Help" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: '4px 8px', color: 'rgba(136,153,187,0.6)', cursor: 'pointer', fontSize: 11, fontFamily: font }}>?</button>
-          {user?.id && ADMIN_USER_IDS.includes(user.id) && (
-            <a href="/admin" target="_blank" title="System Admin Dashboard" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 10, fontFamily: font, textDecoration: 'none', fontWeight: 700 }}>⚙</a>
+          {user?.id && (
+            <a href="/admin" target="_blank" title={`System Admin (${user.id})`} style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 10, fontFamily: font, textDecoration: 'none', fontWeight: 700 }}>⚙ Admin</a>
           )}
           <button onClick={() => { setShowSuggestion(true); setSuggestionSent(false); setSuggestionText('') }} title="Suggest a feature or report a bug" style={{ background: 'transparent', border: '1px solid rgba(124,106,255,0.3)', borderRadius: 4, padding: '4px 8px', color: '#7c6aff', cursor: 'pointer', fontSize: 11, fontFamily: font }}>💡</button>
           <button onClick={() => { setSystemCheck(null); runSystemCheck(); setShowSettings(false) }} title="System Check — verify all data feeds" style={{ background: systemCheckRunning ? 'rgba(255,183,0,0.1)' : 'rgba(0,229,255,0.04)', border: `1px solid ${systemCheckRunning ? 'rgba(255,183,0,0.3)' : 'rgba(0,229,255,0.15)'}`, borderRadius: 4, padding: '4px 8px', color: systemCheckRunning ? C.yellow : C.textDim, cursor: 'pointer', fontSize: 11, fontFamily: font, transition: 'all 0.2s' }}>{systemCheckRunning ? '⟳' : '✓'}</button>
@@ -6376,7 +6376,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         try {
                           const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
                           const minsLeft = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
-                          const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: result.signal, confidence: result.confidence, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: minsLeft, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias }) })
+                          const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: result.signal, confidence: result.confidence, aiResult: result, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: minsLeft, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias, microstructure: microstructure ? { aiContext: microstructure.aiContext } : null, termStructure: marketIntel2?.termStructure || null, sectorRotation: marketIntel2?.sectorRotation || null, earningsCalendar: earningsCalendar || null, traderProfile: traderProfile ? { stream_weights: traderProfile.stream_weights, weaknesses: traderProfile.weaknesses, strengths: traderProfile.strengths } : null }) })
                           if (sr.ok) { const sd = await sr.json(); if (!sd.error) { setStrikeSuggestions(sd); setStrikeLastRefresh(new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })) } }
                         } catch {}
                         setStrikeLoading(false)
@@ -6600,7 +6600,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     try {
                       const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
                       const ml = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
-                      const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: aiResult?.signal || null, confidence: aiResult?.confidence || null, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: ml, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias }) })
+                      const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: aiResult?.signal || null, confidence: aiResult?.confidence || null, aiResult: aiResult || null, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: ml, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias, microstructure: microstructure ? { aiContext: microstructure.aiContext } : null, termStructure: marketIntel2?.termStructure || null, sectorRotation: marketIntel2?.sectorRotation || null, earningsCalendar: earningsCalendar || null, traderProfile: traderProfile ? { stream_weights: traderProfile.stream_weights, weaknesses: traderProfile.weaknesses, strengths: traderProfile.strengths } : null }) })
                       if (sr.ok) { const sd = await sr.json(); if (!sd.error) { setStrikeSuggestions(sd); setStrikeLastRefresh(new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })) } }
                     } catch {}
                     setStrikeLoading(false)
@@ -6684,20 +6684,65 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               </div>
 
                               <div style={{ display: 'flex', gap: 8, fontSize: 9, marginBottom: 4, flexWrap: 'wrap' as const }}>
-                                {st.entryPremiumLow && st.entryPremiumHigh && <span style={{ color: '#00ff88' }}>Entry ${st.entryPremiumLow?.toFixed(2)}–${st.entryPremiumHigh?.toFixed(2)}</span>}
+                                {st.entryPremiumLow && st.entryPremiumHigh && <span style={{ color: '#00ff88' }}>Buy ${st.entryPremiumLow?.toFixed(2)}–${st.entryPremiumHigh?.toFixed(2)}</span>}
+                                {st.estimatedDelta && <span style={{ color: '#7c6aff' }}>Δ{st.estimatedDelta?.toFixed(2)}</span>}
                                 {st.targetExit && <span style={{ color: '#00e5ff' }}>→ ${st.targetExit?.toFixed(2)}</span>}
                                 {st.stopPremium && <span style={{ color: '#ff4d6d' }}>✕ ${st.stopPremium?.toFixed(2)}</span>}
-                                {pnl && <span style={{ color: '#00d4a0', fontWeight: 700 }}>{pnl}/ct</span>}
+                              </div>
+                              {/* P&L and confluence */}
+                              <div style={{ display: 'flex', gap: 8, fontSize: 9, marginBottom: 4 }}>
+                                {st.estPnlPerContract && st.estPnlPerContract !== 0 && (
+                                  <span style={{ color: st.estPnlPerContract > 0 ? '#00d4a0' : '#ff4d6d', fontWeight: 700 }}>
+                                    {st.estPnlPerContract > 0 ? '+' : ''}${st.estPnlPerContract}/ct
+                                  </span>
+                                )}
+                                {st.confluenceScore && (
+                                  <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700,
+                                    background: st.confluenceScore === 'HIGH' ? 'rgba(0,255,136,0.1)' : st.confluenceScore === 'MEDIUM' ? 'rgba(245,158,11,0.1)' : 'rgba(255,255,255,0.04)',
+                                    color: st.confluenceScore === 'HIGH' ? '#00ff88' : st.confluenceScore === 'MEDIUM' ? '#f59e0b' : '#4a5568',
+                                  }}>CONF: {st.confluenceScore}</span>
+                                )}
                               </div>
 
                               {st.keyLevel && <div style={{ fontSize: 8, color: '#4a5568', marginBottom: 3 }}>📍 {st.keyLevel}</div>}
                               <div style={{ fontSize: 9, color: '#7a8aaa', lineHeight: 1.45 }}>{st.rationale}</div>
+                              {st.microNote && <div style={{ fontSize: 8, color: '#00e5ff', marginTop: 3, fontStyle: 'italic' }}>📊 {st.microNote}</div>}
                               {st.avoid && st.avoidReason && <div style={{ marginTop: 4, fontSize: 8, color: '#ff4d6d', background: 'rgba(255,77,109,0.07)', padding: '3px 6px', borderRadius: 3 }}>⚠ {st.avoidReason}</div>}
                               <div style={{ marginTop: 4, fontSize: 7, color: '#333d50', textAlign: 'right' as const }}>tap → fill ticket</div>
                             </div>
                           )
                         })}
                       </div>
+
+                      {/* Math target/stop from signal */}
+                      {(s.mathTarget || s.mathStop) && (
+                        <div style={{ marginTop: 8, padding: '7px 9px', borderRadius: 5, background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.12)' }}>
+                          <div style={{ fontSize: 8, color: '#00e5ff', fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>SIGNAL MATH (delta-adjusted)</div>
+                          <div style={{ display: 'flex', gap: 12, fontSize: 9 }}>
+                            {s.mathTarget && <span style={{ color: '#00d4a0' }}>Target → ${s.mathTarget.premium} (+${s.mathTarget.pnl}/ct)</span>}
+                            {s.mathStop && <span style={{ color: '#ff4d6d' }}>Stop → ${s.mathStop.premium} (-${s.mathStop.loss}/ct)</span>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* High confluence zones */}
+                      {s.highConflZones?.length > 0 && (
+                        <div style={{ marginTop: 8, padding: '7px 9px', borderRadius: 5, background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.12)' }}>
+                          <div style={{ fontSize: 8, color: '#f59e0b', fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>★ HIGH CONFLUENCE ZONES</div>
+                          {s.highConflZones.slice(0, 3).map((z: any, i: number) => (
+                            <div key={i} style={{ fontSize: 9, color: '#b0c4de', padding: '1px 0' }}>
+                              <strong style={{ color: '#f59e0b', fontFamily: fontDisplay }}>{z.price.toFixed(0)}</strong>: {z.label} + {z.nearbyLabels?.join(' + ')}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Sector note */}
+                      {s.sectorNote && (
+                        <div style={{ marginTop: 6, padding: '5px 9px', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', fontSize: 9, color: '#6b7a9a' }}>
+                          📊 {s.sectorNote}
+                        </div>
+                      )}
 
                       {/* Key levels */}
                       {s.keyLevels?.length > 0 && (
