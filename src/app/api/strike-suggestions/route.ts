@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
     sectorRotation,     // NEW: sector bias
     earningsCalendar,   // NEW: upcoming major reports
     traderProfile,      // NEW: stream weights + weaknesses
+    mechanicalFlow,     // NEW: dealer hedging dynamics + asymmetric setup
   } = body
 
   if (!currentPrice) return NextResponse.json({ error: 'currentPrice required' }, { status: 400 })
@@ -345,6 +346,14 @@ ${termShape ? `VIX term: ${termShape}${termShape === 'inverted' ? ' — 0DTE pre
 
 ═══ REAL-TIME MICROSTRUCTURE ═══
 ${microCtx || 'Not available — use level-based analysis only'}
+
+═══ MECHANICAL FLOW (DEALER HEDGING) ═══
+${mechanicalFlow?.aiContext || 'Mechanical flow not available'}
+${mechanicalFlow?.asymmetricSetup === 'BULLISH_AMPLIFY' && direction === 'LONG' ? '⚡ STRONG SETUP: Mechanics amplify your direction — dealers must chase up' : ''}
+${mechanicalFlow?.asymmetricSetup === 'BEARISH_AMPLIFY' && direction === 'SHORT' ? '⚡ STRONG SETUP: Mechanics amplify your direction — dealers must sell down' : ''}
+${mechanicalFlow?.asymmetricSetup === 'BULLISH_RESISTED' && direction === 'LONG' ? '⚠ HEADWIND: Positive gamma resists upside — take profits at first call wall' : ''}
+${mechanicalFlow?.asymmetricSetup === 'BEARISH_RESISTED' && direction === 'SHORT' ? '⚠ HEADWIND: Positive gamma resists downside — take profits at first put wall' : ''}
+${mechanicalFlow?.mechanicalBias && direction !== 'NEUTRAL' && ((mechanicalFlow.mechanicalBias === 'BULLISH' && direction === 'SHORT') || (mechanicalFlow.mechanicalBias === 'BEARISH' && direction === 'LONG')) ? '⚠ MECHANICAL CONFLICT: Hedging flow opposes your direction — reduce size or tighter stops' : ''}
 
 ═══ INTRADAY STRUCTURE ═══
 ${multiTF?.m15 ? `15-min: ${multiTF.m15.trend} | Range ${multiTF.m15.low?.toFixed(0)}–${multiTF.m15.high?.toFixed(0)} | Price at ${multiTF.m15.rangePct}% of range` : ''}

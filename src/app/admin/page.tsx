@@ -53,6 +53,8 @@ const GROUPS: Record<string, string[]> = {
     'Trade Ticket — DB Storage',
     'Strike Suggestions API',
     'Volume Profile Calculation',
+    'Mechanical Flow Calculation',
+    'Mechanical Flow Accuracy API',
   ],
   'Probability Engine': [
     'Gap Outcome Tracking',

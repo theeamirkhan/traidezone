@@ -601,6 +601,35 @@ export async function GET(req: NextRequest) {
       }
     }),
 
+    check('Mechanical Flow Calculation', async () => {
+      const { calculateMechanicalFlow } = await import('@/app/cockpit/lib/mechanicalFlow')
+      const mf = calculateMechanicalFlow({
+        netGex: 2.5e9, regime: 'positive', gammaFlip: 5810, callWall: 5850, putWall: 5780,
+        charmDollar: 1.5e8, charmNote: 'positive charm', charmUrgency: 'MODERATE',
+        dexBias: 'LONG', currentPrice: 5820, sessionMinsLeft: 180,
+        optionsFlowBias: 'CALL HEAVY', marketTideBias: 'bullish', putCallRatio: 0.85,
+      })
+      if (!mf.mechanicalBias) throw new Error('Missing mechanicalBias')
+      return {
+        detail: `Calc OK ✓ | Bias: ${mf.mechanicalBias} (${mf.mechanicalScore}) | Asymmetric: ${mf.asymmetricSetup} | Hedging: ${mf.hedgingDirection}`,
+        value: { bias: mf.mechanicalBias, score: mf.mechanicalScore }
+      }
+    }),
+
+    check('Mechanical Flow Accuracy API', async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://www.traidezone.ai'}/api/mechanical-flow-accuracy`, {
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const d = await res.json()
+      return {
+        detail: d.sampleSize > 0
+          ? `${d.sampleSize} scored trades | Verdict: ${d.verdict} | ${d.edge || 'no edge yet'}`
+          : 'No mechanical snapshots yet — close trades via Trade Ticket to build sample',
+        value: { sampleSize: d.sampleSize, verdict: d.verdict }
+      }
+    }),
+
     check('Options Chain (0DTE SPX via Polygon)', async () => {
       const POLY = process.env.POLYGON_API_KEY
       if (!POLY) throw new Error('POLYGON_API_KEY not set')

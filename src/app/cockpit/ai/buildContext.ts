@@ -77,6 +77,7 @@ export interface SignalInput {
   uwIV?:           any | null
   econSurprise?:   any | null
   volumeProfile?:  any | null
+  mechanicalFlow?: any | null
 
   // From chart pattern recognition engine
   patternAnalysis: PatternAnalysis | null
@@ -459,6 +460,7 @@ Reference this scoring when setting your final confidence number.`,
     `VIX ${market.vixPrice?.toFixed(2) || '?'} | Breadth ${marketIntel?.breadth?.bias || '?'} | Tide ${marketTide?.bias || '?'} P/C ${marketTide?.putCallRatio || '?'}`,
     `\n═══ 5-MIN CANDLE ANALYSIS (SPX) ═══\n${buildRecentCandles(market.candles)}`,
     (input as any).volumeProfile ? `\n═══ VOLUME PROFILE (SESSION) ═══\n${(input as any).volumeProfile.aiContext}` : '',
+    (input as any).mechanicalFlow ? `\n═══ MECHANICAL FLOW (DEALER HEDGING) ═══\n${(input as any).mechanicalFlow.aiContext}` : '',
     `Flow:\n${buildFlowSection(optionsFlow)}`,
     zeroDTESkew   ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : '',
     marketScore   ? `Score: ${marketScore.score}/100 ${marketScore.label}` : '',

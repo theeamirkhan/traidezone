@@ -25,6 +25,7 @@ import { buildCompanionContext } from './ai/buildContext'
 import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
 import { calculateVolumeProfile } from './lib/volumeProfile'
+import { calculateMechanicalFlow } from './lib/mechanicalFlow'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
   fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
@@ -1798,6 +1799,8 @@ export default function CockpitPage() {
   const [breadthData, setBreadthData]       = useState<any | null>(null)
   const [gexData, setGexData]               = useState<any | null>(null)
   const [volumeProfile, setVolumeProfile]   = useState<any | null>(null)
+  const [mechanicalFlow, setMechanicalFlow] = useState<any | null>(null)
+  const [mechAccuracy, setMechAccuracy]     = useState<any | null>(null)
 
   // ── Active Trade Ticket ──────────────────────────────────────────────────
   const [ticket, setTicket] = useState({
@@ -1830,6 +1833,7 @@ export default function CockpitPage() {
     uwIV:         marketIntel2?.uwIV         || null,
     econSurprise: marketIntel2?.econSurprise || null,
     volumeProfile: volumeProfile             || null,
+    mechanicalFlow: mechanicalFlow           || null,
     market:           { currentPrice, levels, candles, vixPrice, changes },
     edgeProfile,
     executionStats,
@@ -3003,7 +3007,36 @@ export default function CockpitPage() {
       // ── GEX — refresh every 15min (FlashAlpha Basic: 100/day) ────────────
       try {
         const gexRes = await fetch(`/api/gex?price=${currentPrice || 0}`)
-        if (gexRes.ok) { const gd = await gexRes.json(); if (!gd.error) setGexData(gd) }
+        if (gexRes.ok) {
+          const gd = await gexRes.json()
+          if (!gd.error) {
+            setGexData(gd)
+            // Calculate mechanical flow when GEX updates
+            if (currentPrice) {
+              try {
+                const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+                const minsLeft = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
+                const mf = calculateMechanicalFlow({
+                  netGex:          gd.netGex,
+                  regime:          gd.regime,
+                  gammaFlip:       gd.gammaFlip,
+                  callWall:        gd.callWall,
+                  putWall:         gd.putWall,
+                  charmDollar:     gd.charmDollar,
+                  charmNote:       gd.charmNote,
+                  charmUrgency:    gd.charmUrgency,
+                  dexBias:         gd.dexBias,
+                  currentPrice,
+                  sessionMinsLeft: minsLeft,
+                  optionsFlowBias: optionsFlow?.[0]?.bias || null,
+                  marketTideBias:  marketTide?.bias || null,
+                  putCallRatio:    marketTide?.putCallRatio || null,
+                })
+                setMechanicalFlow(mf)
+              } catch (e) { console.warn('[MechFlow]', e) }
+            }
+          }
+        }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }
 
       // ── Volume Profile — POC + Value Area from today's 5-min bars ──────────
@@ -4921,6 +4954,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           return (
             <button key={t} onClick={() => {
               setTab(t as any)
+              if (t === 'learn' && !mechAccuracy) {
+                fetch('/api/mechanical-flow-accuracy').then(r => r.json()).then(setMechAccuracy).catch(() => {})
+              }
               if (t === 'learn' && !insights && !insightsLoading) {
                 setInsightsLoading(true)
                 fetch('/api/insights').then(r => r.json()).then(d => { setInsights(d); setInsightsLoading(false) }).catch(() => setInsightsLoading(false))
@@ -6376,7 +6412,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         try {
                           const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
                           const minsLeft = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
-                          const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: result.signal, confidence: result.confidence, aiResult: result, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: minsLeft, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias, microstructure: microstructure ? { aiContext: microstructure.aiContext } : null, termStructure: marketIntel2?.termStructure || null, sectorRotation: marketIntel2?.sectorRotation || null, earningsCalendar: earningsCalendar || null, traderProfile: traderProfile ? { stream_weights: traderProfile.stream_weights, weaknesses: traderProfile.weaknesses, strengths: traderProfile.strengths } : null }) })
+                          const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: result.signal, confidence: result.confidence, aiResult: result, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: minsLeft, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias, microstructure: microstructure ? { aiContext: microstructure.aiContext } : null, termStructure: marketIntel2?.termStructure || null, sectorRotation: marketIntel2?.sectorRotation || null, earningsCalendar: earningsCalendar || null, traderProfile: traderProfile ? { stream_weights: traderProfile.stream_weights, weaknesses: traderProfile.weaknesses, strengths: traderProfile.strengths } : null, mechanicalFlow: mechanicalFlow || null }) })
                           if (sr.ok) { const sd = await sr.json(); if (!sd.error) { setStrikeSuggestions(sd); setStrikeLastRefresh(new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })) } }
                         } catch {}
                         setStrikeLoading(false)
@@ -6417,6 +6453,16 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   const pnl = (parseFloat(ticket.exitPrice) - parseFloat(ticket.entryPrice)) * parseInt(ticket.qty) * 100
                   setTicket(t => ({ ...t, status: 'closed', closedAt: now }))
                   setTradeSaving(true)
+                  // Capture mechanical flow snapshot at entry for tracking
+                  const mechSnap = mechanicalFlow ? {
+                    score:           mechanicalFlow.mechanicalScore,
+                    bias:            mechanicalFlow.mechanicalBias,
+                    asymmetric:      mechanicalFlow.asymmetricSetup,
+                    hedgingDir:      mechanicalFlow.hedgingDirection,
+                    charm:           mechanicalFlow.charmIntensity,
+                  } : null
+                  // Capture predicted window from strike suggestions if available
+                  const windowSnap = strikeSuggestions?.bestEntryWindow || null
                   try {
                     await fetch('/api/userdata', {
                       method: 'POST',
@@ -6433,7 +6479,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           price:     parseFloat(ticket.entryPrice),
                           pnl:       parseFloat(pnl.toFixed(2)),
                           inSystem:  true,
-                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}`,
+                          notes:     `Entry ${ticket.entryPrice} → Exit ${ticket.exitPrice} | Closed ${now} ET${ticket.notes ? ' | ' + ticket.notes : ''}${windowSnap ? ' | Predicted window: ' + windowSnap.substring(0, 80) : ''}${mechSnap ? ' | Mech: ' + mechSnap.bias + ' ' + mechSnap.score + (mechSnap.asymmetric !== 'NEUTRAL' ? ' (' + mechSnap.asymmetric + ')' : '') : ''}`,
                         }
                       })
                     })
@@ -6600,7 +6646,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     try {
                       const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
                       const ml = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
-                      const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: aiResult?.signal || null, confidence: aiResult?.confidence || null, aiResult: aiResult || null, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: ml, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias, microstructure: microstructure ? { aiContext: microstructure.aiContext } : null, termStructure: marketIntel2?.termStructure || null, sectorRotation: marketIntel2?.sectorRotation || null, earningsCalendar: earningsCalendar || null, traderProfile: traderProfile ? { stream_weights: traderProfile.stream_weights, weaknesses: traderProfile.weaknesses, strengths: traderProfile.strengths } : null }) })
+                      const sr = await fetch('/api/strike-suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPrice, signal: aiResult?.signal || null, confidence: aiResult?.confidence || null, aiResult: aiResult || null, vwapBands: marketIntel2?.vwapBands || null, gexData, volumeProfile, optionsChain: marketIntel2?.optionsChain || null, uwIV: marketIntel2?.uwIV || null, impliedMove: morningPlan.impliedMove, levels, sessionMins: ml, multiTF: { m15: multiTFData?.m15 || null, h1: multiTFData?.h1 || null }, morningBias: morningPlan.bias, microstructure: microstructure ? { aiContext: microstructure.aiContext } : null, termStructure: marketIntel2?.termStructure || null, sectorRotation: marketIntel2?.sectorRotation || null, earningsCalendar: earningsCalendar || null, traderProfile: traderProfile ? { stream_weights: traderProfile.stream_weights, weaknesses: traderProfile.weaknesses, strengths: traderProfile.strengths } : null, mechanicalFlow: mechanicalFlow || null }) })
                       if (sr.ok) { const sd = await sr.json(); if (!sd.error) { setStrikeSuggestions(sd); setStrikeLastRefresh(new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })) } }
                     } catch {}
                     setStrikeLoading(false)
@@ -7386,6 +7432,54 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
 
+                  {/* Mechanical Flow */}
+                  {mechanicalFlow && (
+                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8,
+                      background: mechanicalFlow.mechanicalBias === 'BULLISH' ? 'rgba(0,255,136,0.04)' : mechanicalFlow.mechanicalBias === 'BEARISH' ? 'rgba(255,77,109,0.04)' : 'rgba(124,106,255,0.04)',
+                      border: `1px solid ${mechanicalFlow.mechanicalBias === 'BULLISH' ? 'rgba(0,255,136,0.18)' : mechanicalFlow.mechanicalBias === 'BEARISH' ? 'rgba(255,77,109,0.18)' : 'rgba(124,106,255,0.18)'}`
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div>
+                          <span style={{ fontSize: 8, fontWeight: 700, color: '#7c6aff', letterSpacing: 2, textTransform: 'uppercase' as const }}>Mechanical Flow</span>
+                          <span style={{ fontSize: 8, color: '#4a5568', marginLeft: 6 }}>dealer hedging dynamics</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {/* Score bar */}
+                          <div style={{ width: 80, height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden', position: 'relative' as const }}>
+                            <div style={{ position: 'absolute' as const, left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.15)' }} />
+                            {mechanicalFlow.mechanicalScore !== 0 && (
+                              <div style={{
+                                position: 'absolute' as const, top: 0, bottom: 0,
+                                left: mechanicalFlow.mechanicalScore > 0 ? '50%' : `${50 + mechanicalFlow.mechanicalScore / 2}%`,
+                                width: `${Math.abs(mechanicalFlow.mechanicalScore) / 2}%`,
+                                background: mechanicalFlow.mechanicalScore > 0 ? '#00ff88' : '#ff4d6d',
+                              }} />
+                            )}
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: mechanicalFlow.mechanicalScore > 0 ? '#00ff88' : mechanicalFlow.mechanicalScore < 0 ? '#ff4d6d' : '#8899bb', fontFamily: fontDisplay }}>{mechanicalFlow.mechanicalScore > 0 ? '+' : ''}{mechanicalFlow.mechanicalScore}</span>
+                        </div>
+                      </div>
+
+                      {/* Asymmetric setup callout */}
+                      {mechanicalFlow.asymmetricSetup !== 'NEUTRAL' && (
+                        <div style={{ padding: '5px 8px', borderRadius: 4, background: mechanicalFlow.asymmetricSetup.includes('AMPLIFY') ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.04)', marginBottom: 6, fontSize: 10, color: mechanicalFlow.asymmetricSetup.includes('AMPLIFY') ? '#f59e0b' : '#b0c4de' }}>
+                          {mechanicalFlow.asymmetricSetup.includes('AMPLIFY') ? '⚡' : '〰'} {mechanicalFlow.asymmetricNote}
+                        </div>
+                      )}
+
+                      {/* Hedging + charm summary */}
+                      <div style={{ display: 'flex', gap: 8, fontSize: 9, flexWrap: 'wrap' as const, color: '#7a8aaa' }}>
+                        <span>{mechanicalFlow.hedgingDirection === 'SELL_RALLIES' ? 'Mean-revert' : mechanicalFlow.hedgingDirection === 'AMPLIFY_MOVES' ? 'Trend-amplify' : 'Neutral hedge'}</span>
+                        {mechanicalFlow.hedgingFlowRemaining && <span>~${mechanicalFlow.hedgingFlowRemaining}M flow left</span>}
+                        {mechanicalFlow.charmIntensity !== 'NONE' && (
+                          <span style={{ color: mechanicalFlow.charmIntensity === 'CRITICAL' ? '#ff4d6d' : '#f59e0b' }}>
+                            ⏳ Charm {mechanicalFlow.charmIntensity} {mechanicalFlow.charmDirection === 'BULLISH_DRIFT' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* UW Spot GEX by Strike */}
                   {marketIntel2?.spotGex && marketIntel2.spotGex.topGammaStrikes?.length > 0 && (
                     <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(124,106,255,0.15)' }}>
@@ -7675,6 +7769,47 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 11, color: C2.muted }}>Last 5 trading days ({s.recent5d.count} signals)</span>
                       <span style={{ fontSize: 13, fontWeight: 800, color: s.recent5d.winRate >= 55 ? C2.green : s.recent5d.winRate >= 45 ? C2.yellow : C2.red }}>{s.recent5d.winRate}% win rate</span>
+                    </div>
+                  )}
+
+                  {/* Mechanical Flow Accuracy */}
+                  {mechAccuracy && mechAccuracy.sampleSize > 0 && (
+                    <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 6, background: 'rgba(124,106,255,0.05)', border: '1px solid rgba(124,106,255,0.15)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#7c6aff', letterSpacing: 2, textTransform: 'uppercase' as const }}>⚡ Mechanical Flow Edge</span>
+                        <span style={{ fontSize: 9, color: '#4a5568' }}>{mechAccuracy.sampleSize} scored trades</span>
+                      </div>
+                      {mechAccuracy.edge && (
+                        <div style={{ padding: '5px 8px', borderRadius: 4, background: mechAccuracy.verdict === 'STRONG_EDGE' ? 'rgba(0,255,136,0.08)' : mechAccuracy.verdict === 'INVERSE_EDGE' ? 'rgba(255,77,109,0.08)' : 'rgba(255,255,255,0.04)', fontSize: 10, color: mechAccuracy.verdict === 'STRONG_EDGE' ? '#00ff88' : mechAccuracy.verdict === 'INVERSE_EDGE' ? '#ff4d6d' : '#b0c4de', marginBottom: 8 }}>
+                          {mechAccuracy.verdict === 'STRONG_EDGE' ? '✓ ' : mechAccuracy.verdict === 'INVERSE_EDGE' ? '⚠ ' : ''}{mechAccuracy.edge}
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, fontSize: 10 }}>
+                        <div style={{ padding: '5px 7px', borderRadius: 4, background: 'rgba(0,255,136,0.04)' }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>When mechanics aligned</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: '#00ff88', fontFamily: fontDisplay }}>{mechAccuracy.alignedTrades.winRate}%</div>
+                          <div style={{ fontSize: 8, color: '#6b7a9a' }}>{mechAccuracy.alignedTrades.count} trades | {mechAccuracy.alignedTrades.avgPnl > 0 ? '+' : ''}${mechAccuracy.alignedTrades.avgPnl} avg</div>
+                        </div>
+                        <div style={{ padding: '5px 7px', borderRadius: 4, background: 'rgba(255,77,109,0.04)' }}>
+                          <div style={{ fontSize: 8, color: '#4a5568' }}>When mechanics opposed</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: '#ff4d6d', fontFamily: fontDisplay }}>{mechAccuracy.opposedTrades.winRate}%</div>
+                          <div style={{ fontSize: 8, color: '#6b7a9a' }}>{mechAccuracy.opposedTrades.count} trades | {mechAccuracy.opposedTrades.avgPnl > 0 ? '+' : ''}${mechAccuracy.opposedTrades.avgPnl} avg</div>
+                        </div>
+                        {mechAccuracy.amplifyTrades.count > 0 && (
+                          <div style={{ padding: '5px 7px', borderRadius: 4, background: 'rgba(245,158,11,0.04)' }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>AMPLIFY setups</div>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: '#f59e0b', fontFamily: fontDisplay }}>{mechAccuracy.amplifyTrades.winRate}%</div>
+                            <div style={{ fontSize: 8, color: '#6b7a9a' }}>{mechAccuracy.amplifyTrades.count} trades</div>
+                          </div>
+                        )}
+                        {mechAccuracy.windowFollow.edgePts !== null && (
+                          <div style={{ padding: '5px 7px', borderRadius: 4, background: 'rgba(0,229,255,0.04)' }}>
+                            <div style={{ fontSize: 8, color: '#4a5568' }}>Window timing edge</div>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: mechAccuracy.windowFollow.edgePts > 0 ? '#00e5ff' : '#ff4d6d', fontFamily: fontDisplay }}>{mechAccuracy.windowFollow.edgePts > 0 ? '+' : ''}${mechAccuracy.windowFollow.edgePts}</div>
+                            <div style={{ fontSize: 8, color: '#6b7a9a' }}>following vs ignoring</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
