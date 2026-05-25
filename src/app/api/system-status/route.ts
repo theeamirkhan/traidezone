@@ -601,6 +601,23 @@ export async function GET(req: NextRequest) {
       }
     }),
 
+    check('Actionability Engine', async () => {
+      const { classifyActionability } = await import('@/app/cockpit/lib/actionability')
+      const result = classifyActionability({
+        signal: 'LONG', confidence: 75, signalAge: 2,
+        qualityVerdict: 'STRONG', mechanicalScore: 45, asymmetricSetup: 'BULLISH_AMPLIFY',
+        currentPrice: 5820, vwap: 5818, ema200: 5805, poc: 5821,
+        callWall: 5850, putWall: 5790, gammaFlip: 5810,
+        currentVolume: 15000, avgVolume: 12000,
+        upcomingEvents: [], sessionMinsLeft: 180, historicalWinRateAtConf: null,
+      })
+      if (!result.verdict) throw new Error('Missing verdict')
+      return {
+        detail: `Actionability OK ✓ | Verdict: ${result.verdict} | Setup: ${result.setupType} | Greens: ${result.greenLights.length} Reds: ${result.redFlags.length}`,
+        value: { verdict: result.verdict, setupType: result.setupType }
+      }
+    }),
+
     check('Mechanical Flow Calculation', async () => {
       const { calculateMechanicalFlow } = await import('@/app/cockpit/lib/mechanicalFlow')
       const mf = calculateMechanicalFlow({

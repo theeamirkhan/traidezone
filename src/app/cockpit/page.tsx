@@ -26,6 +26,7 @@ import { calcProbabilities, CHECKLIST as CHECKLIST_LIB } from './lib/utils'
 import { calcMarketScore, analyzeTradePatterns, analyzeTradeHistory, parseBrokerCSV } from './lib/tradeAnalysis'
 import { calculateVolumeProfile } from './lib/volumeProfile'
 import { calculateMechanicalFlow } from './lib/mechanicalFlow'
+import { classifyActionability, type ActionabilityResult } from './lib/actionability'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
   fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
@@ -1801,6 +1802,7 @@ export default function CockpitPage() {
   const [volumeProfile, setVolumeProfile]   = useState<any | null>(null)
   const [mechanicalFlow, setMechanicalFlow] = useState<any | null>(null)
   const [mechAccuracy, setMechAccuracy]     = useState<any | null>(null)
+  const [actionability, setActionability]   = useState<ActionabilityResult | null>(null)
 
   // ── Active Trade Ticket ──────────────────────────────────────────────────
   const [ticket, setTicket] = useState({
@@ -1870,6 +1872,48 @@ export default function CockpitPage() {
   const [showTutorial, setShowTutorial] = useState(false)
   const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'none'>('loading')
   const [subPlan, setSubPlan] = useState<string | null>(null)
+
+  // ── Actionability classifier — recomputes when signal or supporting data changes ──
+  useEffect(() => {
+    if (!aiResult || !currentPrice) {
+      setActionability(null)
+      return
+    }
+    try {
+      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const minsLeft = Math.max(0, 960 - (et.getHours() * 60 + et.getMinutes()))
+      const signalAge = lastAITime ? (() => {
+        const [hh, mm] = lastAITime.split(':').map(Number)
+        const sigTime = new Date()
+        sigTime.setHours(hh, mm, 0, 0)
+        return (Date.now() - sigTime.getTime()) / 60000
+      })() : 0
+      const recentVols = candles.slice(-20).map(c => c.v || 0)
+      const avgVol = recentVols.length > 0 ? recentVols.reduce((a, b) => a + b, 0) / recentVols.length : null
+      const currVol = candles[candles.length - 1]?.v || null
+      const result = classifyActionability({
+        signal:                  aiResult.signal || null,
+        confidence:              aiResult.confidence || null,
+        signalAge,
+        qualityVerdict:          signalQuality?.verdict || null,
+        mechanicalScore:         mechanicalFlow?.mechanicalScore || null,
+        asymmetricSetup:         mechanicalFlow?.asymmetricSetup || null,
+        currentPrice,
+        vwap:                    levels?.spyVwap || null,
+        ema200:                  levels?.ema200 || null,
+        poc:                     volumeProfile?.poc || null,
+        callWall:                gexData?.callWall || null,
+        putWall:                 gexData?.putWall || null,
+        gammaFlip:               gexData?.gammaFlip || null,
+        currentVolume:           currVol,
+        avgVolume:                avgVol,
+        upcomingEvents:          (economicCalendar as any) || [],
+        sessionMinsLeft:         minsLeft,
+        historicalWinRateAtConf: null,
+      })
+      setActionability(result)
+    } catch (e) { console.warn('[Actionability]', e) }
+  }, [aiResult, lastAITime, signalQuality, mechanicalFlow, currentPrice, levels, volumeProfile, gexData, economicCalendar, candles])
 
   // Load edge profile on mount (backtest baseline + live accuracy)
   useEffect(() => {
@@ -5009,6 +5053,74 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Left — Dashboard */}
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
+
+              {/* ── ACTIONABILITY VERDICT — clear filter: ACT vs WATCH vs NOISE ── */}
+              {actionability && (
+                <div style={{ borderRadius: 10,
+                  background: actionability.verdict === 'ACTIONABLE' ? 'linear-gradient(135deg, rgba(0,255,136,0.15) 0%, rgba(0,212,160,0.08) 100%)' :
+                             actionability.verdict === 'WATCH'      ? 'linear-gradient(135deg, rgba(255,183,0,0.12) 0%, rgba(245,158,11,0.06) 100%)' :
+                                                                       'linear-gradient(135deg, rgba(255,77,109,0.1) 0%, rgba(120,40,60,0.04) 100%)',
+                  border: `2px solid ${actionability.verdict === 'ACTIONABLE' ? 'rgba(0,255,136,0.5)' : actionability.verdict === 'WATCH' ? 'rgba(255,183,0,0.4)' : 'rgba(255,77,109,0.35)'}`,
+                  padding: '10px 14px',
+                  boxShadow: actionability.verdict === 'ACTIONABLE' ? '0 0 24px rgba(0,255,136,0.18)' : 'none',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 900, letterSpacing: 2,
+                        color: actionability.verdict === 'ACTIONABLE' ? '#00ff88' : actionability.verdict === 'WATCH' ? '#ffb700' : '#ff4d6d',
+                      }}>
+                        {actionability.verdict === 'ACTIONABLE' ? '✓ ACTIONABLE' : actionability.verdict === 'WATCH' ? '⏳ WATCH' : '✕ NOISE'}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#b0c4de', fontWeight: 600 }}>· {actionability.headline}</span>
+                    </div>
+                    {actionability.setupType !== 'NO_SETUP' && (
+                      <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4, background: 'rgba(124,106,255,0.12)', color: '#7c6aff', fontWeight: 700, letterSpacing: 0.5 }}>{actionability.setupType.replace('_', ' ')}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#8899bb', marginBottom: 8 }}>{actionability.reasoning}</div>
+
+                  {/* Green lights + Red flags */}
+                  {(actionability.greenLights.length > 0 || actionability.redFlags.length > 0) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: actionability.greenLights.length > 0 && actionability.redFlags.length > 0 ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 8 }}>
+                      {actionability.greenLights.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#00ff88', letterSpacing: 1, marginBottom: 4 }}>✓ CONFIRMING ({actionability.greenLights.length})</div>
+                          {actionability.greenLights.slice(0, 4).map((g, i) => (
+                            <div key={i} style={{ fontSize: 9, color: '#b0c4de', marginBottom: 1, paddingLeft: 6 }}>• {g}</div>
+                          ))}
+                        </div>
+                      )}
+                      {actionability.redFlags.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#ff4d6d', letterSpacing: 1, marginBottom: 4 }}>⚠ FLAGS ({actionability.redFlags.length})</div>
+                          {actionability.redFlags.slice(0, 4).map((r, i) => (
+                            <div key={i} style={{ fontSize: 9, color: '#b0c4de', marginBottom: 1, paddingLeft: 6 }}>• {r}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Triggers (for WATCH) */}
+                  {actionability.verdict === 'WATCH' && actionability.triggers.length > 0 && (
+                    <div style={{ padding: '6px 9px', borderRadius: 5, background: 'rgba(255,183,0,0.08)', border: '1px solid rgba(255,183,0,0.18)', marginBottom: 6 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#ffb700', letterSpacing: 1, marginBottom: 3 }}>🎯 TRIGGERS TO WATCH</div>
+                      {actionability.triggers.map((t, i) => (
+                        <div key={i} style={{ fontSize: 10, color: '#f0f4ff', marginBottom: 1 }}>• {t}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bottom strip: invalidation + staleness + news */}
+                  <div style={{ display: 'flex', gap: 12, fontSize: 9, color: '#6b7a9a', flexWrap: 'wrap' as const }}>
+                    {actionability.invalidationPrice && <span>Invalid below <strong style={{ color: '#ff4d6d', fontFamily: fontDisplay }}>{actionability.invalidationPrice.toFixed(0)}</strong></span>}
+                    {actionability.staleness.degraded && <span style={{ color: '#f59e0b' }}>⏳ {actionability.staleness.minutesOld}min old</span>}
+                    {!actionability.staleness.degraded && <span>Fresh ({actionability.staleness.minutesOld}min)</span>}
+                    {actionability.newsRisk.blackout && <span style={{ color: '#ff4d6d' }}>📰 {actionability.newsRisk.nextEvent}</span>}
+                    {!actionability.liquidityCheck.ok && <span style={{ color: '#f59e0b' }}>📊 {actionability.liquidityCheck.note}</span>}
+                  </div>
+                </div>
+              )}
 
               {/* ── OPTIMAL TRADE ZONE — gold, always first thing you see ── */}
               <div style={{ borderRadius: 10,
