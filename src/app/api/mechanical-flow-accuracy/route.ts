@@ -11,7 +11,7 @@
 
 import { NextResponse } from 'next/server'
 import { auth }         from '@clerk/nextjs/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET() {
   const { userId } = await auth()
