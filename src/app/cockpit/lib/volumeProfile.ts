@@ -17,6 +17,8 @@ export interface VolumeProfileResult {
   totalVolume:  number        // total volume traded today
   priceRange:   { high: number; low: number }
   buckets:      Array<{ price: number; volume: number; pct: number }>  // top 10 by volume
+  allBuckets:   Array<{ price: number; volume: number; pct: number }>  // ALL buckets for visual rendering
+  currentPrice: number   // current price for the visual marker
   aiContext:    string
   signal:       string
 }
@@ -91,7 +93,16 @@ export function calculateVolumeProfile(
   const dayLow  = Math.min(...prices)
   const currPrice = session[session.length - 1].c
 
-  // Top 10 buckets by volume for display
+  // ALL buckets sorted high-to-low for the visual profile chart
+  const allBuckets = sorted
+    .map(b => ({
+      price: b.price,
+      volume: Math.round(b.volume),
+      pct: Math.round(b.volume / totalVolume * 100 * 10) / 10,
+    }))
+    .sort((a, b) => b.price - a.price)
+
+  // Top 10 buckets by volume for legacy display
   const top10 = [...sorted]
     .sort((a, b) => b.volume - a.volume)
     .slice(0, 10)
@@ -135,6 +146,8 @@ export function calculateVolumeProfile(
     totalVolume:  Math.round(totalVolume),
     priceRange:   { high: parseFloat(dayHigh.toFixed(1)), low: parseFloat(dayLow.toFixed(1)) },
     buckets:      top10,
+    allBuckets,
+    currentPrice: parseFloat(currPrice.toFixed(1)),
     aiContext,
     signal:       `${signal} | ${interpretation}`,
   }

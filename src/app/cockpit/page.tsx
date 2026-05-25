@@ -7613,55 +7613,127 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     </div>
                   )}
 
-                  {/* Volume Profile */}
-                  {volumeProfile && (
-                    <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(0,229,255,0.15)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 8, fontWeight: 700, color: '#00e5ff', letterSpacing: 2, textTransform: 'uppercase' as const }}>Volume Profile</span>
-                        <span style={{ fontSize: 9, color: '#4a5568' }}>today's session</span>
-                      </div>
-                      {/* POC / VAH / VAL levels */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
-                        {[
-                          { label: 'POC', val: volumeProfile.poc?.toFixed(0), color: '#00e5ff', note: 'max volume' },
-                          { label: 'VAH', val: volumeProfile.vah?.toFixed(0), color: '#00ff88', note: 'value top' },
-                          { label: 'VAL', val: volumeProfile.val?.toFixed(0), color: '#ff4d6d', note: 'value bot' },
-                        ].map((item, i) => (
-                          <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: '6px 4px' }}>
-                            <div style={{ fontSize: 8, color: '#4a5568', marginBottom: 2 }}>{item.label}</div>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: item.color, fontFamily: fontDisplay }}>{item.val}</div>
-                            <div style={{ fontSize: 8, color: '#4a5568' }}>{item.note}</div>
+                  {/* ─── VOLUME PROFILE — full visual S/R chart ─── */}
+                  {volumeProfile && volumeProfile.allBuckets?.length > 0 && (() => {
+                    const vp = volumeProfile
+                    const buckets = vp.allBuckets  // already sorted high-to-low
+                    const curr = vp.currentPrice
+                    const maxPct = Math.max(...buckets.map((b: any) => b.pct))
+                    const inValueArea = curr >= vp.val && curr <= vp.vah
+
+                    // Find the current price bucket index (for the price line indicator)
+                    let currIdx = buckets.findIndex((b: any) => Math.abs(b.price - curr) <= 0.5)
+                    if (currIdx === -1) {
+                      // Find closest bucket
+                      currIdx = buckets.reduce((best: number, b: any, i: number) => {
+                        return Math.abs(b.price - curr) < Math.abs(buckets[best].price - curr) ? i : best
+                      }, 0)
+                    }
+
+                    // Determine color for each bucket
+                    const bucketColor = (b: any) => {
+                      const isPoc = Math.abs(b.price - vp.poc) < 0.6
+                      const isVah = Math.abs(b.price - vp.vah) < 0.6
+                      const isVal = Math.abs(b.price - vp.val) < 0.6
+                      const inVA  = b.price >= vp.val && b.price <= vp.vah
+                      if (isPoc) return '#00e5ff'                    // cyan — POC
+                      if (isVah) return '#00ff88'                    // green — VAH
+                      if (isVal) return '#ff4d6d'                    // red  — VAL
+                      if (inVA)  return 'rgba(124,106,255,0.55)'    // purple — in value area
+                      return 'rgba(124,140,180,0.3)'                 // gray — outside value
+                    }
+
+                    const barWidth = (pct: number) => Math.max(2, Math.round(pct / maxPct * 100))
+
+                    return (
+                      <div style={{ marginBottom: 8, padding: '10px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(0,229,255,0.15)' }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div>
+                            <span style={{ fontSize: 9, fontWeight: 800, color: '#00e5ff', letterSpacing: 2, textTransform: 'uppercase' as const }}>📊 Volume Profile</span>
+                            <span style={{ fontSize: 8, color: '#4a5568', marginLeft: 8 }}>today's session · {vp.valueAreaPct}% in VA</span>
                           </div>
-                        ))}
-                      </div>
-                      {/* Mini volume bars — top 10 buckets */}
-                      {volumeProfile.buckets?.length > 0 && (() => {
-                        const maxPct = Math.max(...volumeProfile.buckets.map((b: any) => b.pct))
-                        const curr   = volumeProfile.buckets.find((b: any) => Math.abs(b.price - volumeProfile.poc) < 1.5)
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {volumeProfile.buckets.slice(0, 8).map((b: any, i: number) => {
-                              const isPoc  = Math.abs(b.price - volumeProfile.poc) < 1.5
-                              const isVah  = Math.abs(b.price - volumeProfile.vah) < 1.5
-                              const isVal  = Math.abs(b.price - volumeProfile.val) < 1.5
-                              const barColor = isPoc ? '#00e5ff' : isVah ? '#00ff88' : isVal ? '#ff4d6d' : 'rgba(255,255,255,0.15)'
-                              return (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <span style={{ fontSize: 8, color: isPoc ? '#00e5ff' : '#4a5568', width: 36, textAlign: 'right' as const, fontWeight: isPoc ? 700 : 400 }}>{b.price.toFixed(0)}</span>
-                                  <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.04)', borderRadius: 1, overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: `${Math.round(b.pct / maxPct * 100)}%`, background: barColor, borderRadius: 1 }} />
-                                  </div>
-                                  <span style={{ fontSize: 8, color: '#4a5568', width: 22 }}>{b.pct}%</span>
-                                  {isPoc && <span style={{ fontSize: 7, color: '#00e5ff', fontWeight: 700 }}>POC</span>}
+                          <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 3, fontWeight: 700,
+                            background: inValueArea ? 'rgba(124,106,255,0.15)' : 'rgba(255,183,0,0.1)',
+                            color: inValueArea ? '#7c6aff' : '#f59e0b',
+                          }}>
+                            {inValueArea ? 'IN VALUE' : curr > vp.vah ? 'ABOVE VAH' : 'BELOW VAL'}
+                          </span>
+                        </div>
+
+                        {/* POC / VAH / VAL summary row */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
+                          {[
+                            { label: 'VAH', val: vp.vah?.toFixed(0), color: '#00ff88', note: 'resistance' },
+                            { label: 'POC', val: vp.poc?.toFixed(0), color: '#00e5ff', note: 'max volume' },
+                            { label: 'VAL', val: vp.val?.toFixed(0), color: '#ff4d6d', note: 'support' },
+                          ].map((item, i) => (
+                            <div key={i} style={{ textAlign: 'center' as const, background: 'rgba(0,0,0,0.25)', borderRadius: 5, padding: '5px 4px', border: `1px solid ${item.color}33` }}>
+                              <div style={{ fontSize: 8, color: '#4a5568' }}>{item.label}</div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: item.color, fontFamily: fontDisplay, lineHeight: 1.1 }}>{item.val}</div>
+                              <div style={{ fontSize: 7, color: '#4a5568' }}>{item.note}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* The visual profile — horizontal bars by price level */}
+                        <div style={{ position: 'relative' as const, background: 'rgba(0,0,0,0.15)', borderRadius: 6, padding: '6px 4px', maxHeight: 280, overflowY: 'auto' }}>
+                          {buckets.map((b: any, i: number) => {
+                            const isPoc = Math.abs(b.price - vp.poc) < 0.6
+                            const isVah = Math.abs(b.price - vp.vah) < 0.6
+                            const isVal = Math.abs(b.price - vp.val) < 0.6
+                            const isCurr = i === currIdx
+                            const color = bucketColor(b)
+                            const width = barWidth(b.pct)
+
+                            return (
+                              <div key={i} style={{ position: 'relative' as const, display: 'flex', alignItems: 'center', gap: 4, padding: '1.5px 0', height: 11 }}>
+                                {/* Price label */}
+                                <span style={{ fontSize: 9, color: isPoc || isVah || isVal || isCurr ? color : '#4a5568', width: 36, textAlign: 'right' as const, fontWeight: isPoc || isVah || isVal || isCurr ? 700 : 400, fontFamily: fontDisplay }}>
+                                  {b.price.toFixed(0)}
+                                </span>
+
+                                {/* Bar */}
+                                <div style={{ flex: 1, height: 7, position: 'relative' as const, background: 'rgba(255,255,255,0.02)', borderRadius: 1 }}>
+                                  <div style={{
+                                    height: '100%', width: `${width}%`, background: color, borderRadius: 1,
+                                    boxShadow: isPoc ? '0 0 6px rgba(0,229,255,0.5)' : 'none',
+                                  }} />
+                                  {/* Current price marker (yellow line across the bar) */}
+                                  {isCurr && (
+                                    <div style={{ position: 'absolute' as const, left: 0, right: 0, top: -1, bottom: -1, border: '1.5px solid #ffb700', borderRadius: 2, boxShadow: '0 0 5px rgba(255,183,0,0.6)' }} />
+                                  )}
                                 </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      })()}
-                      <div style={{ fontSize: 10, color: '#6b7a9a', marginTop: 6 }}>{volumeProfile.signal?.split('|').pop()?.trim()}</div>
-                    </div>
-                  )}
+
+                                {/* Percentage + label */}
+                                <span style={{ fontSize: 8, color: '#6b7a9a', width: 28, textAlign: 'right' as const }}>{b.pct}%</span>
+                                {(isPoc || isVah || isVal || isCurr) && (
+                                  <span style={{ fontSize: 7, fontWeight: 800, color, letterSpacing: 0.5, width: 28 }}>
+                                    {isCurr ? '◀ NOW' : isPoc ? 'POC' : isVah ? 'VAH' : 'VAL'}
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* Footer: position context */}
+                        <div style={{ marginTop: 8, padding: '6px 9px', borderRadius: 4, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 9, color: '#6b7a9a' }}>
+                            Price <strong style={{ color: '#ffb700', fontFamily: fontDisplay }}>{curr.toFixed(0)}</strong>
+                            {curr > vp.poc ? ' is ' + (curr - vp.poc).toFixed(0) + 'pts above POC' :
+                             curr < vp.poc ? ' is ' + (vp.poc - curr).toFixed(0) + 'pts below POC' :
+                                              ' is AT POC'}
+                          </span>
+                        </div>
+
+                        {/* Interpretation */}
+                        <div style={{ fontSize: 10, color: '#8899bb', marginTop: 6, lineHeight: 1.4 }}>
+                          {vp.signal?.split('|').pop()?.trim()}
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   {/* 15-min + 1-hour structure */}
                   {(multiTFData?.m15 || multiTFData?.h1) && (
