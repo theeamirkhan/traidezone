@@ -3557,6 +3557,20 @@ export default function CockpitPage() {
           tiingoContext,
           multiTFData,
           dailyPatterns: multiTFData?.patterns || [],
+          // NEW: personalized learning context
+          traderProfile: traderProfile ? {
+            strengths:      traderProfile.strengths,
+            weaknesses:     traderProfile.weaknesses,
+            stream_weights: traderProfile.stream_weights,
+            edge_notes:     traderProfile.edge_notes,
+          } : null,
+          recentTrades: trades ? trades.slice(0, 3).map((t: any) => ({
+            date:      t.date,
+            symbol:    t.symbol,
+            direction: t.direction,
+            pnl:       t.pnl,
+            notes:     t.notes,
+          })) : null,
         })
       })
       const data = await res.json()
@@ -8433,6 +8447,74 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         </div>
                       </div>
                       <div style={{ fontSize: 10, color: '#7c6aff', marginTop: 8, textAlign: 'center' as const }}>{insights.alignment.note}</div>
+                    </div>
+                  )}
+
+                  {/* ── Actionability Edge ── */}
+                  {insights.actionabilityEdge?.actionableTotal > 0 && (
+                    <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.15)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#00e5ff', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>⚡ Actionability Filter Edge</div>
+                      <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                        <div style={{ flex: 1, textAlign: 'center' as const, padding: '8px 4px', background: 'rgba(0,255,136,0.05)', borderRadius: 5 }}>
+                          <div style={{ fontSize: 9, color: '#4a5568', marginBottom: 4 }}>ACTIONABLE trades</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: '#00ff88', fontFamily: fontDisplay }}>{insights.actionabilityEdge.actionableWinRate}%</div>
+                          <div style={{ fontSize: 9, color: C2.muted }}>{insights.actionabilityEdge.actionableTotal} signals</div>
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'center' as const, padding: '8px 4px', background: 'rgba(255,77,109,0.05)', borderRadius: 5 }}>
+                          <div style={{ fontSize: 9, color: '#4a5568', marginBottom: 4 }}>NOISE (overridden)</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: '#ff4d6d', fontFamily: fontDisplay }}>{insights.actionabilityEdge.noiseWinRate ?? '—'}%</div>
+                          <div style={{ fontSize: 9, color: C2.muted }}>{insights.actionabilityEdge.noiseTotal} signals</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 10, color: '#7c6aff', textAlign: 'center' as const }}>{insights.actionabilityEdge.note}</div>
+                    </div>
+                  )}
+
+                  {/* ── Setup Score Performance ── */}
+                  {insights.setupScorePerformance?.length > 0 && (
+                    <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C2.muted, letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Setup Score → Win Rate</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {insights.setupScorePerformance.map((s: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 4, background: 'rgba(0,0,0,0.2)' }}>
+                            <span style={{ fontSize: 10, color: C2.text, width: 110 }}>{s.range}</span>
+                            <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${s.winRate}%`, background: s.winRate >= 55 ? '#00ff88' : s.winRate >= 45 ? '#f59e0b' : '#ff4d6d', borderRadius: 3 }} />
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: s.winRate >= 55 ? '#00ff88' : s.winRate >= 45 ? '#f59e0b' : '#ff4d6d', width: 32, textAlign: 'right' as const }}>{s.winRate}%</span>
+                            <span style={{ fontSize: 9, color: C2.muted, width: 36 }}>{s.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Feature Breakdowns ── */}
+                  {(insights.featureBreakdowns?.mechanical?.length > 0 ||
+                    insights.featureBreakdowns?.asymmetric?.length > 0 ||
+                    insights.featureBreakdowns?.namedSetups?.length > 0) && (
+                    <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.15)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#7c6aff', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 8 }}>Feature Performance Breakdowns</div>
+                      {['namedSetups', 'mechanical', 'asymmetric', 'actionability', 'setupType', 'crossAsset', 'session'].map((key) => {
+                        const items = insights.featureBreakdowns[key] || []
+                        if (!items.length) return null
+                        return (
+                          <div key={key} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 8, color: '#6b7a9a', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 3 }}>{key}</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                              {items.map((b: any, i: number) => (
+                                <div key={i} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 600,
+                                  background: b.winRate >= 55 ? 'rgba(0,255,136,0.07)' : b.winRate >= 45 ? 'rgba(255,183,0,0.07)' : 'rgba(255,77,109,0.07)',
+                                  border: '1px solid ' + (b.winRate >= 55 ? 'rgba(0,255,136,0.2)' : b.winRate >= 45 ? 'rgba(255,183,0,0.2)' : 'rgba(255,77,109,0.2)'),
+                                  color: b.winRate >= 55 ? '#00ff88' : b.winRate >= 45 ? '#f59e0b' : '#ff4d6d',
+                                }}>
+                                  {b.label}: {b.winRate}% ({b.count})
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
 

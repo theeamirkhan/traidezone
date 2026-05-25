@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       macroRegime, marketNews, economicCalendar, earningsCalendar,
       gapData, gapPrediction, morningPlan,
       breadthData, tiingoContext, multiTFData, dailyPatterns,
+      traderProfile, recentTrades,  // NEW: personalized learning context
     } = body
 
     // Fetch daily bars for pattern detection
@@ -127,7 +128,18 @@ Weekly: ${multiTFData?.weekly?.trend || 'n/a'} | RSI ${multiTFData?.weekly?.rsi 
 MARKET BREADTH:
 ${breadthData?.tick?.value ? `TICK: ${breadthData.tick.value} (${breadthData.tick.regime}) | TRIN: ${breadthData.trin?.value?.toFixed(2) || 'n/a'} | VVIX: ${breadthData.vvix?.value?.toFixed(1) || 'n/a'} (${breadthData.vvix?.regime || ''})` : 'Breadth not loaded'}
 
-Write the morning brief now. Reference specific MAs, RSI levels, and candle patterns from the technical data above. Be specific to today's conditions.`
+${traderProfile ? `═══ TRADER'S HISTORICAL EDGE ═══
+${traderProfile.strengths?.length > 0 ? `Strengths (what works): ${traderProfile.strengths.slice(-3).map((s: any) => typeof s === 'string' ? s : s.description || s).join(' | ')}` : ''}
+${traderProfile.weaknesses?.length > 0 ? `Weaknesses (what to avoid): ${traderProfile.weaknesses.slice(-3).map((w: any) => typeof w === 'string' ? w : w.description || w).join(' | ')}` : ''}
+${traderProfile.stream_weights ? `Highest-accuracy data streams: ${Object.entries(traderProfile.stream_weights).sort((a: any, b: any) => b[1] - a[1]).slice(0, 3).map(([n, w]: any) => `${n} (${w.toFixed(2)}x)`).join(', ')}` : ''}
+${traderProfile.edge_notes?.length > 0 ? `Recent edge notes: ${traderProfile.edge_notes.slice(-2).join(' | ')}` : ''}` : ''}
+
+${recentTrades?.length > 0 ? `═══ LAST 3 SESSIONS' OBSERVATIONS ═══
+${recentTrades.slice(0, 3).map((t: any) => `${t.date}: ${t.symbol} ${t.direction} P&L $${t.pnl?.toFixed(0)} ${t.notes?.includes('Mech:') ? '— ' + (t.notes.match(/Mech: \\w+ -?\\d+/)?.[0] || '') : ''} ${t.notes?.includes('Play:') ? '— ' + (t.notes.match(/Play: [^|]+/)?.[0] || '').trim() : ''}`).join('\\n')}` : ''}
+
+Write the morning brief now. Reference specific MAs, RSI levels, and candle patterns from the technical data above. Be specific to today's conditions.
+${traderProfile?.weaknesses?.length > 0 ? `IMPORTANT: Tailor the tradingPlan field to address the trader's specific weaknesses listed above — remind them what to avoid.` : ''}
+${traderProfile?.strengths?.length > 0 ? `Reinforce the trader's strengths — connect today's conditions to where they have historical edge.` : ''}`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

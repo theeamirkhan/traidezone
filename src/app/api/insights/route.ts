@@ -91,6 +91,73 @@ export async function GET(req: NextRequest) {
       count: d.total,
     }))
 
+    // ── New: Performance by mechanical bias / actionability / setup ─────────
+    const buildBreakdown = (field: string, displayLabel: string) => {
+      const buckets: Record<string, { wins: number; total: number }> = {}
+      scored.forEach(a => {
+        let ctx: any = {}
+        try { ctx = JSON.parse(a.context_snapshot || '{}') } catch {}
+        const val = ctx[field]
+        if (!val) return
+        if (!buckets[val]) buckets[val] = { wins: 0, total: 0 }
+        buckets[val].total++
+        if (a._norm === 'WIN') buckets[val].wins++
+      })
+      return Object.entries(buckets)
+        .filter(([_, d]) => d.total >= 2)
+        .map(([key, d]) => ({
+          label:   displayLabel + ': ' + key,
+          winRate: Math.round(d.wins / d.total * 100),
+          count:   d.total,
+        }))
+    }
+
+    const mechanicalBreakdown   = buildBreakdown('mechanicalBias',      'Mech')
+    const asymmetricBreakdown   = buildBreakdown('asymmetricSetup',     'Asymm')
+    const actionabilityBreakdown = buildBreakdown('actionabilityVerdict', 'Action')
+    const setupTypeBreakdown    = buildBreakdown('setupType',           'Setup')
+    const namedSetupBreakdown   = buildBreakdown('setupName',           'Play')
+    const crossAssetBreakdown   = buildBreakdown('crossAssetBias',      'CrossA')
+    const sessionBreakdown      = buildBreakdown('sessionName',         'Session')
+
+    // ── Setup quality scoring — do high score setups win more? ─────────────
+    const setupScoreBuckets: Record<string, { wins: number; total: number }> = {
+      '75+ (STRONG)':  { wins: 0, total: 0 },
+      '60-74 (GOOD)':  { wins: 0, total: 0 },
+      '45-59 (NEUTRAL)': { wins: 0, total: 0 },
+      '<45 (WEAK)':    { wins: 0, total: 0 },
+    }
+    scored.forEach(a => {
+      let ctx: any = {}
+      try { ctx = JSON.parse(a.context_snapshot || '{}') } catch {}
+      const score = ctx.setupScore
+      if (score === null || score === undefined) return
+      const bucket = score >= 75 ? '75+ (STRONG)' : score >= 60 ? '60-74 (GOOD)' : score >= 45 ? '45-59 (NEUTRAL)' : '<45 (WEAK)'
+      setupScoreBuckets[bucket].total++
+      if (a._norm === 'WIN') setupScoreBuckets[bucket].wins++
+    })
+    const setupScorePerformance = Object.entries(setupScoreBuckets)
+      .filter(([_, d]) => d.total > 0)
+      .map(([range, d]) => ({
+        range,
+        winRate: Math.round(d.wins / d.total * 100),
+        count:   d.total,
+      }))
+
+    // ── Green lights vs red flags edge ──────────────────────────────────────
+    let actionableWins = 0, actionableTotal = 0, noiseWins = 0, noiseTotal = 0
+    scored.forEach(a => {
+      let ctx: any = {}
+      try { ctx = JSON.parse(a.context_snapshot || '{}') } catch {}
+      if (ctx.actionabilityVerdict === 'ACTIONABLE') {
+        actionableTotal++
+        if (a._norm === 'WIN') actionableWins++
+      } else if (ctx.actionabilityVerdict === 'NOISE') {
+        noiseTotal++
+        if (a._norm === 'WIN') noiseWins++
+      }
+    })
+
     // System alignment — does following the plan win more?
     const aligned   = scored.filter(a => a.system_alignment === 'aligned')
     const divergent = scored.filter(a => a.system_alignment === 'divergent')
@@ -149,6 +216,28 @@ export async function GET(req: NextRequest) {
             ? `Following the plan wins ${alignedWR - divergentWR}% more often`
             : `Diverging from plan wins ${divergentWR - alignedWR}% more often`
           : 'Need more data'
+      },
+      // ── New feature breakdowns ────────────────────────────────────────────
+      featureBreakdowns: {
+        mechanical:    mechanicalBreakdown,
+        asymmetric:    asymmetricBreakdown,
+        actionability: actionabilityBreakdown,
+        setupType:     setupTypeBreakdown,
+        namedSetups:   namedSetupBreakdown,
+        crossAsset:    crossAssetBreakdown,
+        session:       sessionBreakdown,
+      },
+      setupScorePerformance,
+      actionabilityEdge: {
+        actionableWins, actionableTotal,
+        actionableWinRate: actionableTotal > 0 ? Math.round(actionableWins / actionableTotal * 100) : null,
+        noiseWins, noiseTotal,
+        noiseWinRate: noiseTotal > 0 ? Math.round(noiseWins / noiseTotal * 100) : null,
+        note: actionableTotal >= 5 && noiseTotal >= 3
+          ? Math.round(actionableWins / actionableTotal * 100) > Math.round(noiseWins / noiseTotal * 100)
+            ? `ACTIONABLE filters work: +${Math.round(actionableWins/actionableTotal*100) - Math.round(noiseWins/noiseTotal*100)}% win rate vs ignoring filter`
+            : `ACTIONABLE filter not yet additive — review verdicts`
+          : 'Need more scored trades to validate filter',
       },
       recentLosses,
       recentWins,
