@@ -96,13 +96,13 @@ export default function LandingPage() {
           </div>
 
           <h1 className="h1 orb" style={{ fontSize:'clamp(34px, 7vw, 78px)', fontWeight:900, lineHeight:1.05, letterSpacing:'-1px', marginBottom:24, maxWidth:860 }}>
-            Your AI companion<br />
-            for{' '}<span style={{ color:'#00e5ff', animation:'glow 3s ease-in-out infinite' }}>disciplined</span>{' '}
-            <span style={{ color:'#2d3748' }}>trading.</span>
+            AI signals.<br />
+            <span style={{ color:'#00e5ff', animation:'glow 3s ease-in-out infinite' }}>Disciplined</span>{' '}
+            <span style={{ color:'#2d3748' }}>execution.</span>
           </h1>
 
-          <p className="h2" style={{ fontSize:14, color:'#8899bb', maxWidth:500, lineHeight:1.9, marginBottom:44, fontWeight:300 }}>
-            tr<span style={{ color:'#00e5ff' }}>AI</span>de Zone sits with you every session — watching live charts, reading options flow, knowing your rules, and keeping you accountable in real time.
+          <p className="h2" style={{ fontSize:14, color:'#8899bb', maxWidth:560, lineHeight:1.9, marginBottom:44, fontWeight:300 }}>
+            tr<span style={{ color:'#00e5ff' }}>AI</span>de Zone generates real-time signals, suggests the exact strikes to buy, scores your named setups, and coaches you through every trade — built for SPX intraday options traders who treat discipline as the edge.
           </p>
 
           <div className="h3" style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:360 }}>
@@ -138,16 +138,19 @@ export default function LandingPage() {
 
         {/* HOW IT WORKS */}
         <div style={{ padding:'100px 24px', maxWidth:820, margin:'0 auto' }}>
-          <div className="stag">How it works</div>
+          <div className="stag">The daily workflow</div>
           <h2 className="orb" style={{ fontSize:'clamp(22px, 4vw, 40px)', fontWeight:900, lineHeight:1.1, marginBottom:48 }}>
-            Simple. Powerful.<br /><span style={{ color:'#00e5ff' }}>Always in your corner.</span>
+            Every trade.<br /><span style={{ color:'#00e5ff' }}>More disciplined than the last.</span>
           </h2>
           <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
             {[
-              { n:'01', t:'Set your system', d:'Upload your playbooks — entries, stops, targets. The AI reads them and holds you to them every session.' },
-              { n:'02', t:'Build your morning plan', d:"Bias, implied move, key levels. Tell it what you're looking for before the open and it anchors your whole day." },
-              { n:'03', t:'Trade with your companion', d:'Live voice conversation while you trade. It watches the chart, reads options flow, and calls out when you drift.' },
-              { n:'04', t:'Measure your edge', d:'Upload statements monthly. Track in-system vs out-of-system win rate. Watch the gap close measurably over time.' },
+              { n:'01', t:'Morning Plan',           d:'Commit to bias, levels, implied move, and max loss before the bell. The system blocks trading without a saved plan.' },
+              { n:'02', t:'Read the mechanics',     d:'See dealer gamma positioning, options flow direction, volume profile, and asymmetric setups — know what market makers must do.' },
+              { n:'03', t:'Name your play',         d:'Pick one of 7 named setups (VWAP retest, PDH breakout, double top, etc.). System scores it 0-100 against live conditions.' },
+              { n:'04', t:'Get the AI signal',      d:'LONG/SHORT/WAIT synthesized from 25+ data streams. Actionability filter labels it ACTIONABLE, WATCH, or NOISE.' },
+              { n:'05', t:'Pick the strike',        d:'3-5 specific SPX contracts with Black-Scholes calculated premiums, deltas, targets, stops, and P&L estimates.' },
+              { n:'06', t:'Execute the trade',      d:'Trade ticket captures entry context. Companion shifts into management mode — sees your active position in real time.' },
+              { n:'07', t:'Learn from outcomes',    d:'Every closed trade feeds the loop. After 20-30 trades the system knows which setups, hours, and conditions are YOUR edge.' },
             ].map((s, i) => (
               <div key={i} style={{ display:'flex', gap:24, alignItems:'flex-start', padding:'22px 24px', background:'rgba(8,10,18,0.8)', borderLeft:'2px solid rgba(0,229,255,0.2)', marginBottom:2, transition:'border-color 0.2s', cursor:'default' }}
                 onMouseEnter={e => (e.currentTarget.style.borderLeftColor='#00e5ff')}
@@ -165,15 +168,18 @@ export default function LandingPage() {
         {/* FEATURES */}
         <div style={{ padding:'20px 24px 100px', maxWidth:940, margin:'0 auto' }}>
           <div className="stag">Capabilities</div>
-          <h2 className="orb" style={{ fontSize:'clamp(20px, 3.5vw, 36px)', fontWeight:900, marginBottom:40 }}>Built for real traders.</h2>
+          <h2 className="orb" style={{ fontSize:'clamp(20px, 3.5vw, 36px)', fontWeight:900, marginBottom:40 }}>Institutional data. Personalized edge.</h2>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(250px, 1fr))', gap:10 }}>
             {[
-              { icon:'🎙', t:'Voice Companion', d:'Bidirectional voice. Talk while you trade. Listens, responds, keeps you accountable — hands-free.' },
-              { icon:'📊', t:'Live Market Context', d:'SPX, VIX, VWAP, 200 EMA, options flow, sector breadth — synthesized into every response.' },
-              { icon:'🧠', t:'Knows Your History', d:'Persistent trader profile grows with every session. Session 50 it knows your patterns better than you do.' },
-              { icon:'⚡', t:'Proactive Alerts', d:'Drawn levels trigger it to speak. Flow spikes, level breaks, extended holds — it notices before you do.' },
-              { icon:'📋', t:'Playbook Enforcement', d:'Matches every trade against your system. Flags deviations before you pull the trigger.' },
-              { icon:'📈', t:'Performance Analytics', d:'Net P&L, win rate, profit factor, in-system %, best hour — all from your actual trade history.' },
+              { icon:'⚡', t:'Real-Time AI Signals',    d:'LONG / SHORT / WAIT with confidence, entry zone, stop, targets, and full reasoning. Calibrated against your historical accuracy.' },
+              { icon:'🎯', t:'Strike Suggestions',      d:'3-5 specific SPX contracts ranked AGGRESSIVE/STANDARD/CONSERVATIVE. Black-Scholes calculated premiums, deltas, and P&L estimates.' },
+              { icon:'📋', t:'Named Setup Evaluator',   d:'Score your 7 plays (VWAP retest, PDH breakout, double top, etc.) against live data — each with setup-specific weighted criteria.' },
+              { icon:'⚙️', t:'Dealer Mechanics Engine', d:'Gamma regime, asymmetric setups, charm pressure, options flow direction — see what market makers are forced to do.' },
+              { icon:'🧠', t:'AI Trading Companion',    d:'Real-time voice and chat coaching. Sees your active position, manages exits with you, adapts to your chosen tone.' },
+              { icon:'📊', t:'Visual Volume Profile',   d:'Full session POC/VAH/VAL with horizontal bar chart. Strong S/R zones visible at a glance.' },
+              { icon:'🎚', t:'Actionability Filter',   d:'Every signal labeled ACTIONABLE / WATCH / NOISE. Filters out stale signals, news blackouts, thin liquidity.' },
+              { icon:'📈', t:'Learning Loop',          d:'25+ data streams tracked per signal. After 20-30 trades, the system knows YOUR setups, hours, and conditions.' },
+              { icon:'☀️', t:'Personalized Morning Brief', d:'Daily AI-generated macro context with bias, levels, catalysts — tailored to your historical strengths and weaknesses.' },
             ].map(({ icon, t, d }) => (
               <div key={t} className="fc">
                 <div style={{ fontSize:20, marginBottom:12 }}>{icon}</div>
@@ -185,32 +191,80 @@ export default function LandingPage() {
         </div>
 
         {/* PRICING */}
-        <div id="pricing" style={{ padding:'80px 24px', maxWidth:940, margin:'0 auto', borderTop:'1px solid rgba(0,229,255,0.08)' }}>
+        <div id="pricing" style={{ padding:'80px 24px', maxWidth:1060, margin:'0 auto', borderTop:'1px solid rgba(0,229,255,0.08)' }}>
           <div className="stag">Pricing</div>
           <h2 className="orb" style={{ fontSize:'clamp(20px, 3.5vw, 36px)', fontWeight:900, marginBottom:10 }}>
-            Straightforward.<br /><span style={{ color:'#00e5ff' }}>No surprises.</span>
+            Straightforward.<br /><span style={{ color:'#00e5ff' }}>Cancel anytime.</span>
           </h2>
-          <p style={{ fontSize:11, color:'#8899bb', marginBottom:44, lineHeight:1.9 }}>7-day free trial on all plans. Cancel anytime.</p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(190px, 1fr))', gap:10 }}>
+          <p style={{ fontSize:11, color:'#8899bb', marginBottom:44, lineHeight:1.9 }}>7-day free trial on all plans. No card required.</p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:10 }}>
             {[
-              { name:'Starter', price:'$19', voice:'60 min/mo', overage:'$0.10/min', popular:false },
-              { name:'Pro', price:'$39', voice:'180 min/mo', overage:'$0.08/min', popular:true },
-              { name:'Elite', price:'$79', voice:'480 min/mo', overage:'$0.06/min', popular:false },
-              { name:'Elite+', price:'$129', voice:'Unlimited', overage:'No overage', popular:false },
+              {
+                name: 'Starter', price: '$19', popular: false,
+                tagline: 'See the data',
+                features: [
+                  'Live market data + cockpit',
+                  'AI Morning Brief',
+                  'Volume Profile + key levels',
+                  'Setup Evaluator (7 plays)',
+                  '60 min voice/month',
+                ],
+              },
+              {
+                name: 'Pro', price: '$39', popular: true,
+                tagline: 'Trade the workflow',
+                features: [
+                  'Everything in Starter',
+                  'AI Signals (LONG/SHORT)',
+                  'Strike Suggestions',
+                  'Dealer Mechanics Engine',
+                  'AI Companion chat',
+                  '180 min voice/month',
+                ],
+              },
+              {
+                name: 'Elite', price: '$79', popular: false,
+                tagline: 'Personalize your edge',
+                features: [
+                  'Everything in Pro',
+                  'Learning Loop (25+ streams)',
+                  'Personalized Morning Brief',
+                  'Setup win rate tracking',
+                  'Behavioral pattern discovery',
+                  '480 min voice/month',
+                ],
+              },
+              {
+                name: 'Elite+', price: '$129', popular: false,
+                tagline: 'Full power',
+                features: [
+                  'Everything in Elite',
+                  'Priority data refresh',
+                  'Unlimited voice',
+                  'Email morning brief',
+                  'Advanced analytics export',
+                  'Direct support',
+                ],
+              },
             ].map(tier => (
-              <div key={tier.name} className={`pc ${tier.popular ? 'pop' : ''}`}>
+              <div key={tier.name} className={`pc ${tier.popular ? 'pop' : ''}`} style={{ display:'flex', flexDirection:'column' }}>
                 {tier.popular && (
                   <div style={{ position:'absolute', top:-10, left:'50%', transform:'translateX(-50%)', background:'#00e5ff', color:'#020408', fontSize:7, fontWeight:800, letterSpacing:2, textTransform:'uppercase' as const, padding:'3px 10px', borderRadius:2, whiteSpace:'nowrap' as const, fontFamily:"'Orbitron',sans-serif" }}>
                     MOST POPULAR
                   </div>
                 )}
-                <div style={{ fontSize:7, letterSpacing:3, textTransform:'uppercase' as const, color:tier.popular?'#00e5ff':'#4a5568', marginBottom:14, fontWeight:700 }}>{tier.name}</div>
+                <div style={{ fontSize:7, letterSpacing:3, textTransform:'uppercase' as const, color:tier.popular?'#00e5ff':'#4a5568', marginBottom:8, fontWeight:700 }}>{tier.name}</div>
+                <div style={{ fontSize:10, color:'#8899bb', marginBottom:14, letterSpacing:1, fontStyle:'italic' as const }}>{tier.tagline}</div>
                 <div className="orb" style={{ fontSize:36, fontWeight:900, letterSpacing:'-2px', lineHeight:1, color:'#f0f4ff' }}>{tier.price}</div>
-                <div style={{ fontSize:9, color:'#4a5568', marginBottom:20, letterSpacing:1 }}>/MONTH</div>
-                <div style={{ fontSize:10, color:'#8899bb', marginBottom:24, lineHeight:2.2 }}>
-                  <div>🎙 {tier.voice}</div>
-                  <div style={{ color:tier.popular?'#00e5ff':'#4a5568' }}>Overage: {tier.overage}</div>
-                </div>
+                <div style={{ fontSize:9, color:'#4a5568', marginBottom:18, letterSpacing:1 }}>/MONTH</div>
+                <ul style={{ listStyle:'none', padding:0, margin:'0 0 22px', fontSize:10.5, color:'#8899bb', lineHeight:1.9, flex:1 }}>
+                  {tier.features.map((f, i) => (
+                    <li key={i} style={{ marginBottom:5, paddingLeft:14, position:'relative' as const }}>
+                      <span style={{ position:'absolute' as const, left:0, color: tier.popular ? '#00e5ff' : '#4a5568' }}>✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
                 <button onClick={() => router.push('/sign-up')} style={{ width:'100%', fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, padding:'10px 0', borderRadius:2, cursor:'pointer', letterSpacing:1.5, transition:'all 0.15s', background:tier.popular?'#00e5ff':'transparent', border:tier.popular?'none':'1px solid rgba(0,229,255,0.18)', color:tier.popular?'#020408':'#6b7a9a' }}>
                   START FREE TRIAL
                 </button>
@@ -223,9 +277,9 @@ export default function LandingPage() {
         <div style={{ padding:'80px 24px 100px', textAlign:'center' as const }}>
           <div className="stag" style={{ justifyContent:'center' }}>Join now</div>
           <h2 className="orb" style={{ fontSize:'clamp(22px, 5vw, 50px)', fontWeight:900, letterSpacing:'-1px', lineHeight:1.1, marginBottom:14 }}>
-            Stop trading alone.<br /><span style={{ color:'#00e5ff' }}>Trade in the zone.</span>
+            Discipline is the edge.<br /><span style={{ color:'#00e5ff' }}>Let us help you keep it.</span>
           </h2>
-          <p style={{ fontSize:11, color:'#8899bb', marginBottom:36, lineHeight:1.9 }}>Build your AI companion. Get better, measurably.</p>
+          <p style={{ fontSize:11, color:'#8899bb', marginBottom:36, lineHeight:1.9 }}>Real-time signals. Specific strikes. AI coaching. Make every trade more disciplined than the last.</p>
           <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:340, margin:'0 auto' }}>
             <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
             <button className="btn-p" onClick={handleGetAccess} style={{ fontFamily:"'Orbitron',sans-serif", fontSize:10, padding:'13px 0', borderRadius:2, letterSpacing:2 }}>
