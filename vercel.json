@@ -5,6 +5,21 @@
     },
     "src/app/api/ai/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/agents/send-morning-email/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/agents/daily-recap/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/agents/learn-from-outcomes/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/agents/stream-weights/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/agents/score-alerts/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [

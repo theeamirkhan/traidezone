@@ -8796,6 +8796,20 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           ))}
                         </select>
                       )}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/agents/daily-recap?force=true', { method: 'POST' })
+                            const json = await res.json()
+                            console.log('[recap] regenerate result:', json)
+                            fetch('/api/daily-recap').then(r2 => r2.json()).then(setDailyRecap).catch(() => {})
+                          } catch (e) { console.error('[recap] regen failed:', e) }
+                        }}
+                        style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(0,229,255,0.3)', background: 'transparent', color: C.teal, cursor: 'pointer', fontFamily: font, fontWeight: 700, letterSpacing: 1 }}
+                        title="Regenerate today's recap and resend email"
+                      >
+                        ↻ REGEN
+                      </button>
                     </div>
                   </div>
 
@@ -8904,11 +8918,27 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             {/* No recap yet */}
             {dailyRecap && !dailyRecap.mostRecent && (
               <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px dashed rgba(0,229,255,0.2)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-                <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 900, color: C.teal, letterSpacing: 2, marginBottom: 6 }}>
-                  Daily Recap
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 900, color: C.teal, letterSpacing: 2 }}>
+                    Daily Recap
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/agents/daily-recap?force=true', { method: 'POST' })
+                        const json = await res.json()
+                        console.log('[recap] manual generate result:', json)
+                        // Refresh
+                        fetch('/api/daily-recap').then(r => r.json()).then(setDailyRecap).catch(() => {})
+                      } catch (e) { console.error('[recap] manual generate failed:', e) }
+                    }}
+                    style={{ fontSize: 11, padding: '5px 12px', borderRadius: 5, border: '1px solid rgba(0,229,255,0.4)', background: 'rgba(0,229,255,0.08)', color: C.teal, cursor: 'pointer', fontFamily: font, fontWeight: 700, letterSpacing: 1 }}
+                  >
+                    GENERATE NOW
+                  </button>
                 </div>
                 <div style={{ fontSize: 12, color: '#8899bb', lineHeight: 1.7 }}>
-                  Your first end-of-day recap will be generated tomorrow at 4:30pm ET. It will summarize performance, calibration, what worked, what failed, what the system learned, and what it will do differently the following session.
+                  Your first end-of-day recap will be generated automatically at 4:30pm ET on trading days. It summarizes performance, calibration, what worked, what failed, what the system learned, and what it will do differently next session. You can also click "Generate Now" to force-create today's recap immediately.
                 </div>
               </div>
             )}
