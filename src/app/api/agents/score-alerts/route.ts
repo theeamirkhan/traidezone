@@ -38,7 +38,10 @@ function scoreAlert(alert: any, currentPrice: number): {
   ptsToT1: number
   outcomeNote: string
 } {
-  const isLong    = alert.signal === 'LONG'
+  const signal    = (alert.signal || '').toUpperCase()
+  const isLong    = signal === 'LONG'
+  const isShort   = signal === 'SHORT'
+  const isWait    = signal === 'WAIT' || signal === 'NO TRADE'
   const entryMid  = parseFloat(alert.entry_mid)
   const stop      = parseFloat(alert.stop_level)
   const t1        = parseFloat(alert.target1)
@@ -46,6 +49,49 @@ function scoreAlert(alert: any, currentPrice: number): {
   const ageMs     = Date.now() - new Date(alert.logged_at).getTime()
   const ageMin    = ageMs / 60000
 
+  // ── WAIT/NO TRADE signals: scored on whether staying out was correct ──
+  // If price chops in a narrow range, WAIT was correct.
+  // If price runs strongly in either direction past the entry zone, WAIT missed.
+  if (isWait) {
+    const priceChange = currentPrice - entryMid
+    const absChange = Math.abs(priceChange)
+
+    if (ageMin < 60) {
+      // Too early to call — leave PENDING
+      return { outcome: 'PENDING', ptsToT1: parseFloat(absChange.toFixed(1)), outcomeNote: '' }
+    }
+
+    // After 60min: did price actually move enough that WAIT was wrong?
+    // T1 typically 10-15pts away. If price moved >10pts in either direction, WAIT missed
+    const missedMove = absChange >= 10
+    const heldRange  = absChange <= 5
+
+    if (missedMove) {
+      // WAIT was wrong — price moved significantly
+      return {
+        outcome: 'STOPPED_OUT',  // reuse field — semantically "wrong call"
+        ptsToT1: parseFloat(absChange.toFixed(1)),
+        outcomeNote: `WAIT missed: price moved ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}pts in ${Math.round(ageMin)}min`,
+      }
+    } else if (heldRange && ageMin >= 90) {
+      // WAIT was correct — price chopped sideways
+      return {
+        outcome: 'HIT_T1',  // reuse field — semantically "correct call"
+        ptsToT1: parseFloat(absChange.toFixed(1)),
+        outcomeNote: `WAIT correct: price held ${absChange.toFixed(1)}pts range over ${Math.round(ageMin)}min`,
+      }
+    } else if (ageMin >= 120) {
+      // Mild drift, neither clear win nor clear miss
+      return {
+        outcome: 'EXPIRED',
+        ptsToT1: parseFloat(absChange.toFixed(1)),
+        outcomeNote: `WAIT neutral: ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}pts drift over ${Math.round(ageMin)}min`,
+      }
+    }
+    return { outcome: 'PENDING', ptsToT1: parseFloat(absChange.toFixed(1)), outcomeNote: '' }
+  }
+
+  // ── LONG/SHORT signals: scored against entry/stop/targets ──
   const priceMov  = isLong ? currentPrice - entryMid : entryMid - currentPrice
   const hitT2     = isLong ? currentPrice >= t2 : currentPrice <= t2
   const hitT1     = isLong ? currentPrice >= t1 : currentPrice <= t1

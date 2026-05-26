@@ -1719,6 +1719,8 @@ export default function CockpitPage() {
 
   // AI
   const [aiResult, setAiResult] = useState<any>(null)
+  const [adversarial, setAdversarial] = useState<any>(null)
+  const [adversarialLoading, setAdversarialLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [lastAITime, setLastAITime] = useState<string | null>(null)
   const [marketIntel, setMarketIntel] = useState<any>({})
@@ -1784,6 +1786,7 @@ export default function CockpitPage() {
   const [historicalGapStats, setHistoricalGapStats] = useState<any>(null)
   const [gapPrediction, setGapPrediction] = useState<any>(null)
   const [insights, setInsights] = useState<any>(null)
+  const [modelValidation, setModelValidation] = useState<any>(null)
   const [pulse, setPulse]         = useState<any>(null)
   const [pulseLoading, setPulseLoading] = useState(false)
   const [streamWeights, setStreamWeights] = useState<Record<string,number> | null>(null)
@@ -5223,6 +5226,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 setInsightsLoading(true)
                 fetch('/api/insights').then(r => r.json()).then(d => { setInsights(d); setInsightsLoading(false) }).catch(() => setInsightsLoading(false))
               }
+              if (t === 'learn' && !modelValidation) {
+                fetch('/api/model-validation').then(r => r.json()).then(setModelValidation).catch(() => {})
+              }
               if (t === 'learn' && !pulse && !pulseLoading) {
                 setPulseLoading(true)
                 fetch('/api/learning-pulse').then(r => r.json()).then(d => { setPulse(d); setPulseLoading(false) }).catch(() => setPulseLoading(false))
@@ -5611,7 +5617,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         result = { ...result, confidence: quality.finalConfidence }
                       }
 
-                      setAiResult(result)
+                      setAiResult(result); setAdversarial(null)
                       setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
                       const confWord = quality.finalConfidence >= 80 ? 'high confidence' : quality.finalConfidence >= 65 ? 'moderate confidence' : 'low confidence'
                       setTimeout(() => { speak(`${result.signal}. ${quality.finalConfidence}% ${confWord}. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
@@ -5879,7 +5885,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) {
-                      setAiResult(result)
+                      setAiResult(result); setAdversarial(null)
                       setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
                       setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
                     }
@@ -6808,10 +6814,103 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               border: `1px solid ${aiResult.systemAlignment === 'aligned' ? 'rgba(0,255,136,0.3)' : aiResult.systemAlignment === 'divergent' ? 'rgba(255,183,0,0.3)' : 'rgba(255,255,255,0.1)'}`,
                             }}>{aiResult.systemAlignment?.toUpperCase()}</span>
                           )}
+                          {/* Adversarial review button */}
+                          <button
+                            onClick={async () => {
+                              if (adversarialLoading) return
+                              setAdversarialLoading(true)
+                              try {
+                                const res = await fetch('/api/adversarial-review', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    signal:       aiResult.signal,
+                                    confidence:   aiResult.confidence,
+                                    entryZone:    aiResult.entryZone,
+                                    stopLevel:    aiResult.stopLevel,
+                                    target1:      aiResult.target1,
+                                    currentPrice: currentPrice,
+                                    marketConditions: aiResult.marketConditions,
+                                    aiView:           aiResult.aiView,
+                                    riskFlag:         aiResult.riskFlag,
+                                    multiTFAlignment: aiResult.multiTFAlignment,
+                                    mechanicalBias:   mechanicalFlow?.bias,
+                                    asymmetricSetup:  mechanicalFlow?.asymmetricSetup,
+                                    actionability,
+                                    setupEval,
+                                    dayTypeForecast,
+                                    microstructure:   { summary: microstructure?.summary },
+                                    vix:              marketIntel2?.vixPrice,
+                                    gexRegime:        gexData?.regime,
+                                  }),
+                                })
+                                const d = await res.json()
+                                setAdversarial(d)
+                              } catch (e) {
+                                console.error('Adversarial review failed:', e)
+                              } finally {
+                                setAdversarialLoading(false)
+                              }
+                            }}
+                            disabled={adversarialLoading}
+                            style={{
+                              marginLeft: 'auto',
+                              fontSize: 8, fontWeight: 700, padding: '3px 8px',
+                              borderRadius: 3, border: '1px solid rgba(255,183,0,0.4)',
+                              background: 'rgba(255,183,0,0.06)', color: '#ffb700',
+                              cursor: adversarialLoading ? 'wait' : 'pointer',
+                              fontFamily: font, letterSpacing: 1,
+                              opacity: adversarialLoading ? 0.5 : 1,
+                            }}
+                          >
+                            {adversarialLoading ? 'CHECKING…' : 'CHALLENGE THIS'}
+                          </button>
                         </div>
                         <div style={{ fontSize: 13, color: '#e0e8ff', lineHeight: 1.8 }}>{aiResult.aiView}</div>
                         {aiResult.systemAlignmentNote && (
                           <div style={{ fontSize: 11, color: '#8899bb', marginTop: 5, fontStyle: 'italic' }}>{aiResult.systemAlignmentNote}</div>
+                        )}
+
+                        {/* Adversarial result display */}
+                        {adversarial && !adversarial.error && (
+                          <div style={{
+                            marginTop: 10,
+                            padding: '10px 12px',
+                            background: adversarial.counterStrength === 'STRONG' ? 'rgba(255,77,109,0.06)' : adversarial.counterStrength === 'MODERATE' ? 'rgba(255,183,0,0.05)' : 'rgba(0,212,160,0.04)',
+                            border: `1px solid ${adversarial.counterStrength === 'STRONG' ? 'rgba(255,77,109,0.3)' : adversarial.counterStrength === 'MODERATE' ? 'rgba(255,183,0,0.25)' : 'rgba(0,212,160,0.2)'}`,
+                            borderRadius: 5,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5,
+                                color: adversarial.counterStrength === 'STRONG' ? '#ff4d6d' : adversarial.counterStrength === 'MODERATE' ? '#ffb700' : '#00d4a0',
+                              }}>COUNTERARGUMENT</span>
+                              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 7px', borderRadius: 3, letterSpacing: 1,
+                                background: adversarial.counterStrength === 'STRONG' ? 'rgba(255,77,109,0.15)' : adversarial.counterStrength === 'MODERATE' ? 'rgba(255,183,0,0.12)' : 'rgba(0,212,160,0.1)',
+                                color: adversarial.counterStrength === 'STRONG' ? '#ff4d6d' : adversarial.counterStrength === 'MODERATE' ? '#ffb700' : '#00d4a0',
+                              }}>{adversarial.counterStrength}</span>
+                              {adversarial.verdict && (
+                                <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 7px', borderRadius: 3, letterSpacing: 1,
+                                  background: adversarial.verdict === 'PROCEED' ? 'rgba(0,255,136,0.1)' : adversarial.verdict === 'REDUCE_SIZE' ? 'rgba(255,183,0,0.1)' : 'rgba(255,77,109,0.1)',
+                                  color: adversarial.verdict === 'PROCEED' ? '#00ff88' : adversarial.verdict === 'REDUCE_SIZE' ? '#ffb700' : '#ff4d6d',
+                                }}>VERDICT: {adversarial.verdict}</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#e0e8ff', lineHeight: 1.7, marginBottom: 8 }}>
+                              {adversarial.counterCase}
+                            </div>
+                            {adversarial.concerns?.length > 0 && (
+                              <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 10.5, color: '#b0c4de', lineHeight: 1.75 }}>
+                                {adversarial.concerns.map((c: string, i: number) => (
+                                  <li key={i} style={{ marginBottom: 3 }}>{c}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {adversarial.alternativeAction && (
+                              <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 3, fontSize: 10.5, color: '#8899bb' }}>
+                                <strong style={{ color: '#7c6aff' }}>Alternative: </strong>{adversarial.alternativeAction}
+                              </div>
+                            )}
+                          </div>
                         )}
                         {/* Multi-TF alignment + IV context + sizing */}
                         {(aiResult.multiTFAlignment || aiResult.ivContext || aiResult.sizingNote) && (
@@ -6965,7 +7064,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)
                     const result = await runSignal(buildSignalInput({ flow, tide, intel: intel, tiingo: tiingo2 }))
                     if (result) {
-                      setAiResult(result)
+                      setAiResult(result); setAdversarial(null)
                       setLastAITime(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))
                       setTimeout(() => { speak(`${result.signal}. ${result.confidence}% confidence. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
                       // Auto-refresh strike suggestions with new signal
@@ -8574,6 +8673,156 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               )
             })()}
+
+            {/* ── Model Validation — confidence calibration + component accuracy ── */}
+            {modelValidation && modelValidation.ready && (
+              <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 900, color: '#7c6aff', letterSpacing: 2, textTransform: 'uppercase' as const }}>
+                    Model Validation
+                  </div>
+                  <button
+                    onClick={() => { setModelValidation(null); fetch('/api/model-validation').then(r => r.json()).then(setModelValidation).catch(() => {}) }}
+                    style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(124,106,255,0.3)', background: 'transparent', color: '#7c6aff', cursor: 'pointer', fontFamily: font }}
+                  >↺ Refresh</button>
+                </div>
+                <div style={{ fontSize: 10, color: '#8899bb', marginBottom: 14, fontStyle: 'italic' as const }}>
+                  Independent validation of model accuracy — every signal scored against actual SPX movement regardless of whether you traded it.
+                </div>
+
+                {/* Summary */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+                  <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                    <div style={{ fontSize: 8, color: '#4a5568', letterSpacing: 1 }}>OVERALL WIN RATE</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 800, color: modelValidation.summary.winRate >= 55 ? '#00ff88' : modelValidation.summary.winRate >= 45 ? '#f59e0b' : '#ff4d6d' }}>
+                      {modelValidation.summary.winRate}%
+                    </div>
+                    <div style={{ fontSize: 8, color: '#6b7a9a' }}>{modelValidation.summary.wins}W / {modelValidation.summary.losses}L</div>
+                  </div>
+                  <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                    <div style={{ fontSize: 8, color: '#4a5568', letterSpacing: 1 }}>LAST 7 DAYS</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 800, color: (modelValidation.summary.recentWinRate ?? 0) >= 55 ? '#00ff88' : (modelValidation.summary.recentWinRate ?? 0) >= 45 ? '#f59e0b' : '#ff4d6d' }}>
+                      {modelValidation.summary.recentWinRate ?? '—'}%
+                    </div>
+                    {modelValidation.summary.trendDelta !== null && (
+                      <div style={{ fontSize: 8, color: modelValidation.summary.trendDelta > 0 ? '#00ff88' : '#ff4d6d' }}>
+                        {modelValidation.summary.trendDelta > 0 ? '+' : ''}{modelValidation.summary.trendDelta} vs prior
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                    <div style={{ fontSize: 8, color: '#4a5568', letterSpacing: 1 }}>CALIBRATION</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: modelValidation.calibration.health === 'EXCELLENT' ? '#00ff88' : modelValidation.calibration.health === 'GOOD' ? '#00d4a0' : modelValidation.calibration.health === 'FAIR' ? '#f59e0b' : '#ff4d6d', marginTop: 2 }}>
+                      {modelValidation.calibration.health}
+                    </div>
+                    {modelValidation.calibration.avgGap !== null && (
+                      <div style={{ fontSize: 8, color: '#6b7a9a' }}>avg gap: {modelValidation.calibration.avgGap}pts</div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                    <div style={{ fontSize: 8, color: '#4a5568', letterSpacing: 1 }}>SAMPLE</div>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 800, color: '#b0c4de' }}>
+                      {modelValidation.summary.totalSignals}
+                    </div>
+                    <div style={{ fontSize: 8, color: '#6b7a9a' }}>scored signals</div>
+                  </div>
+                </div>
+
+                {/* Calibration table */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#7c6aff', letterSpacing: 1.5, marginBottom: 6 }}>CONFIDENCE CALIBRATION</div>
+                  <div style={{ fontSize: 9.5, color: '#8899bb', marginBottom: 10, lineHeight: 1.6 }}>
+                    {modelValidation.calibration.interpretation}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {modelValidation.calibration.bands.map((b: any, i: number) => {
+                      const hasData = b.actualRate !== null
+                      const gap = b.calibrationGap
+                      const gapColor = gap === null ? '#4a5568' :
+                                        Math.abs(gap) <= 5 ? '#00ff88' :
+                                        Math.abs(gap) <= 10 ? '#f59e0b' : '#ff4d6d'
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 4, fontSize: 11 }}>
+                          <span style={{ width: 65, color: '#b0c4de', fontWeight: 600 }}>{b.range}</span>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 80, fontSize: 9, color: '#6b7a9a' }}>predicted: <strong style={{ color: '#7c6aff' }}>{b.predictedRate}%</strong></span>
+                            <span style={{ width: 80, fontSize: 9, color: '#6b7a9a' }}>actual: {hasData ? <strong style={{ color: '#00e5ff' }}>{b.actualRate}%</strong> : <span style={{ color: '#4a5568' }}>—</span>}</span>
+                            <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, position: 'relative' as const, overflow: 'hidden' }}>
+                              {hasData && (
+                                <>
+                                  <div style={{ position: 'absolute' as const, left: `${b.predictedRate}%`, top: -2, bottom: -2, width: 1, background: '#7c6aff' }} />
+                                  <div style={{ position: 'absolute' as const, left: `${b.actualRate}%`, top: -2, bottom: -2, width: 2, background: '#00e5ff' }} />
+                                </>
+                              )}
+                            </div>
+                            <span style={{ width: 36, textAlign: 'right' as const, fontSize: 9, color: gapColor, fontWeight: 700 }}>
+                              {gap !== null ? (gap > 0 ? '+' : '') + gap : '—'}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: 8, color: '#6b7a9a', width: 50, textAlign: 'right' as const }}>n={b.sample}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Component accuracy */}
+                {modelValidation.componentAccuracy?.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#7c6aff', letterSpacing: 1.5, marginBottom: 6 }}>COMPONENT ACCURACY — each voter's predictive power</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {modelValidation.componentAccuracy.map((c: any, i: number) => {
+                        const verdictColor = c.verdict === 'STRONG' ? '#00ff88' : c.verdict === 'EDGE' ? '#00d4a0' : c.verdict === 'NEUTRAL' ? '#f59e0b' : '#ff4d6d'
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: 4, fontSize: 11 }}>
+                            <span style={{ flex: 1, color: '#b0c4de', fontWeight: 600 }}>{c.component}</span>
+                            <div style={{ width: 100, height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${c.accuracy}%`, background: verdictColor, transition: 'width 0.3s' }} />
+                            </div>
+                            <span style={{ width: 38, textAlign: 'right' as const, fontFamily: fontDisplay, fontWeight: 800, color: verdictColor }}>{c.accuracy}%</span>
+                            <span style={{ width: 50, fontSize: 8, color: '#6b7a9a', fontWeight: 700, letterSpacing: 1 }}>{c.verdict}</span>
+                            <span style={{ width: 30, fontSize: 8, color: '#4a5568', textAlign: 'right' as const }}>n={c.sample}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Signal type accuracy */}
+                {modelValidation.signalTypeAccuracy?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#7c6aff', letterSpacing: 1.5, marginBottom: 6 }}>BY SIGNAL TYPE</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                      {modelValidation.signalTypeAccuracy.map((s: any, i: number) => (
+                        <div key={i} style={{ padding: '4px 10px', borderRadius: 4, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <span style={{ fontSize: 9, color: '#6b7a9a', fontWeight: 700, marginRight: 6 }}>{s.signal}:</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: (s.winRate ?? 0) >= 55 ? '#00ff88' : (s.winRate ?? 0) >= 45 ? '#f59e0b' : '#ff4d6d', fontFamily: fontDisplay }}>
+                            {s.winRate ?? '—'}%
+                          </span>
+                          <span style={{ fontSize: 8, color: '#4a5568', marginLeft: 5 }}>(n={s.sample})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Model validation - early state */}
+            {modelValidation && !modelValidation.ready && (
+              <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 11, fontWeight: 900, color: '#7c6aff', letterSpacing: 2, marginBottom: 8 }}>
+                  Model Validation
+                </div>
+                <div style={{ fontSize: 11, color: '#8899bb', lineHeight: 1.6 }}>
+                  {modelValidation.message || 'Validation will activate once signals are scored.'}
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7a9a', marginTop: 6, fontStyle: 'italic' as const }}>
+                  Every signal is auto-scored vs actual SPX action by the score-alerts cron (runs every 30min during market hours). Calibration metrics appear after ~10 scored signals.
+                </div>
+              </div>
+            )}
 
             {/* ── Learning Pulse — always shown first ── */}
             {pulse && (() => {
