@@ -35,7 +35,7 @@ function WelcomeContent() {
       </p>
       <div style={{ background: 'rgba(0,229,255,0.04)', border: `1px solid rgba(0,229,255,0.2)`, borderRadius: 8, padding: 14 }}>
         <div style={{ fontFamily: fontD, fontSize: 13, fontWeight: 900, color: C.teal, letterSpacing: 2, marginBottom: 6 }}>WHAT YOU GET</div>
-        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9 }}>
           <strong style={{ color: C.text }}>AI signals</strong> — LONG/SHORT/WAIT with full reasoning<br />
           <strong style={{ color: C.text }}>Strike suggestions</strong> — exact contracts with calculated premiums<br />
           <strong style={{ color: C.text }}>Setup evaluator</strong> — score your 7 named plays against live data<br />
@@ -44,7 +44,7 @@ function WelcomeContent() {
           <strong style={{ color: C.text }}>Learning loop</strong> — system gets sharper for YOUR style
         </div>
       </div>
-      <p style={{ fontSize: 11, color: C.dim, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+      <p style={{ fontSize: 12, color: C.dim, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
         The next 8 steps walk through the daily workflow — the sequence we recommend to make every trade more disciplined than the last.
       </p>
     </div>
@@ -67,12 +67,12 @@ function PlanContent() {
           { c: C.red,    t: 'Trade Rules', s: 'Your specific entries, position sizes, time windows' },
         ].map((x, i) => (
           <div key={i} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '7px 9px', borderLeft: `2px solid ${x.c}` }}>
-            <div style={{ fontFamily: fontD, fontSize: 11, fontWeight: 800, color: x.c }}>{x.t}</div>
-            <div style={{ fontSize: 9.5, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{x.s}</div>
+            <div style={{ fontFamily: fontD, fontSize: 12, fontWeight: 800, color: x.c }}>{x.t}</div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{x.s}</div>
           </div>
         ))}
       </div>
-      <div style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: C.yellow }}>
+      <div style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: C.yellow }}>
         ! <strong>No plan = no trade.</strong> The system blocks signal evaluation if Morning Plan isn't saved.
       </div>
     </div>
@@ -95,11 +95,11 @@ function MechanicsContent() {
         ].map((x, i) => (
           <div key={i} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '8px 11px', borderLeft: `2px solid ${x.c}` }}>
             <div style={{ fontFamily: fontD, fontSize: 12, fontWeight: 800, color: x.c }}>{x.t}</div>
-            <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
+            <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
           </div>
         ))}
       </div>
-      <p style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+      <p style={{ fontSize: 12, color: C.dim, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
         You're not playing against the dealers. You're recognizing their mechanical constraints and trading WITH them.
       </p>
     </div>
@@ -113,8 +113,8 @@ function NamedPlayContent() {
         Before you take a trade, you must <strong style={{ color: C.text }}>name what you're playing</strong>. This is the discipline checkpoint. If you can't name it, you can't trade it.
       </p>
       <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 6, padding: '8px 12px' }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, letterSpacing: 1.5, marginBottom: 6 }}>9 NAMED PLAYS</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, fontSize: 10.5, color: C.muted }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.purple, letterSpacing: 1.5, marginBottom: 6 }}>9 NAMED PLAYS</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, fontSize: 12, color: C.muted }}>
           <div>▲ VWAP Retest Bounce</div>
           <div>▼ VWAP Retest Reject</div>
           <div>▲ Opening Range Breakout</div>
@@ -127,10 +127,10 @@ function NamedPlayContent() {
           <div>▼ Trend Line Break (SHORT)</div>
         </div>
       </div>
-      <p style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.75, margin: 0 }}>
+      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>
         Select your setup and the system scores it 0-100 against current conditions using setup-specific criteria. Each criterion shows ✓ PASS / ✗ FAIL / ○ NEUTRAL with the actual data value.
       </p>
-      <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 11, color: C.green }}>
+      <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: C.green }}>
         STRONG (75+) → high-conviction setup<br />
         GOOD (60-74) → tradeable but watch flags<br />
         NEUTRAL (45-59) → mixed signals, smaller size<br />
@@ -156,13 +156,13 @@ function SignalContent() {
         ].map((x, i) => (
           <div key={i} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '8px 11px', borderLeft: `2px solid ${x.c}` }}>
             <div style={{ fontFamily: fontD, fontSize: 12, fontWeight: 800, color: x.c }}>{x.t}</div>
-            <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
+            <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
           </div>
         ))}
       </div>
       <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: 6, padding: '8px 12px' }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: 1.5, marginBottom: 4 }}>ACTIONABILITY FILTER</div>
-        <div style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.65 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.teal, letterSpacing: 1.5, marginBottom: 4 }}>ACTIONABILITY FILTER</div>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65 }}>
           Above the signal, a banner shows <strong style={{ color: C.green }}>✓ ACTIONABLE</strong> / <strong style={{ color: C.yellow }}>WATCH</strong> / <strong style={{ color: C.red }}>✕ NOISE</strong> — combining signal quality, mechanical flow, news blackouts, and liquidity into one verdict.
         </div>
       </div>
@@ -184,14 +184,14 @@ function StrikesContent() {
         ].map((x, i) => (
           <div key={i} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '8px 11px', borderLeft: `3px solid ${x.c}` }}>
             <div style={{ fontFamily: fontD, fontSize: 12, fontWeight: 800, color: x.c, letterSpacing: 1 }}>{x.t}</div>
-            <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
+            <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
           </div>
         ))}
       </div>
-      <p style={{ fontSize: 11, color: C.muted, lineHeight: 1.75, margin: 0 }}>
+      <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.75, margin: 0 }}>
         Each card shows entry premium range, target/stop in dollars, delta-adjusted P&L per contract, confluence score (HIGH/MEDIUM/LOW), and the exact levels anchoring the strike (VWAP+POC, GEX wall, PDH, etc.).
       </p>
-      <div style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 10.5, color: C.yellow }}>
+      <div style={{ background: 'rgba(255,183,0,0.04)', border: '1px solid rgba(255,183,0,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: C.yellow }}>
         <strong>Tap any strike card</strong> to auto-fill the trade ticket with that contract and entry price.
       </div>
     </div>
@@ -215,13 +215,13 @@ function TicketContent() {
           <div key={x.n} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '7px 11px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ fontFamily: fontD, fontSize: 16, fontWeight: 900, color: C.teal, lineHeight: 1, minWidth: 18 }}>{x.n}</span>
             <div>
-              <div style={{ fontFamily: fontD, fontSize: 11, fontWeight: 800, color: C.text }}>{x.t}</div>
-              <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.5 }}>{x.s}</div>
+              <div style={{ fontFamily: fontD, fontSize: 12, fontWeight: 800, color: C.text }}>{x.t}</div>
+              <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>{x.s}</div>
             </div>
           </div>
         ))}
       </div>
-      <p style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+      <p style={{ fontSize: 12, color: C.dim, lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
         Every closed trade saves: mechanical flow, actionability verdict, setup name + score, predicted entry window, and full market snapshot. This is what makes the system smarter tomorrow.
       </p>
     </div>
@@ -236,7 +236,7 @@ function CompanionContent() {
       </p>
       <div style={{ background: 'rgba(124,106,255,0.04)', border: '1px solid rgba(124,106,255,0.2)', borderRadius: 8, padding: '10px 14px' }}>
         <div style={{ fontFamily: fontD, fontSize: 13, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>WHAT IT SEES IN-TRADE</div>
-        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.85 }}>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.85 }}>
           • Your active strike, entry price, current P&L<br />
           • Time since entry, time to close<br />
           • Mechanical flow shifts (charm activating, gamma flip approaching)<br />
@@ -245,10 +245,10 @@ function CompanionContent() {
           • Whether you're drifting from your morning plan
         </div>
       </div>
-      <p style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.75, margin: 0 }}>
+      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>
         Ask "<em style={{ color: C.text }}>should I take partial here?</em>" or "<em style={{ color: C.text }}>is the setup still working?</em>" — it answers specifically about YOUR trade with current data, not generic advice.
       </p>
-      <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 10.5, color: C.green }}>
+      <div style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: C.green }}>
         <strong>Pick your coaching tone</strong> in Settings — Drill Sergeant, Mentor, Analytical, Calm, or Encouraging. The companion's voice and energy adapt to how you want to be coached.
       </div>
     </div>
@@ -271,13 +271,13 @@ function LearningContent() {
         ].map((x, i) => (
           <div key={i} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: '8px 11px', borderLeft: `2px solid ${x.c}` }}>
             <div style={{ fontFamily: fontD, fontSize: 12, fontWeight: 800, color: x.c }}>{x.t}</div>
-            <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
+            <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.55, marginTop: 2 }}>{x.s}</div>
           </div>
         ))}
       </div>
       <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' as const }}>
         <div style={{ fontFamily: fontD, fontSize: 14, fontWeight: 900, color: C.teal, letterSpacing: 2, marginBottom: 4 }}>YOU'RE READY</div>
-        <div style={{ fontSize: 10.5, color: C.muted, lineHeight: 1.7 }}>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
           The system won't make you a better trader overnight.<br />
           It will make every trade more disciplined than the last.
         </div>
@@ -308,7 +308,7 @@ export default function TutorialModal({ onClose }: Props) {
     <div onClick={onClose} style={{ position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' as const }}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 14, maxWidth: 560, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' as const, boxShadow: '0 20px 80px rgba(0,229,255,0.1), 0 0 0 1px rgba(0,229,255,0.05)' }}>
         <div style={{ padding: '16px 22px', borderBottom: `1px solid rgba(255,255,255,0.06)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: font, fontSize: 9, color: C.dim, letterSpacing: 2, textTransform: 'uppercase' as const }}>{s.tag}</div>
+          <div style={{ fontFamily: font, fontSize: 11, color: C.dim, letterSpacing: 2, textTransform: 'uppercase' as const }}>{s.tag}</div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.dim, fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 4 }}>✕</button>
         </div>
 
@@ -331,13 +331,13 @@ export default function TutorialModal({ onClose }: Props) {
           <button
             disabled={step === 0}
             onClick={() => setStep(s => Math.max(0, s - 1))}
-            style={{ background: 'transparent', border: 'none', color: step === 0 ? C.dimmer : C.muted, fontFamily: font, fontSize: 11, cursor: step === 0 ? 'not-allowed' : 'pointer', padding: '6px 4px' }}
+            style={{ background: 'transparent', border: 'none', color: step === 0 ? C.dimmer : C.muted, fontFamily: font, fontSize: 12, cursor: step === 0 ? 'not-allowed' : 'pointer', padding: '6px 4px' }}
           >← Back</button>
-          <div style={{ fontFamily: font, fontSize: 10, color: C.dim }}>{step + 1} / {steps.length}</div>
+          <div style={{ fontFamily: font, fontSize: 11.5, color: C.dim }}>{step + 1} / {steps.length}</div>
           {isLast ? (
             <button onClick={onClose} style={{ background: C.teal, border: 'none', color: '#000', fontFamily: fontD, fontSize: 13, fontWeight: 800, letterSpacing: 1.5, cursor: 'pointer', padding: '8px 18px', borderRadius: 6 }}>START TRADING →</button>
           ) : (
-            <button onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))} style={{ background: 'rgba(0,229,255,0.1)', border: `1px solid ${C.teal}`, color: C.teal, fontFamily: font, fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 5 }}>Next →</button>
+            <button onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))} style={{ background: 'rgba(0,229,255,0.1)', border: `1px solid ${C.teal}`, color: C.teal, fontFamily: font, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 5 }}>Next →</button>
           )}
         </div>
       </div>

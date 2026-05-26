@@ -81,15 +81,15 @@ export default function LandingPage() {
             tr<span style={{ color:'#00e5ff', textShadow:'0 0 12px rgba(0,229,255,0.7)' }}>AI</span>de Zone
           </div>
           <div style={{ display:'flex', gap:8 }}>
-            <button className="btn-s" onClick={() => router.push('/sign-in')} style={{ fontFamily:'inherit', fontSize:10, padding:'6px 14px', borderRadius:2, letterSpacing:1 }}>SIGN IN</button>
-            <button className="btn-p" onClick={() => router.push('/sign-up')} style={{ fontFamily:'inherit', fontSize:10, padding:'6px 14px', borderRadius:2 }}>GET ACCESS →</button>
+            <button className="btn-s" onClick={() => router.push('/sign-in')} style={{ fontFamily:'inherit', fontSize:11.5, padding:'6px 14px', borderRadius:2, letterSpacing:1 }}>SIGN IN</button>
+            <button className="btn-p" onClick={() => router.push('/sign-up')} style={{ fontFamily:'inherit', fontSize:11.5, padding:'6px 14px', borderRadius:2 }}>GET ACCESS →</button>
           </div>
         </nav>
 
         {/* HERO */}
         <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'96px 24px 60px' }}>
 
-          <div className="h1" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'5px 14px', border:'1px solid rgba(0,255,136,0.25)', borderRadius:2, fontSize:8, color:'#00ff88', letterSpacing:3, textTransform:'uppercase' as const, marginBottom:36, background:'rgba(0,255,136,0.04)' }}>
+          <div className="h1" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'5px 14px', border:'1px solid rgba(0,255,136,0.25)', borderRadius:2, fontSize:10, color:'#00ff88', letterSpacing:3, textTransform:'uppercase' as const, marginBottom:36, background:'rgba(0,255,136,0.04)' }}>
             <div style={{ width:5, height:5, borderRadius:'50%', background:'#00ff88', boxShadow:'0 0 8px rgba(0,255,136,0.9)', animation:'pulse 2s infinite' }} />
             LIVE · SPX {spx} &nbsp;
             <span style={{ color: isUp ? '#00ff88' : '#ff1a4a' }}>{spxChange || '—'}</span>
@@ -107,18 +107,18 @@ export default function LandingPage() {
 
           <div className="h3" style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:360 }}>
             <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGetAccess()} />
-            <button className="btn-p" onClick={handleGetAccess} style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11, padding:'14px 0', borderRadius:2, width:'100%' }}>
+            <button className="btn-p" onClick={handleGetAccess} style={{ fontFamily:"'Orbitron',sans-serif", fontSize:12, padding:'14px 0', borderRadius:2, width:'100%' }}>
               START FREE TRIAL →
             </button>
-            <div style={{ fontSize:8, color:'#2d3748', letterSpacing:2 }}>7-DAY FREE TRIAL · NO CARD REQUIRED</div>
+            <div style={{ fontSize:10, color:'#2d3748', letterSpacing:2 }}>7-DAY FREE TRIAL · NO CARD REQUIRED</div>
           </div>
 
           {/* Terminal card */}
           <div style={{ marginTop:56, width:'100%', maxWidth:620, background:'rgba(6,8,16,0.97)', border:'1px solid rgba(0,229,255,0.15)', borderRadius:4, overflow:'hidden', boxShadow:'0 4px 40px rgba(0,0,0,0.6)', animation:'borderPulse 4s ease-in-out infinite' }}>
             <div style={{ padding:'7px 14px', borderBottom:'1px solid rgba(0,229,255,0.1)', display:'flex', alignItems:'center', gap:7, background:'rgba(0,0,0,0.4)' }}>
               {['#ff1a4a','#ffb700','#00ff88'].map(c => <div key={c} style={{ width:7, height:7, borderRadius:'50%', background:c, opacity:0.7 }} />)}
-              <span style={{ marginLeft:8, fontSize:8, color:'#4a5568', letterSpacing:2 }}>TRAIDEZONE · TERMINAL</span>
-              <div style={{ marginLeft:'auto', fontSize:8, color:'#00e5ff', letterSpacing:1 }}>{tick ? '█' : ' '} CONNECTED</div>
+              <span style={{ marginLeft:8, fontSize:10, color:'#4a5568', letterSpacing:2 }}>TRAIDEZONE · TERMINAL</span>
+              <div style={{ marginLeft:'auto', fontSize:10, color:'#00e5ff', letterSpacing:1 }}>{tick ? '█' : ' '} CONNECTED</div>
             </div>
             <div style={{ padding:'18px 24px', display:'flex', alignItems:'center', gap:36, flexWrap:'wrap' as const }}>
               {[
@@ -128,7 +128,7 @@ export default function LandingPage() {
                 { l:'AI COMPANION', v:'ACTIVE', vc:'#00e5ff', g:'0 0 8px rgba(0,229,255,0.7)' },
               ].map(({ l, v, vc, g }) => (
                 <div key={l}>
-                  <div style={{ fontSize:7, color:'#4a5568', letterSpacing:2, textTransform:'uppercase' as const, marginBottom:4 }}>{l}</div>
+                  <div style={{ fontSize:9, color:'#4a5568', letterSpacing:2, textTransform:'uppercase' as const, marginBottom:4 }}>{l}</div>
                   <div className="orb" style={{ fontSize:15, fontWeight:700, color:vc, textShadow:g }}>{v}</div>
                 </div>
               ))}
@@ -158,7 +158,7 @@ export default function LandingPage() {
                 <div className="orb" style={{ fontSize:28, fontWeight:900, color:'rgba(0,229,255,0.15)', lineHeight:1, minWidth:40 }}>{s.n}</div>
                 <div>
                   <div className="orb" style={{ fontSize:13, fontWeight:700, marginBottom:6, color:'#f0f4ff', letterSpacing:1 }}>{s.t}</div>
-                  <div style={{ fontSize:11, color:'#8899bb', lineHeight:1.9 }}>{s.d}</div>
+                  <div style={{ fontSize:12, color:'#8899bb', lineHeight:1.9 }}>{s.d}</div>
                 </div>
               </div>
             ))}
@@ -183,8 +183,8 @@ export default function LandingPage() {
             ].map(({ icon, t, d }) => (
               <div key={t} className="fc">
                 <div style={{ fontSize:20, marginBottom:12 }}>{icon}</div>
-                <div className="orb" style={{ fontSize:10, fontWeight:700, color:'#00e5ff', letterSpacing:1, marginBottom:8 }}>{t}</div>
-                <div style={{ fontSize:11, color:'#8899bb', lineHeight:1.9 }}>{d}</div>
+                <div className="orb" style={{ fontSize:11.5, fontWeight:700, color:'#00e5ff', letterSpacing:1, marginBottom:8 }}>{t}</div>
+                <div style={{ fontSize:12, color:'#8899bb', lineHeight:1.9 }}>{d}</div>
               </div>
             ))}
           </div>
@@ -196,7 +196,7 @@ export default function LandingPage() {
           <h2 className="orb" style={{ fontSize:'clamp(20px, 3.5vw, 36px)', fontWeight:900, marginBottom:10 }}>
             Straightforward.<br /><span style={{ color:'#00e5ff' }}>Cancel anytime.</span>
           </h2>
-          <p style={{ fontSize:11, color:'#8899bb', marginBottom:44, lineHeight:1.9 }}>7-day free trial on all plans. No card required.</p>
+          <p style={{ fontSize:12, color:'#8899bb', marginBottom:44, lineHeight:1.9 }}>7-day free trial on all plans. No card required.</p>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:10 }}>
             {[
               {
@@ -249,15 +249,15 @@ export default function LandingPage() {
             ].map(tier => (
               <div key={tier.name} className={`pc ${tier.popular ? 'pop' : ''}`} style={{ display:'flex', flexDirection:'column' }}>
                 {tier.popular && (
-                  <div style={{ position:'absolute', top:-10, left:'50%', transform:'translateX(-50%)', background:'#00e5ff', color:'#020408', fontSize:7, fontWeight:800, letterSpacing:2, textTransform:'uppercase' as const, padding:'3px 10px', borderRadius:2, whiteSpace:'nowrap' as const, fontFamily:"'Orbitron',sans-serif" }}>
+                  <div style={{ position:'absolute', top:-10, left:'50%', transform:'translateX(-50%)', background:'#00e5ff', color:'#020408', fontSize:9, fontWeight:800, letterSpacing:2, textTransform:'uppercase' as const, padding:'3px 10px', borderRadius:2, whiteSpace:'nowrap' as const, fontFamily:"'Orbitron',sans-serif" }}>
                     MOST POPULAR
                   </div>
                 )}
-                <div style={{ fontSize:7, letterSpacing:3, textTransform:'uppercase' as const, color:tier.popular?'#00e5ff':'#4a5568', marginBottom:8, fontWeight:700 }}>{tier.name}</div>
-                <div style={{ fontSize:10, color:'#8899bb', marginBottom:14, letterSpacing:1, fontStyle:'italic' as const }}>{tier.tagline}</div>
+                <div style={{ fontSize:9, letterSpacing:3, textTransform:'uppercase' as const, color:tier.popular?'#00e5ff':'#4a5568', marginBottom:8, fontWeight:700 }}>{tier.name}</div>
+                <div style={{ fontSize:11.5, color:'#8899bb', marginBottom:14, letterSpacing:1, fontStyle:'italic' as const }}>{tier.tagline}</div>
                 <div className="orb" style={{ fontSize:36, fontWeight:900, letterSpacing:'-2px', lineHeight:1, color:'#f0f4ff' }}>{tier.price}</div>
-                <div style={{ fontSize:9, color:'#4a5568', marginBottom:18, letterSpacing:1 }}>/MONTH</div>
-                <ul style={{ listStyle:'none', padding:0, margin:'0 0 22px', fontSize:10.5, color:'#8899bb', lineHeight:1.9, flex:1 }}>
+                <div style={{ fontSize:11, color:'#4a5568', marginBottom:18, letterSpacing:1 }}>/MONTH</div>
+                <ul style={{ listStyle:'none', padding:0, margin:'0 0 22px', fontSize:12, color:'#8899bb', lineHeight:1.9, flex:1 }}>
                   {tier.features.map((f, i) => (
                     <li key={i} style={{ marginBottom:5, paddingLeft:14, position:'relative' as const }}>
                       <span style={{ position:'absolute' as const, left:0, color: tier.popular ? '#00e5ff' : '#4a5568' }}>›</span>
@@ -265,13 +265,13 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <button onClick={() => router.push('/sign-up')} style={{ width:'100%', fontFamily:"'JetBrains Mono',monospace", fontSize:10, fontWeight:700, padding:'10px 0', borderRadius:2, cursor:'pointer', letterSpacing:1.5, transition:'all 0.15s', background:tier.popular?'#00e5ff':'transparent', border:tier.popular?'none':'1px solid rgba(0,229,255,0.18)', color:tier.popular?'#020408':'#6b7a9a' }}>
+                <button onClick={() => router.push('/sign-up')} style={{ width:'100%', fontFamily:"'JetBrains Mono',monospace", fontSize:11.5, fontWeight:700, padding:'10px 0', borderRadius:2, cursor:'pointer', letterSpacing:1.5, transition:'all 0.15s', background:tier.popular?'#00e5ff':'transparent', border:tier.popular?'none':'1px solid rgba(0,229,255,0.18)', color:tier.popular?'#020408':'#6b7a9a' }}>
                   START FREE TRIAL
                 </button>
               </div>
             ))}
           </div>
-          <div style={{ marginTop:24, textAlign:'center' as const, fontSize:9, color:'#4a5568', letterSpacing:1, lineHeight:1.7 }}>
+          <div style={{ marginTop:24, textAlign:'center' as const, fontSize:11, color:'#4a5568', letterSpacing:1, lineHeight:1.7 }}>
             Fair-use voice on all plans · Cancel anytime · No setup fees
           </div>
         </div>
@@ -282,10 +282,10 @@ export default function LandingPage() {
           <h2 className="orb" style={{ fontSize:'clamp(22px, 5vw, 50px)', fontWeight:900, letterSpacing:'-1px', lineHeight:1.1, marginBottom:14 }}>
             Discipline is the edge.<br /><span style={{ color:'#00e5ff' }}>Let us help you keep it.</span>
           </h2>
-          <p style={{ fontSize:11, color:'#8899bb', marginBottom:36, lineHeight:1.9 }}>Real-time signals. Specific strikes. AI coaching. Make every trade more disciplined than the last.</p>
+          <p style={{ fontSize:12, color:'#8899bb', marginBottom:36, lineHeight:1.9 }}>Real-time signals. Specific strikes. AI coaching. Make every trade more disciplined than the last.</p>
           <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:340, margin:'0 auto' }}>
             <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
-            <button className="btn-p" onClick={handleGetAccess} style={{ fontFamily:"'Orbitron',sans-serif", fontSize:10, padding:'13px 0', borderRadius:2, letterSpacing:2 }}>
+            <button className="btn-p" onClick={handleGetAccess} style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11.5, padding:'13px 0', borderRadius:2, letterSpacing:2 }}>
               START FREE TRIAL →
             </button>
           </div>
@@ -294,7 +294,7 @@ export default function LandingPage() {
         {/* FOOTER */}
         <footer style={{ borderTop:'1px solid rgba(0,229,255,0.08)', padding:'18px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' as const, gap:12 }}>
           <div className="orb" style={{ fontSize:12, fontWeight:700, color:'#4a5568' }}>tr<span style={{ color:'#00e5ff' }}>AI</span>de Zone</div>
-          <div style={{ fontSize:8, color:'#2d3748', letterSpacing:1 }}>© 2026 TRAIDEZONE · BUILT FOR DISCIPLINED TRADERS</div>
+          <div style={{ fontSize:10, color:'#2d3748', letterSpacing:1 }}>© 2026 TRAIDEZONE · BUILT FOR DISCIPLINED TRADERS</div>
         </footer>
 
       </div>
