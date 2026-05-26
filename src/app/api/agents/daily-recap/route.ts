@@ -17,7 +17,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
@@ -105,19 +104,27 @@ Return only valid JSON. No commentary outside.`
 }
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}` ||
-                 req.headers.get('user-agent')?.includes('vercel-cron')
+  // Auth: same pattern as score-alerts — allow Vercel cron + internal calls
+  const isVercelCron = req.headers.get('x-vercel-cron') === '1'
+  const isCronSecret = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET || 'traidezone-cron'}`
+  const origin = req.headers.get('origin') || req.headers.get('referer') || ''
+  const isFromApp = origin.includes('traidezone.ai') || origin.includes('localhost')
 
-  // Cron mode: loop over all users with recent signals (no userId in body)
-  if (isCron) {
-    return runCronForAllUsers()
+  if (!isVercelCron && !isCronSecret && !isFromApp) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { userId: uid } = await auth()
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Cron-driven: always loops over all users with signals today
+  // (Single-user mode kept for future per-user manual triggering via query param)
+  const url = new URL(req.url)
+  const explicitUserId = url.searchParams.get('userId')
+  const force = url.searchParams.get('force') === 'true'
 
-  return runForUser(uid, req.url.includes('force=true'))
+  if (explicitUserId) {
+    return runForUser(explicitUserId, force)
+  }
+
+  return runCronForAllUsers()
 }
 
 // Vercel cron sends GET — forward to POST handler logic
@@ -416,6 +423,12 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
       })
       const sendResult = await sendRes.json()
 
+      if (!sendResult.id) {
+        console.error('[daily-recap] Resend send failed:', JSON.stringify(sendResult))
+      } else {
+        console.log('[daily-recap] Email sent OK, Resend id:', sendResult.id)
+      }
+
       try {
         await supabaseAdmin.from('email_logs').insert({
           type: 'daily_recap',
@@ -427,7 +440,7 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
         })
       } catch (_e) { /* log table may not exist for this user */ }
 
-      emailStatus = sendResult.id ? 'sent' : 'failed'
+      emailStatus = sendResult.id ? 'sent' : `failed: ${sendResult.message || sendResult.error || 'unknown'}`
     } catch (emailErr: any) {
       console.error('[daily-recap] email send failed:', emailErr)
       emailStatus = 'error'
