@@ -30,14 +30,17 @@ export async function GET(req: NextRequest) {
       .from('email_logs')
       .select('type, recipient, subject, status, resend_id, sent_at')
       .order('sent_at', { ascending: false })
-      .limit(10)
+      .limit(30)
 
     if (error) {
       result.email_logs_error = error.message
     } else {
       result.recent_email_logs = logs || []
-      result.morning_brief_count_last_7days = (logs || []).filter(l => l.type === 'morning_brief').length
-      result.daily_recap_count = (logs || []).filter(l => l.type === 'daily_recap').length
+      result.morning_brief_attempts = (logs || []).filter(l => l.type === 'morning_brief').length
+      result.morning_brief_sent = (logs || []).filter(l => l.type === 'morning_brief' && l.status === 'sent').length
+      result.morning_brief_errors = (logs || []).filter(l => l.type === 'morning_brief' && l.status !== 'sent')
+      result.daily_recap_attempts = (logs || []).filter(l => l.type === 'daily_recap').length
+      result.last_morning_brief = (logs || []).find(l => l.type === 'morning_brief')
     }
   } catch (e: any) {
     result.email_logs_error = e.message
@@ -92,20 +95,19 @@ export async function GET(req: NextRequest) {
   if (!result.env.RESEND_API_KEY_SET) {
     diagnosis.push('❌ RESEND_API_KEY environment variable is not set on Vercel. Add it in Settings → Environment Variables.')
   }
-  if (result.morning_brief_count_last_7days === 0) {
-    diagnosis.push('⚠ No morning_brief entries in email_logs — cron may not be firing, or the table doesn\'t exist, or send is failing before reaching log.')
+  if (result.morning_brief_attempts === 0) {
+    diagnosis.push('⚠ No morning_brief entries in email_logs — cron is not firing OR the cron is failing before reaching log code.')
+  } else if (result.morning_brief_sent < result.morning_brief_attempts) {
+    diagnosis.push(`⚠ ${result.morning_brief_attempts - result.morning_brief_sent} morning_brief attempts FAILED to send. See morning_brief_errors below.`)
   }
-  if (result.recent_email_logs && result.recent_email_logs.length > 0) {
-    const failedSends = result.recent_email_logs.filter((l: any) => l.status !== 'sent')
-    if (failedSends.length > 0) {
-      diagnosis.push(`⚠ ${failedSends.length} recent emails marked as 'failed' in logs — check Resend dashboard for delivery errors.`)
-    }
+  if (result.morning_brief_errors && result.morning_brief_errors.length > 0) {
+    diagnosis.push(`⚠ Recent errors: ${result.morning_brief_errors.map((e: any) => e.subject).slice(0, 3).join(' | ')}`)
   }
   if (result.test_send?.response?.statusCode === 403) {
-    diagnosis.push('❌ Resend returned 403 — the sending domain (traidezone.ai) is likely not verified. Go to Resend dashboard → Domains and verify.')
+    diagnosis.push('❌ Resend returned 403 — the sending domain (traidezone.ai) is likely not verified.')
   }
   if (result.test_send?.response?.statusCode === 422) {
-    diagnosis.push('❌ Resend returned 422 — likely an invalid from address. The domain must be verified in Resend for from addresses to work.')
+    diagnosis.push('❌ Resend returned 422 — likely an invalid from address.')
   }
   if (result.test_send?.response?.statusCode === 401) {
     diagnosis.push('❌ Resend returned 401 — RESEND_API_KEY is invalid or revoked.')
