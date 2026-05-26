@@ -1951,18 +1951,80 @@ export default function CockpitPage() {
     } catch (e) { console.warn('[SetupEval]', e) }
   }, [selectedSetup, currentPrice, levels, marketIntel2, volumeProfile, intradayHigh, intradayLow, orbHigh, orbLow, gexData, breadthData, microstructure, multiTFData, mechanicalFlow, patternAnalysis])
 
+  // ── Track intraday HOD/LOD + Opening Range from candles (dedicated effect) ──
+  // Uses Intl.DateTimeFormat for robust ET timezone extraction (no fake-date hack)
+  useEffect(() => {
+    if (!candles || candles.length === 0) return
+
+    // Get today's date in ET
+    const etDateFmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    })
+    const etTimeFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour12: false,
+      hour: '2-digit', minute: '2-digit',
+    })
+
+    const todayET = etDateFmt.format(new Date())
+
+    // Filter today's candles
+    const todaysCandles = candles.filter(c => {
+      try {
+        return etDateFmt.format(new Date(c.t)) === todayET
+      } catch { return false }
+    })
+
+    if (todaysCandles.length === 0) return
+
+    // HOD / LOD
+    setIntradayHigh(Math.max(...todaysCandles.map(c => c.h)))
+    setIntradayLow(Math.min(...todaysCandles.map(c => c.l)))
+
+    // Opening Range — first orbWindowMins after 9:30am ET
+    const orCandles = todaysCandles.filter(c => {
+      try {
+        const parts = etTimeFmt.format(new Date(c.t)).split(':')
+        const h = parseInt(parts[0], 10)
+        const m = parseInt(parts[1], 10)
+        const minsSince930 = (h - 9) * 60 + (m - 30)
+        return minsSince930 >= 0 && minsSince930 < orbWindowMins
+      } catch { return false }
+    })
+
+    if (orCandles.length > 0) {
+      const newOrbHigh = Math.max(...orCandles.map(c => c.h))
+      const newOrbLow = Math.min(...orCandles.map(c => c.l))
+      setOrbHigh(newOrbHigh)
+      setOrbLow(newOrbLow)
+      console.log(`[ORB] ${todayET} OR captured from ${orCandles.length} candles: ${newOrbLow.toFixed(2)} - ${newOrbHigh.toFixed(2)}`)
+    } else {
+      console.log(`[ORB] ${todayET} no candles in opening range window yet`)
+    }
+  }, [candles])
+
   // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────
   useEffect(() => {
     if (!currentPrice) return
-    // Compute minutes since 9:30am ET
-    const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    const minutesSinceOpen = (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
+
+    // Robust ET time extraction using Intl.DateTimeFormat
+    const etTimeFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour12: false,
+      hour: '2-digit', minute: '2-digit',
+    })
+    const etParts = etTimeFmt.format(new Date()).split(':')
+    const etHour = parseInt(etParts[0], 10)
+    const etMin = parseInt(etParts[1], 10)
+    const minutesSinceOpen = (etHour - 9) * 60 + (etMin - 30)
 
     // Only fire after 10am ET (30+ min after open — OR has had time to form)
     // and only if we haven't fired yet OR data has materially updated
     const shouldFire = minutesSinceOpen >= 30 && orbHigh !== null && orbLow !== null
 
-    if (!shouldFire) return
+    if (!shouldFire) {
+      console.log(`[DayType] not firing — minutesSinceOpen=${minutesSinceOpen}, orbHigh=${orbHigh}, orbLow=${orbLow}`)
+      return
+    }
 
     // Compute TICK range from breadthData over last 15min if we have history
     // For now we use the current value as both high and low — refine later when we add tick history
@@ -1975,14 +2037,17 @@ export default function CockpitPage() {
       return ((marketIntel2.vixPrice - marketIntel2.vixPrevClose) / marketIntel2.vixPrevClose) * 100
     })()
 
-    // Day of week + OPEX detection
-    const dayOfWeek = et.getDay()
-    const isOpex = (() => {
-      // 3rd Friday of the month
-      if (dayOfWeek !== 5) return false
-      const d = et.getDate()
-      return d >= 15 && d <= 21
-    })()
+    // Day of week + OPEX detection (ET-based, robust)
+    const etDateFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short', day: '2-digit',
+    })
+    const etDateParts = etDateFmt.formatToParts(new Date())
+    const weekdayShort = etDateParts.find(p => p.type === 'weekday')?.value || ''
+    const dayOfMonth = parseInt(etDateParts.find(p => p.type === 'day')?.value || '0', 10)
+    const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+    const dayOfWeek = weekdayMap[weekdayShort] ?? new Date().getDay()
+    const isOpex = dayOfWeek === 5 && dayOfMonth >= 15 && dayOfMonth <= 21
     // FOMC days — economicCalendar is a string summary; check for keywords
     const calStr = (economicCalendar || '').toLowerCase()
     const isFomcDay = calStr.includes('fomc') || calStr.includes('fed funds') || calStr.includes('rate decision')
@@ -3262,30 +3327,6 @@ export default function CockpitPage() {
           }
         }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }
-
-      // ── Track intraday HOD/LOD + Opening Range ──
-      if (candles.length > 0) {
-        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-        const todaysCandles = candles.filter(c => new Date(c.t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === today)
-        if (todaysCandles.length > 0) {
-          const hod = Math.max(...todaysCandles.map(c => c.h))
-          const lod = Math.min(...todaysCandles.map(c => c.l))
-          setIntradayHigh(hod)
-          setIntradayLow(lod)
-
-          // Opening Range — first N minutes of session (9:30am to 9:30am + window)
-          const orCandles = todaysCandles.filter(c => {
-            const ct = new Date(c.t)
-            const et = new Date(ct.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-            const minsSince930 = (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
-            return minsSince930 >= 0 && minsSince930 < orbWindowMins
-          })
-          if (orCandles.length > 0) {
-            setOrbHigh(Math.max(...orCandles.map(c => c.h)))
-            setOrbLow(Math.min(...orCandles.map(c => c.l)))
-          }
-        }
-      }
 
       // ── Volume Profile — POC + Value Area from today's 5-min bars ──────────
       try {
@@ -5279,6 +5320,53 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
 
               {/* ── DAY TYPE FORECAST — fires at 10am ET, frames the whole session ── */}
+              {!dayTypeForecast && (() => {
+                // Robust ET extraction via Intl.DateTimeFormat
+                const etFmt = new Intl.DateTimeFormat('en-US', {
+                  timeZone: 'America/New_York', hour12: false,
+                  weekday: 'short', hour: '2-digit', minute: '2-digit',
+                })
+                const parts = etFmt.formatToParts(new Date())
+                const weekdayShort = parts.find(p => p.type === 'weekday')?.value || ''
+                const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10)
+                const min  = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10)
+                const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+                const dow = weekdayMap[weekdayShort] ?? 0
+                const isWeekend = dow === 0 || dow === 6
+                const minutesSinceOpen = (hour - 9) * 60 + (min - 30)
+                const isAfterClose = hour >= 16
+                const isBeforeOpen = hour < 9 || (hour === 9 && min < 30)
+                const orReady = orbHigh !== null && orbLow !== null
+
+                let waitMsg = ''
+                if (isWeekend) waitMsg = 'Markets closed (weekend) — forecast resumes Monday at 10am ET'
+                else if (isAfterClose) waitMsg = 'Markets closed — forecast resumes tomorrow at 10am ET'
+                else if (isBeforeOpen) waitMsg = `Pre-market — forecast fires at 10am ET (${Math.abs(minutesSinceOpen)}min away)`
+                else if (minutesSinceOpen < 15) waitMsg = `Opening Range still forming (${minutesSinceOpen}/15 min) — forecast at 10am ET`
+                else if (minutesSinceOpen < 30) waitMsg = `Opening Range complete — forecast fires at 10:00am ET (${30 - minutesSinceOpen}min away)`
+                else if (!orReady) waitMsg = 'Waiting for opening range data to populate'
+                else waitMsg = 'Computing forecast…'
+
+                return (
+                  <div style={{ borderRadius: 10, background: 'rgba(124,106,255,0.04)', border: '1px dashed rgba(124,106,255,0.25)', padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 800, letterSpacing: 2, color: '#7c6aff', textTransform: 'uppercase' as const }}>
+                        Day Type Forecast
+                      </span>
+                      <span style={{ fontSize: 8, color: '#6b7a9a', fontWeight: 600, letterSpacing: 1 }}>
+                        AUTO-FIRES AT 10:00 ET
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#8899bb', lineHeight: 1.6, marginBottom: 8 }}>
+                      {waitMsg}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#6b7a9a', fontStyle: 'italic' as const, marginBottom: 10 }}>
+                      Combines 8 signals (gamma, opening drive, VIX, TICK, OR size, cross-asset, calendar) into trend vs consolidation probability with recommended plays for the regime.
+                    </div>
+                  </div>
+                )
+              })()}
+
               {dayTypeForecast && (() => {
                 const f = dayTypeForecast
                 const isTrend = f.dayType === 'TREND'
