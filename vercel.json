@@ -51,6 +51,10 @@
     {
       "path": "/api/agents/stream-weights",
       "schedule": "0 21 * * 1-5"
+    },
+    {
+      "path": "/api/agents/daily-recap",
+      "schedule": "30 21 * * 1-5"
     }
   ]
 }

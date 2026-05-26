@@ -1787,6 +1787,7 @@ export default function CockpitPage() {
   const [gapPrediction, setGapPrediction] = useState<any>(null)
   const [insights, setInsights] = useState<any>(null)
   const [modelValidation, setModelValidation] = useState<any>(null)
+  const [dailyRecap, setDailyRecap] = useState<any>(null)
   const [pulse, setPulse]         = useState<any>(null)
   const [pulseLoading, setPulseLoading] = useState(false)
   const [streamWeights, setStreamWeights] = useState<Record<string,number> | null>(null)
@@ -5269,6 +5270,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
               }
               if (t === 'learn' && !modelValidation) {
                 fetch('/api/model-validation').then(r => r.json()).then(setModelValidation).catch(() => {})
+              }
+              if (t === 'learn' && !dailyRecap) {
+                fetch('/api/daily-recap').then(r => r.json()).then(setDailyRecap).catch(() => {})
               }
               if (t === 'learn' && !pulse && !pulseLoading) {
                 setPulseLoading(true)
@@ -8761,6 +8765,153 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 </div>
               )
             })()}
+
+            {/* ── Daily Recap — most recent end-of-day summary ── */}
+            {dailyRecap?.mostRecent && (() => {
+              const r = dailyRecap.mostRecent
+              const d = r.recap_data || {}
+              const wr = r.win_rate
+              const wrColor = wr === null ? '#6b7a9a' : wr >= 60 ? '#00ff88' : wr >= 50 ? '#00d4a0' : wr >= 40 ? '#f59e0b' : '#ff4d6d'
+              return (
+                <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 900, color: C.teal, letterSpacing: 2, textTransform: 'uppercase' as const }}>
+                      Daily Recap
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: '#6b7a9a' }}>
+                        {r.recap_date} · {r.signals_count} signals
+                      </span>
+                      {dailyRecap.recaps && dailyRecap.recaps.length > 1 && (
+                        <select
+                          value={r.recap_date}
+                          onChange={(e) => {
+                            const found = dailyRecap.recaps.find((x: any) => x.recap_date === e.target.value)
+                            if (found) setDailyRecap({ ...dailyRecap, mostRecent: found })
+                          }}
+                          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,229,255,0.2)', borderRadius: 4, padding: '2px 6px', color: C.teal, fontSize: 10, fontFamily: font, cursor: 'pointer' }}
+                        >
+                          {dailyRecap.recaps.map((x: any) => (
+                            <option key={x.recap_date} value={x.recap_date}>{x.recap_date}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Headline */}
+                  <div style={{ fontFamily: fontDisplay, fontSize: 17, fontWeight: 800, color: '#f0f4ff', letterSpacing: 0.3, lineHeight: 1.3, marginBottom: 12 }}>
+                    {d.headline || 'Daily recap'}
+                  </div>
+
+                  {/* KPI strip */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
+                    <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontSize: 10, color: '#4a5568', letterSpacing: 1 }}>WIN RATE</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 800, color: wrColor }}>{wr ?? '—'}%</div>
+                      <div style={{ fontSize: 10, color: '#6b7a9a' }}>{r.wins}W / {r.losses}L</div>
+                    </div>
+                    <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontSize: 10, color: '#4a5568', letterSpacing: 1 }}>SIGNALS</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 800, color: '#b0c4de' }}>{r.signals_count || 0}</div>
+                      <div style={{ fontSize: 10, color: '#6b7a9a' }}>fired</div>
+                    </div>
+                    <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontSize: 10, color: '#4a5568', letterSpacing: 1 }}>DAY TYPE</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 12, fontWeight: 800, color: '#7c6aff', marginTop: 4 }}>
+                        {r.day_type_predicted || '—'}
+                      </div>
+                      {r.day_type_actual && (
+                        <div style={{ fontSize: 10, color: r.day_type_predicted === r.day_type_actual ? '#00ff88' : '#f59e0b' }}>
+                          {r.day_type_predicted === r.day_type_actual ? '✓ accurate' : `actual: ${r.day_type_actual}`}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'center' as const, padding: '8px 6px', background: 'rgba(0,0,0,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontSize: 10, color: '#4a5568', letterSpacing: 1 }}>LEARNING</div>
+                      <div style={{ fontFamily: fontDisplay, fontSize: 14, fontWeight: 800, color: d.didLearnSomething ? '#00ff88' : '#6b7a9a', marginTop: 4 }}>
+                        {d.didLearnSomething ? 'YES' : 'NONE'}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#6b7a9a' }}>{d.didLearnSomething ? 'updated' : 'stable'}</div>
+                    </div>
+                  </div>
+
+                  {/* Performance summary */}
+                  {d.performanceSummary && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#7c6aff', letterSpacing: 1.5, marginBottom: 5 }}>PERFORMANCE</div>
+                      <div style={{ fontSize: 12, color: '#b0c4de', lineHeight: 1.7 }}>{d.performanceSummary}</div>
+                    </div>
+                  )}
+
+                  {/* Calibration note */}
+                  {d.calibrationNote && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 5, fontSize: 11, color: '#8899bb', lineHeight: 1.6 }}>
+                      <strong style={{ color: '#00e5ff' }}>Calibration: </strong>{d.calibrationNote}
+                    </div>
+                  )}
+
+                  {/* What worked / What failed — side by side */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    {d.whatWorked && d.whatWorked.length > 0 && (
+                      <div style={{ padding: 10, background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: 5 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#00ff88', letterSpacing: 1, marginBottom: 6 }}>✓ WHAT WORKED</div>
+                        <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 11, color: '#b0c4de', lineHeight: 1.7 }}>
+                          {d.whatWorked.map((w: string, i: number) => <li key={i} style={{ marginBottom: 3 }}>{w}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {d.whatFailed && d.whatFailed.length > 0 && (
+                      <div style={{ padding: 10, background: 'rgba(255,77,109,0.04)', border: '1px solid rgba(255,77,109,0.15)', borderRadius: 5 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#ff4d6d', letterSpacing: 1, marginBottom: 6 }}>✗ WHAT FAILED</div>
+                        <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 11, color: '#b0c4de', lineHeight: 1.7 }}>
+                          {d.whatFailed.map((w: string, i: number) => <li key={i} style={{ marginBottom: 3 }}>{w}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Learnings */}
+                  {d.didLearnSomething && d.learnings && d.learnings.length > 0 && (
+                    <div style={{ padding: 10, background: 'rgba(124,106,255,0.05)', border: '1px solid rgba(124,106,255,0.25)', borderRadius: 5, marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7c6aff', letterSpacing: 1.5, marginBottom: 6 }}>WHAT IT LEARNED</div>
+                      <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 12, color: '#e0e8ff', lineHeight: 1.75 }}>
+                        {d.learnings.map((l: string, i: number) => <li key={i} style={{ marginBottom: 4 }}>{l}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Tomorrow adjustments */}
+                  {d.tomorrowAdjustments && d.tomorrowAdjustments.length > 0 && (
+                    <div style={{ padding: 10, background: 'rgba(0,212,160,0.05)', border: '1px solid rgba(0,212,160,0.25)', borderRadius: 5 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#00d4a0', letterSpacing: 1.5, marginBottom: 6 }}>TOMORROW THE SYSTEM WILL</div>
+                      <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 12, color: '#e0e8ff', lineHeight: 1.75 }}>
+                        {d.tomorrowAdjustments.map((a: string, i: number) => <li key={i} style={{ marginBottom: 4 }}>{a}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Honest no-learning note */}
+                  {!d.didLearnSomething && d.noLearningReason && (
+                    <div style={{ padding: 10, background: 'rgba(107,122,154,0.05)', border: '1px dashed rgba(107,122,154,0.3)', borderRadius: 5, fontSize: 11, color: '#8899bb', fontStyle: 'italic' as const, lineHeight: 1.6 }}>
+                      No new learning applied: {d.noLearningReason}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* No recap yet */}
+            {dailyRecap && !dailyRecap.mostRecent && (
+              <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px dashed rgba(0,229,255,0.2)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 900, color: C.teal, letterSpacing: 2, marginBottom: 6 }}>
+                  Daily Recap
+                </div>
+                <div style={{ fontSize: 12, color: '#8899bb', lineHeight: 1.7 }}>
+                  Your first end-of-day recap will be generated tomorrow at 4:30pm ET. It will summarize performance, calibration, what worked, what failed, what the system learned, and what it will do differently the following session.
+                </div>
+              </div>
+            )}
 
             {/* ── Model Validation — confidence calibration + component accuracy ── */}
             {modelValidation && modelValidation.ready && (
