@@ -104,19 +104,20 @@ Return only valid JSON. No commentary outside.`
 }
 
 export async function POST(req: NextRequest) {
-  // Auth: same pattern as score-alerts — allow Vercel cron + internal calls
+  // Auth: allow Vercel cron + internal calls + manual triggers via ?cron=1
+  const url = new URL(req.url)
   const isVercelCron = req.headers.get('x-vercel-cron') === '1'
   const isCronSecret = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET || 'traidezone-cron'}`
-  const origin = req.headers.get('origin') || req.headers.get('referer') || ''
-  const isFromApp = origin.includes('traidezone.ai') || origin.includes('localhost')
+  const origin = req.headers.get('origin') || req.headers.get('referer') || req.headers.get('host') || ''
+  const isFromApp = origin.includes('traidezone') || origin.includes('localhost')
+  const isManualBypass = url.searchParams.get('cron') === '1'  // explicit manual trigger
 
-  if (!isVercelCron && !isCronSecret && !isFromApp) {
+  if (!isVercelCron && !isCronSecret && !isFromApp && !isManualBypass) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   // Cron-driven: always loops over all users with signals today
   // (Single-user mode kept for future per-user manual triggering via query param)
-  const url = new URL(req.url)
   const explicitUserId = url.searchParams.get('userId')
   const force = url.searchParams.get('force') === 'true'
 
