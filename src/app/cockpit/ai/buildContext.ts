@@ -508,6 +508,7 @@ export function buildCompanionContext(
     actionability?:  any | null
     setupEval?:      any | null
     dayTypeForecast?: any | null
+    openPositions?:   any[] | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -637,6 +638,20 @@ Recommended sizing: ${(input as any).dayTypeForecast.sizingRecommendation} | Sto
 ${(input as any).dayTypeForecast.recommendedSetups?.length > 0 ? `Top plays today: ${(input as any).dayTypeForecast.recommendedSetups.slice(0, 3).map((s: any) => `${s.name} (${s.probability}%)`).join(', ')}` : ''}
 ${(input as any).dayTypeForecast.avoidSetups?.length > 0 ? `AVOID today: ${(input as any).dayTypeForecast.avoidSetups.map((s: any) => s.name).join(', ')} — these setups fail in this regime` : ''}
 COACHING PRIORITY: If the trader's named play CONTRADICTS this regime forecast, gently flag the mismatch. If it ALIGNS, reinforce the high-probability setup.` : ''}
+
+${(input as any).openPositions && (input as any).openPositions.length > 0 ? `
+═══ TRADER'S OPEN POSITIONS (live, in-session) ═══
+${(input as any).openPositions.map((p: any, i: number) => {
+  const heldMin = Math.round((Date.now() - new Date(p.opened_at).getTime()) / 60000)
+  return `${i + 1}. ${p.signal_direction} ${p.symbol} ${p.strike || ''}${p.strike ? (p.signal_direction === 'LONG' ? 'C' : 'P') : ''} (${p.contracts || 1}x) — Entry ${parseFloat(p.entry_price).toFixed(2)} @ $${p.entry_premium?.toFixed?.(2) || '?'} | Stop ${p.stop_level || '—'} | T1 ${p.target1 || '—'} | T2 ${p.target2 || '—'} | Held ${heldMin}min | ${p.setup_name || 'no setup'}`
+}).join('\n')}
+
+COACHING ON OPEN POSITIONS:
+- Be aware the trader is CURRENTLY HOLDING ${(input as any).openPositions.length} position(s). Their cognitive load and risk exposure are real.
+- If a new signal would STACK risk in same direction as an existing position, mention it gently.
+- If a new signal CONTRADICTS an existing position, point it out as a potential hedge or warning.
+- If positions are held >30 min without exit, ask about thesis (intraday options decay).
+- NEVER tell them to exit a position outright — that's their call. Provide context only.` : ''}
 
 ${(input as any).microstructure?.aiContext ? `═══ MARKET MICROSTRUCTURE ═══\n${(input as any).microstructure.aiContext}\nSUMMARY: ${(input as any).microstructure.summary}` : ''}
 

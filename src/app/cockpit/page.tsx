@@ -1,5 +1,6 @@
 'use client'
 import TutorialModal from './TutorialModal'
+import { TakeTradeModal, CloseTradeModal, ExitPromptModal, OpenPositionsStrip } from './PositionTracker'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
@@ -1721,6 +1722,12 @@ export default function CockpitPage() {
   const [aiResult, setAiResult] = useState<any>(null)
   const [adversarial, setAdversarial] = useState<any>(null)
   const [adversarialLoading, setAdversarialLoading] = useState(false)
+  // ── Live position tracking ─────────────────────────────────────────────
+  const [openPositions, setOpenPositions]   = useState<any[]>([])
+  const [showTakeTrade, setShowTakeTrade]   = useState<any | null>(null)  // signal data for confirmation modal
+  const [showCloseTrade, setShowCloseTrade] = useState<any | null>(null)  // position being closed
+  const [exitPrompt, setExitPrompt]         = useState<any | null>(null)  // auto-prompt when stop/target hit
+  const exitPromptsFired = useRef<Set<string>>(new Set())                 // dedupe auto-prompts
   const [aiLoading, setAiLoading] = useState(false)
   const [lastAITime, setLastAITime] = useState<string | null>(null)
   const [marketIntel, setMarketIntel] = useState<any>({})
@@ -2022,6 +2029,58 @@ export default function CockpitPage() {
       console.warn('[VolumeProfile] error:', e)
     }
   }, [candles])
+
+  // ── Open Positions: load on mount + refresh every 30s ────────────────────
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetch('/api/open-positions?status=open')
+        .then(r => r.json())
+        .then(d => { if (!cancelled) setOpenPositions(d.positions || []) })
+        .catch(() => {})
+    }
+    load()
+    const iv = setInterval(load, 30000)
+    return () => { cancelled = true; clearInterval(iv) }
+  }, [])
+
+  // ── Auto-prompt when SPX hits stop or target for any open position ────────
+  useEffect(() => {
+    if (!currentPrice || openPositions.length === 0) return
+    for (const pos of openPositions) {
+      if (pos.status !== 'open') continue
+      if (exitPromptsFired.current.has(pos.id)) continue
+
+      const isLong = pos.signal_direction === 'LONG'
+      const stop = pos.stop_level ? parseFloat(pos.stop_level) : null
+      const t1   = pos.target1    ? parseFloat(pos.target1)    : null
+      const t2   = pos.target2    ? parseFloat(pos.target2)    : null
+
+      let trigger: { reason: string; level: number; type: 'stop' | 'target' } | null = null
+
+      if (stop !== null) {
+        if (isLong && currentPrice <= stop) trigger = { reason: 'STOP HIT', level: stop, type: 'stop' }
+        else if (!isLong && currentPrice >= stop) trigger = { reason: 'STOP HIT', level: stop, type: 'stop' }
+      }
+      if (!trigger && t2 !== null) {
+        if (isLong && currentPrice >= t2) trigger = { reason: 'T2 HIT', level: t2, type: 'target' }
+        else if (!isLong && currentPrice <= t2) trigger = { reason: 'T2 HIT', level: t2, type: 'target' }
+      }
+      if (!trigger && t1 !== null) {
+        if (isLong && currentPrice >= t1) trigger = { reason: 'T1 HIT', level: t1, type: 'target' }
+        else if (!isLong && currentPrice <= t1) trigger = { reason: 'T1 HIT', level: t1, type: 'target' }
+      }
+
+      if (trigger) {
+        exitPromptsFired.current.add(pos.id)
+        setExitPrompt({ position: pos, ...trigger, currentPrice })
+        // Play voice alert (best-effort, ignore if speak isn't ready)
+        try {
+          speak(`Heads up. SPX hit ${trigger.reason} on your ${pos.signal_direction} position.`)
+        } catch {}
+      }
+    }
+  }, [currentPrice, openPositions])
 
   // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────
   useEffect(() => {
@@ -4389,6 +4448,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       actionability: actionability,
       setupEval:     setupEval,
       dayTypeForecast,
+      openPositions,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -4567,6 +4627,95 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
       {showUsageReport && <UsageReport onClose={() => setShowUsageReport(false)} />}
       {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
+
+      {/* ── TAKE TRADE MODAL — opens after user clicks "TOOK THIS TRADE" ── */}
+      {showTakeTrade && (() => {
+        const s = showTakeTrade
+        return (
+          <TakeTradeModal
+            signal={s}
+            onClose={() => setShowTakeTrade(null)}
+            onConfirm={async (data: any) => {
+              try {
+                const res = await fetch('/api/open-positions', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action:           'open',
+                    signalDirection:  s.signal,
+                    symbol:           'SPX',
+                    strike:           data.strike,
+                    expiry:           data.expiry,
+                    contracts:        data.contracts,
+                    entryPrice:       data.entryPrice,
+                    entryPremium:     data.entryPremium,
+                    stopLevel:        s.stopLevel,
+                    target1:          s.target1,
+                    target2:          s.target2,
+                    setupName:        s.setupName,
+                    aiConfidence:     s.aiConfidence,
+                    notes:            data.notes,
+                  }),
+                })
+                const json = await res.json()
+                if (json.position) {
+                  setOpenPositions(prev => [json.position, ...prev])
+                }
+                setShowTakeTrade(null)
+              } catch (e) {
+                console.error('[take-trade] failed:', e)
+              }
+            }}
+          />
+        )
+      })()}
+
+      {/* ── CLOSE TRADE MODAL ── */}
+      {showCloseTrade && (
+        <CloseTradeModal
+          position={showCloseTrade}
+          currentPrice={currentPrice}
+          onClose={() => setShowCloseTrade(null)}
+          onConfirm={async (data: any) => {
+            try {
+              const res = await fetch('/api/open-positions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action:       'close',
+                  id:           showCloseTrade.id,
+                  exitPrice:    data.exitPrice,
+                  exitPremium:  data.exitPremium,
+                  exitReason:   data.exitReason,
+                  notes:        data.notes,
+                }),
+              })
+              const json = await res.json()
+              setOpenPositions(prev => prev.filter(p => p.id !== showCloseTrade.id))
+              setShowCloseTrade(null)
+              // brief P&L flash
+              if (json.pnl != null) {
+                const sign = json.pnl >= 0 ? '+' : ''
+                try { speak(`Position closed. ${sign}${Math.round(json.pnl)} dollars.`) } catch {}
+              }
+            } catch (e) {
+              console.error('[close-trade] failed:', e)
+            }
+          }}
+        />
+      )}
+
+      {/* ── EXIT PROMPT — auto-fires when SPX hits stop or target ── */}
+      {exitPrompt && (
+        <ExitPromptModal
+          prompt={exitPrompt}
+          onDismiss={() => setExitPrompt(null)}
+          onConfirmExit={() => {
+            setShowCloseTrade(exitPrompt.position)
+            setExitPrompt(null)
+          }}
+        />
+      )}
       {outcomeModal && (
         <TradeOutcomeModal
           alertId={outcomeModal.alertId}
@@ -5401,6 +5550,17 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
             {/* Left — Dashboard */}
             <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, background: '#050609' }}>
+
+              {/* ── OPEN POSITIONS STRIP — live tracking during the session ── */}
+              {openPositions.length > 0 && (
+                <OpenPositionsStrip
+                  positions={openPositions}
+                  currentPrice={currentPrice}
+                  onCloseClick={(p: any) => setShowCloseTrade(p)}
+                  font={font}
+                  fontDisplay={fontDisplay}
+                />
+              )}
 
               {/* ── DAY TYPE FORECAST — fires at 10am ET, frames the whole session ── */}
               {!dayTypeForecast && (() => {
@@ -7036,6 +7196,33 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                           >
                             {adversarialLoading ? 'CHECKING…' : 'CHALLENGE THIS'}
                           </button>
+                          {/* TOOK THIS TRADE — opens capture modal pre-filled from signal */}
+                          {aiResult && (aiResult.signal === 'LONG' || aiResult.signal === 'SHORT') && (
+                            <button
+                              onClick={() => setShowTakeTrade({
+                                signal: aiResult.signal,
+                                confidence: aiResult.confidence,
+                                entryPrice: currentPrice,
+                                suggestedEntry: aiResult.entryZone?.mid || aiResult.entryZone?.low || currentPrice,
+                                stopLevel: aiResult.stopLevel,
+                                target1: aiResult.target1,
+                                target2: aiResult.target2,
+                                aiConfidence: aiResult.confidence,
+                                setupName: selectedSetup ? (SETUPS.find((s: any) => s.id === selectedSetup)?.name || null) : null,
+                                strike: aiResult.suggestedStrike || null,
+                                expiry: aiResult.suggestedExpiry || null,
+                              })}
+                              style={{
+                                fontSize: 10, fontWeight: 700, padding: '3px 8px',
+                                borderRadius: 3, border: '1px solid rgba(0,255,136,0.5)',
+                                background: 'rgba(0,255,136,0.08)', color: '#00ff88',
+                                cursor: 'pointer', fontFamily: font, letterSpacing: 1,
+                                marginLeft: 6,
+                              }}
+                            >
+                              ✓ TOOK THIS TRADE
+                            </button>
+                          )}
                         </div>
                         <div style={{ fontSize: 13, color: '#e0e8ff', lineHeight: 1.8 }}>{aiResult.aiView}</div>
                         {aiResult.systemAlignmentNote && (
