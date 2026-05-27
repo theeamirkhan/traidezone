@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
   // ── 2. Try to fire morning email manually (no auth on that endpoint) ──
   if (action === 'fire-morning') {
     try {
-      const morningUrl = `https://${process.env.VERCEL_URL || 'traidezone.ai'}/api/agents/send-morning-email`
+      const morningUrl = `https://traidezone.ai/api/agents/send-morning-email`
       const fireRes = await fetch(morningUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(55000),
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
   // ── 3. Try to fire daily recap manually ──────────────────────────────
   if (action === 'fire-recap') {
     try {
-      const recapUrl = `https://${process.env.VERCEL_URL || 'traidezone.ai'}/api/agents/daily-recap?force=true`
+      const recapUrl = `https://traidezone.ai/api/agents/daily-recap?force=true`
       const fireRes = await fetch(recapUrl, {
         method: 'POST',
         headers: { 'x-vercel-cron': '1' },  // bypass auth check
