@@ -22,6 +22,28 @@ import { supabaseAdmin } from '@/lib/supabase'
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const USE_HAIKU = true  // Recaps don't need Sonnet — Haiku is plenty
 
+// Compute ET UTC offset in ms for a given date (handles DST automatically)
+function computeETOffsetMs(date: Date): number {
+  const etFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+  const parts = etFmt.formatToParts(date).reduce((acc: any, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value
+    return acc
+  }, {})
+  const etAsUTC = Date.UTC(
+    parseInt(parts.year, 10),
+    parseInt(parts.month, 10) - 1,
+    parseInt(parts.day, 10),
+    parseInt(parts.hour, 10),
+    parseInt(parts.minute, 10),
+    parseInt(parts.second, 10),
+  )
+  return date.getTime() - etAsUTC
+}
+
 async function generateRecap(payload: any): Promise<any | null> {
   const model = USE_HAIKU ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
 
@@ -135,15 +157,19 @@ export async function GET(req: NextRequest) {
 
 async function runCronForAllUsers(): Promise<NextResponse> {
   try {
-    // Find all distinct users who fired at least one signal today
+    // Get today's date in ET (handles DST automatically)
     const etDateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
     const todayET = etDateFmt.format(new Date())
-    const startOfDayET = new Date(`${todayET}T09:00:00-05:00`).toISOString()
+
+    // Compute "start of today in ET" using proper Intl-based UTC offset
+    // (handles DST: EST is -05:00 in winter, EDT is -04:00 in summer)
+    const offsetMs = computeETOffsetMs(new Date())
+    const todayMidnightUTC = new Date(new Date(`${todayET}T00:00:00Z`).getTime() - offsetMs).toISOString()
 
     const { data: activeUsers, error } = await supabaseAdmin
       .from('trade_alerts')
       .select('user_id')
-      .gte('logged_at', startOfDayET)
+      .gte('logged_at', todayMidnightUTC)
 
     if (error) {
       console.error('[daily-recap/cron] user fetch error:', error)
@@ -151,14 +177,38 @@ async function runCronForAllUsers(): Promise<NextResponse> {
     }
 
     const userIds = Array.from(new Set((activeUsers || []).map(u => u.user_id))).filter(Boolean) as string[]
-    console.log(`[daily-recap/cron] processing ${userIds.length} active users for ${todayET}`)
+    console.log(`[daily-recap/cron] processing ${userIds.length} active users for ${todayET} (start UTC: ${todayMidnightUTC})`)
+
+    // If no users had signals today, optionally still email admin a "no activity" recap
+    if (userIds.length === 0) {
+      // Get admin user_id from any recent trade_alert (single-user mode)
+      const { data: anyUser } = await supabaseAdmin
+        .from('trade_alerts')
+        .select('user_id')
+        .order('logged_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (anyUser?.user_id) {
+        console.log(`[daily-recap/cron] no signals today, sending no-activity recap to ${anyUser.user_id}`)
+        const res = await runForUser(anyUser.user_id, true)
+        const json = await res.json()
+        return NextResponse.json({
+          ok: true,
+          date: todayET,
+          processed: 1,
+          note: 'No signals today; sent no-activity recap to most recent user',
+          result: json,
+        })
+      }
+      return NextResponse.json({ ok: true, date: todayET, processed: 0, note: 'No active users and no fallback user found', results: [] })
+    }
 
     const results = []
     for (const uid of userIds) {
       try {
-        const res = await runForUser(uid, false)
+        const res = await runForUser(uid, true)  // force=true so manual triggers regenerate
         const json = await res.json()
-        results.push({ userId: uid, ok: !!json.ok, signals: json.signalsAnalyzed || 0 })
+        results.push({ userId: uid, ok: !!json.ok, signals: json.signalsAnalyzed || 0, emailStatus: json.emailStatus || null })
       } catch (e: any) {
         results.push({ userId: uid, ok: false, error: e.message })
       }
@@ -190,7 +240,8 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
     }
 
     // ── Pull today's signals ──
-    const startOfDayET = new Date(`${todayET}T09:00:00-05:00`).toISOString()  // 9am ET as start
+    const offsetMs = computeETOffsetMs(new Date())
+    const startOfDayET = new Date(new Date(`${todayET}T00:00:00Z`).getTime() - offsetMs).toISOString()  // midnight ET as start
     const { data: todaysSignals, error: sigErr } = await supabaseAdmin
       .from('trade_alerts')
       .select('signal, confidence, outcome, outcome_normalized, ai_view, system_alignment, context_snapshot, pts_to_t1, vix_at_signal, logged_at, entry_mid, stop_level, target1, outcome_note')
