@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { buildMarketState } from '../../../lib/buildMarketState'
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const ADMIN_USER_ID = 'user_3BKD6y0MW6t9rxyyZo3HlywvkqT'  // primary user receiving shadow predictions
@@ -66,113 +67,69 @@ function isMarketHoursET(): { open: boolean; reason: string } {
   return { open: true, reason: 'market open' }
 }
 
-// ── Fetch SPX current price from Polygon ──
-async function fetchCurrentSPX(): Promise<number | null> {
-  try {
-    const polygonKey = process.env.POLYGON_API_KEY
-    if (!polygonKey) return null
-    const url = `https://api.polygon.io/v2/last/trade/I:SPX?apiKey=${polygonKey}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return null
-    const data: any = await res.json()
-    return data?.results?.p || null
-  } catch (e) {
-    console.warn('[shadow] SPX fetch failed:', e)
-    return null
-  }
-}
-
-// ── Fetch recent 5min bars (for VWAP, ORB, etc) ──
-async function fetchRecentBars(): Promise<any[]> {
-  try {
-    const polygonKey = process.env.POLYGON_API_KEY
-    if (!polygonKey) return []
-    const today = new Date().toISOString().split('T')[0]
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-    const url = `https://api.polygon.io/v2/aggs/ticker/I:SPX/range/5/minute/${yesterday}/${today}?adjusted=true&sort=asc&limit=200&apiKey=${polygonKey}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return []
-    const data: any = await res.json()
-    return data?.results || []
-  } catch (e) {
-    console.warn('[shadow] bars fetch failed:', e)
-    return []
-  }
-}
-
-// ── Compute simple regime signature (used for dedup) ──
-function regimeSignature(state: any): string {
-  // Hash of major components — if these haven't changed, the prediction won't change much
-  const components = [
-    state.priceRange,       // SPX bucket of 5pts
-    state.gexRegime,        // pos/neg
-    state.mechBias,         // BULL/BEAR/NEUTRAL_*
-    state.dayType,          // TREND/CONSOLIDATION/INDETERMINATE
-    state.actionability,    // ACTIONABLE/WATCH/NOISE
-    state.vixBucket,        // VIX in 1pt buckets
-    state.sessionWindow,    // open/mid/power-hour
-  ].join('|')
-  return simpleHash(components)
-}
-
-// ── Compute session window from time ──
-function getSessionWindow(): string {
-  const etFmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit',
-  })
-  const parts = etFmt.formatToParts(new Date())
-  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10)
-  const min = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10)
-  const mins = hour * 60 + min
-  if (mins >= 9 * 60 + 30 && mins < 10 * 60 + 30) return 'open_drive'
-  if (mins >= 10 * 60 + 30 && mins < 14 * 60 + 30)  return 'mid_session'
-  if (mins >= 14 * 60 + 30 && mins < 15 * 60)       return 'pre_power'
-  if (mins >= 15 * 60)                              return 'power_hour'
-  return 'unknown'
-}
-
 // ── Call Claude Haiku for prediction ──
 async function generateShadowPrediction(context: any): Promise<any | null> {
   if (!ANTHROPIC_KEY) return null
 
-  const prompt = `You are an SPX intraday options trading model. Given the market state below, make a directional prediction for the next 30-90 minutes.
+  const prompt = `You are an SPX intraday options trading model. Given the full market state below, make a directional prediction for the next 30-90 minutes.
 
 CURRENT STATE:
 - SPX: ${context.currentSPX}
 - Time: ${context.timeET} ET (${context.sessionWindow})
-- VIX: ${context.vix || 'unknown'}
-- Mechanical bias: ${context.mechBias || 'unknown'}
-- Day type: ${context.dayType || 'unknown'} (${context.dayTypeConfidence || 'unknown'})
-- Actionability: ${context.actionability || 'unknown'}
+- VIX: ${context.vix || 'unknown'}${context.vixChange ? ` (${context.vixChange > 0 ? '+' : ''}${context.vixChange.toFixed(1)}%)` : ''}
+
+MECHANICAL FLOW:
+- Bias: ${context.mechBias || 'unknown'}
+- Candidate direction: ${context.candidateSignal || 'unknown'}
+- Asymmetric setup: ${context.mechAsymmetric || 'none'}
+- Narrative: ${context.mechNarrative || 'none'}
+
+DAY TYPE REGIME:
+- Type: ${context.dayType || 'unknown'} (confidence: ${context.dayTypeConfidence || 'unknown'})
+- TREND probability: ${context.dayTrendProb || '?'}%
+- CONSOLIDATION probability: ${context.dayRangeProb || '?'}%
+- Directional lean: ${context.dayDirectionalLean || 'neutral'}
+
+ACTIONABILITY GATE:
+- Verdict: ${context.actionability || 'unknown'}
+- Rationale: ${context.actionabilityRationale || 'none'}
+
+GAMMA & FLOW:
 - GEX regime: ${context.gexRegime || 'unknown'}
-- Cum delta: ${context.cumDelta || 'unknown'}
-- TICK: ${context.tick || 'unknown'}
+- Net GEX: ${context.netGex ? `$${(context.netGex / 1e9).toFixed(1)}B` : 'unknown'}
+- Gamma flip: ${context.gammaFlip || 'unknown'}
+- Call wall: ${context.callWall || 'unknown'} | Put wall: ${context.putWall || 'unknown'}
+
+MICROSTRUCTURE:
+- Cum delta: ${context.cumDelta} (${context.cumDeltaTrend})
 - 15-min trend: ${context.m15Trend || 'unknown'}
-- VWAP distance: ${context.vwapDist || 'unknown'}
 
 LEVELS:
-- ORB high/low: ${context.orbHigh || '—'} / ${context.orbLow || '—'}
-- PDH/PDL: ${context.pdh || '—'} / ${context.pdl || '—'}
-- POC: ${context.poc || '—'}
+- VWAP: ${context.vwap?.toFixed(2) || '?'} (distance: ${context.vwapDist || '?'})
+- POC / VAH / VAL: ${context.poc || '?'} / ${context.vah || '?'} / ${context.val || '?'}
+- ORB high/low: ${context.orbHigh || '?'} / ${context.orbLow || '?'}
+- PDH/PDL: ${context.pdh || '?'} / ${context.pdl || '?'}
+- Intraday high/low: ${context.intradayHigh || '?'} / ${context.intradayLow || '?'}
 
-OUTPUT: Make a directional prediction. Be honest — if there's no clear edge, say WAIT.
+OUTPUT: Make a directional prediction for the next 30-90 minutes. Be honest — if there's no clear edge, say WAIT.
 
 Return JSON only:
 {
   "signal": "LONG" | "SHORT" | "WAIT",
-  "confidence": 50-90,
-  "predictedT1": numeric or null (SPX target),
-  "predictedStop": numeric or null (SPX stop),
-  "predictedT2": numeric or null,
-  "reasoning": "1-2 sentence rationale citing specific data"
+  "confidence": 50-85,
+  "predictedT1": numeric or null (SPX target, 5-15 points away in signal direction),
+  "predictedStop": numeric or null (SPX stop, 5-10 points away against signal),
+  "predictedT2": numeric or null (extended target),
+  "reasoning": "1-2 sentence rationale citing the specific data above"
 }
 
-Honesty rules:
-- If conditions are mixed → WAIT, not a low-confidence directional bet
-- If actionability is NOISE → bias toward WAIT
-- Confidence floor 50 for WAIT, 55 for LONG/SHORT, ceiling 85 (no overconfidence)
-- T1 should be 5-15 SPX points away in signal direction
-- Stop should be 5-10 SPX points away against signal direction`
+CRITICAL HONESTY RULES:
+1. If actionability is NOISE → must be WAIT
+2. If mechanical bias contradicts day type lean → bias toward WAIT
+3. If conditions are mixed → WAIT, not a low-conviction LONG/SHORT
+4. Confidence floor 50 (no point predicting if <50%), ceiling 85 (no overconfidence)
+5. Cite SPECIFIC data points in reasoning (e.g. "POC at 5847 below price, GEX positive amplifies upside")
+6. Match day type forecast — TREND day favors directional plays, CONSOLIDATION favors mean-revert`
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -227,38 +184,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: marketCheck.reason })
     }
 
-    // 2. Fetch current SPX
-    const currentSPX = await fetchCurrentSPX()
-    if (!currentSPX) {
-      return NextResponse.json({ error: 'Could not fetch SPX price' }, { status: 500 })
+    // 2. Build full market state (parallel-fetches all data + runs all computations)
+    const state = await buildMarketState()
+
+    if (!state.currentSPX) {
+      return NextResponse.json({ error: 'Could not fetch SPX', errors: state.errors }, { status: 500 })
     }
 
-    // 3. Fetch recent bars for context
-    const bars = await fetchRecentBars()
+    // 3. Build regime signature for dedup
+    //    Hash of the components that materially affect a prediction
+    const sigComponents = [
+      Math.floor(state.currentSPX / 5) * 5,                        // SPX bucket (5pts)
+      state.sessionWindow,
+      state.gexRegime || 'unk',
+      state.mechanicalFlow?.mechanicalBias || 'unk',
+      state.dayTypeForecast?.dayType || 'unk',
+      state.actionability?.verdict || 'unk',
+      state.vix ? Math.floor(state.vix) : 'unk',
+      state.cumDelta,
+      state.m15Trend || 'unk',
+    ].join('|')
+    const sig = simpleHash(sigComponents)
 
-    // 4. Compute basic state (lightweight version — full state needs more data than we can compute here)
-    //    For now we compute what's tractable; rest will be added as we wire in more APIs
-    const sessionWindow = getSessionWindow()
-    const etFmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit',
-    })
-    const timeET = etFmt.format(new Date())
-
-    // 5. Build state for regime signature + prediction context
-    const state = {
-      priceRange:     Math.floor(currentSPX / 5) * 5,
-      sessionWindow,
-      gexRegime:      null,
-      mechBias:       null,
-      dayType:        null,
-      actionability:  null,
-      vixBucket:      null,
-    }
-
-    // 6. Compute regime signature
-    const sig = regimeSignature(state)
-
-    // 7. Dedup check — has this user had a prediction with the same signature in the last 10 minutes?
+    // 4. Dedup check
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const { data: recent } = await supabaseAdmin
       .from('shadow_predictions')
@@ -274,50 +222,68 @@ export async function GET(req: NextRequest) {
         skipped: true,
         reason: 'regime unchanged from last prediction',
         last_predicted_at: recent.predicted_at,
+        signature: sig,
       })
     }
 
-    // 8. Build context for the AI
+    // 5. Build rich context for the AI prediction
     const context = {
-      currentSPX,
-      timeET,
-      sessionWindow,
-      vix:             null,
-      mechBias:        null,
-      dayType:         null,
-      dayTypeConfidence: null,
-      actionability:   null,
-      gexRegime:       null,
-      cumDelta:        null,
-      tick:            null,
-      m15Trend:        null,
-      vwapDist:        null,
-      orbHigh:         null,
-      orbLow:          null,
-      pdh:             null,
-      pdl:             null,
-      poc:             null,
+      currentSPX:        state.currentSPX,
+      timeET:            state.timeET,
+      sessionWindow:     state.sessionWindow,
+      vix:               state.vix,
+      vixChange:         state.vixChange,
+      mechBias:          state.mechanicalFlow?.mechanicalBias || null,
+      mechAsymmetric:    state.mechanicalFlow?.asymmetricSetup || null,
+      mechNarrative:     state.mechanicalFlow?.aiContext || null,
+      candidateSignal:   state.candidateSignal,  // direction mech bias suggests
+      dayType:           state.dayTypeForecast?.dayType || null,
+      dayTypeConfidence: state.dayTypeForecast?.confidence || null,
+      dayTrendProb:      state.dayTypeForecast?.trendProbability || null,
+      dayRangeProb:      state.dayTypeForecast?.consolidationProbability || null,
+      dayDirectionalLean: state.dayTypeForecast?.directionalLean || null,
+      actionability:     state.actionability?.verdict || null,
+      actionabilityRationale: state.actionability?.reasoning || null,
+      gexRegime:         state.gexRegime,
+      netGex:            state.netGex,
+      gammaFlip:         state.gammaFlip,
+      callWall:          state.callWall,
+      putWall:           state.putWall,
+      cumDelta:          state.cumDelta,
+      cumDeltaTrend:     state.cumDeltaTrend,
+      m15Trend:          state.m15Trend,
+      vwap:              state.vwap,
+      vwapDist:          state.vwap ? (state.currentSPX - state.vwap).toFixed(2) : null,
+      orbHigh:           state.orbHigh,
+      orbLow:            state.orbLow,
+      pdh:               state.pdh,
+      pdl:               state.pdl,
+      poc:               state.volumeProfile?.poc || null,
+      vah:               state.volumeProfile?.vah || null,
+      val:               state.volumeProfile?.val || null,
+      intradayHigh:      state.intradayHigh,
+      intradayLow:       state.intradayLow,
     }
 
-    // 9. Generate the prediction
+    // 6. Generate prediction
     const prediction = await generateShadowPrediction(context)
     if (!prediction) {
-      return NextResponse.json({ error: 'Prediction generation failed' }, { status: 500 })
+      return NextResponse.json({ error: 'Prediction generation failed', errors: state.errors }, { status: 500 })
     }
 
-    // 10. Save to shadow_predictions
+    // 7. Save to shadow_predictions with FULL context (not the lightweight version)
     const { error: insertErr, data: inserted } = await supabaseAdmin
       .from('shadow_predictions')
       .insert({
         user_id:           ADMIN_USER_ID,
         signal_direction:  prediction.signal || 'WAIT',
         confidence:        prediction.confidence || 50,
-        current_spx:       currentSPX,
+        current_spx:       state.currentSPX,
         predicted_t1:      prediction.predictedT1 || null,
         predicted_stop:    prediction.predictedStop || null,
         predicted_t2:      prediction.predictedT2 || null,
         ai_view:           prediction.reasoning || null,
-        context_snapshot:  context,
+        context_snapshot:  context,  // rich context now
         regime_signature:  sig,
         status:            'pending',
       })
@@ -335,9 +301,16 @@ export async function GET(req: NextRequest) {
         id: inserted?.id,
         signal: prediction.signal,
         confidence: prediction.confidence,
-        currentSPX,
+        currentSPX: state.currentSPX,
         regimeSignature: sig,
+        components: {
+          mechBias:      context.mechBias,
+          dayType:       context.dayType,
+          actionability: context.actionability,
+          gexRegime:     context.gexRegime,
+        },
       },
+      stateErrors: state.errors.length > 0 ? state.errors : undefined,
     })
   } catch (e: any) {
     console.error('[shadow] error:', e)
