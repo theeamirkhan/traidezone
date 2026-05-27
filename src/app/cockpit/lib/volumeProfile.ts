@@ -29,13 +29,28 @@ export function calculateVolumeProfile(
 ): VolumeProfileResult | null {
   if (!candles?.length) return null
 
-  // Filter to current session (9:30am-4pm ET)
+  // Robust ET extraction — no fake-date hack
+  const etTimeFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour12: false,
+    hour: '2-digit', minute: '2-digit',
+  })
+  const etDateFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  })
+  const todayET = etDateFmt.format(new Date())
+
+  // Filter to TODAY'S session candles (9:30am-4pm ET)
   const session = candles.filter(c => {
-    const et = new Date(c.t).toLocaleString('en-US', { timeZone: 'America/New_York' })
-    const h  = new Date(et).getHours()
-    const m  = new Date(et).getMinutes()
-    const mins = h * 60 + m
-    return mins >= 570 && mins <= 960  // 9:30-4:00pm
+    try {
+      const dateET = etDateFmt.format(new Date(c.t))
+      if (dateET !== todayET) return false
+      const parts = etTimeFmt.format(new Date(c.t)).split(':')
+      const h = parseInt(parts[0], 10)
+      const m = parseInt(parts[1], 10)
+      const mins = h * 60 + m
+      return mins >= 570 && mins <= 960  // 9:30am - 4:00pm ET
+    } catch { return false }
   })
 
   if (session.length < 3) return null

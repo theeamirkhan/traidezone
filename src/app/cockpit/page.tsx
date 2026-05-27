@@ -2004,6 +2004,25 @@ export default function CockpitPage() {
     }
   }, [candles])
 
+  // ── Volume Profile — dedicated effect, recomputes when candles update ──
+  useEffect(() => {
+    if (!candles || candles.length < 3) {
+      console.log(`[VolumeProfile] waiting — only ${candles?.length || 0} candles`)
+      return
+    }
+    try {
+      const vp = calculateVolumeProfile(candles)
+      if (vp) {
+        setVolumeProfile(vp)
+        console.log(`[VolumeProfile] computed: POC ${vp.poc} / VAH ${vp.vah} / VAL ${vp.val} | ${vp.allBuckets.length} buckets | curr ${vp.currentPrice}`)
+      } else {
+        console.log(`[VolumeProfile] calc returned null — likely no session candles yet (need at least 3 today)`)
+      }
+    } catch (e) {
+      console.warn('[VolumeProfile] error:', e)
+    }
+  }, [candles])
+
   // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────
   useEffect(() => {
     if (!currentPrice) return
@@ -3328,14 +3347,6 @@ export default function CockpitPage() {
           }
         }
       } catch (e) { console.warn('[GEX] fetch failed:', e) }
-
-      // ── Volume Profile — POC + Value Area from today's 5-min bars ──────────
-      try {
-        if (candles.length >= 6) {
-          const vp = calculateVolumeProfile(candles)
-          if (vp) setVolumeProfile(vp)
-        }
-      } catch (e) { console.warn('[VolumeProfile]', e) }
 
       // ── Market Microstructure — cumulative delta, dark pool, vol spike ──────
       try {
