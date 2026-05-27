@@ -4628,6 +4628,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* ── EDGE CONDITION ALERTS ── */}
       {edgeAlerts.length > 0 && (
         <div style={{ position: 'fixed', top: 52, left: '50%', transform: 'translateX(-50%)', zIndex: 965, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 480 }}>
+          {edgeAlerts.length >= 2 && (
+            <button
+              onClick={() => setEdgeAlerts([])}
+              style={{
+                alignSelf: 'flex-end',
+                background: 'rgba(6,8,16,0.97)',
+                border: '1px solid rgba(255,183,0,0.5)',
+                borderRadius: 5, padding: '4px 10px',
+                color: '#ffb700', cursor: 'pointer',
+                fontFamily: font, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              }}
+            >
+              ✕ CLOSE ALL ({edgeAlerts.length})
+            </button>
+          )}
           {edgeAlerts.map(alert => (
             <div key={alert.id} style={{
               background: 'rgba(6,8,16,0.97)',
@@ -4692,6 +4709,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* ── VOLUME SPIKE BANNERS ── */}
       {volumeAlerts.length > 0 && (
         <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 950, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300 }}>
+          {volumeAlerts.length >= 2 && (
+            <button
+              onClick={() => setVolumeAlerts([])}
+              style={{
+                alignSelf: 'flex-end',
+                background: 'rgba(6,8,16,0.97)',
+                border: '1px solid rgba(255,183,0,0.4)',
+                borderRadius: 5, padding: '4px 10px',
+                color: '#ffb700', cursor: 'pointer',
+                fontFamily: font, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              }}
+            >
+              ✕ CLOSE ALL ({volumeAlerts.length})
+            </button>
+          )}
           {volumeAlerts.map((alert) => (
             <div key={alert.id} style={{
               background: 'rgba(6,8,16,0.97)',
@@ -4798,6 +4832,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* ── FLOW ALERT BANNERS ── */}
       {flowAlerts.length > 0 && (
         <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 340 }}>
+          {flowAlerts.length >= 2 && (
+            <button
+              onClick={() => setFlowAlerts([])}
+              style={{
+                alignSelf: 'flex-end',
+                background: 'rgba(6,8,16,0.97)',
+                border: '1px solid rgba(0,229,255,0.3)',
+                borderRadius: 5, padding: '4px 10px',
+                color: '#00e5ff', cursor: 'pointer',
+                fontFamily: font, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              }}
+            >
+              ✕ CLOSE ALL ({flowAlerts.length})
+            </button>
+          )}
           {flowAlerts.map((alert, i) => (
             <div key={alert.id} style={{
               background: 'rgba(6,8,16,0.97)',
@@ -4845,6 +4896,23 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* Dark pool alerts — bottom right */}
       {dpAlerts.length > 0 && (
         <div style={{ position: 'fixed', bottom: 24, right: 500, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 320 }}>
+          {dpAlerts.length >= 2 && (
+            <button
+              onClick={() => setDpAlerts([])}
+              style={{
+                alignSelf: 'flex-end',
+                background: 'rgba(6,8,16,0.97)',
+                border: '1px solid rgba(124,106,255,0.4)',
+                borderRadius: 5, padding: '4px 10px',
+                color: '#7c6aff', cursor: 'pointer',
+                fontFamily: font, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              }}
+            >
+              ✕ CLOSE ALL ({dpAlerts.length})
+            </button>
+          )}
           {dpAlerts.map((alert) => (
             <div key={alert.id} style={{
               background: 'rgba(6,8,16,0.97)',
