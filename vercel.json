@@ -20,6 +20,12 @@
     },
     "src/app/api/agents/score-alerts/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/agents/predict-shadow/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/agents/score-shadow/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -70,6 +76,14 @@
     {
       "path": "/api/agents/daily-recap",
       "schedule": "30 21 * * 1-5"
+    },
+    {
+      "path": "/api/agents/predict-shadow",
+      "schedule": "*/5 13-21 * * 1-5"
+    },
+    {
+      "path": "/api/agents/score-shadow",
+      "schedule": "*/5 13-22 * * 1-5"
     }
   ]
 }
