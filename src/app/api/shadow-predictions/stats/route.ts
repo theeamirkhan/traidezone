@@ -35,19 +35,15 @@ export async function GET(req: NextRequest) {
     const days = parseInt(url.searchParams.get('days') || '60', 10)
     const sinceISO = new Date(Date.now() - days * 86400000).toISOString()
 
-    // Build query — admin sees all shadow predictions, others see only their own
-    let query = supabaseAdmin
+    // Shadow predictions are SYSTEM-WIDE validation data, not user-private.
+    // Anyone authenticated can view them — they reveal model behavior in
+    // aggregate, not personal trading info. (When multi-user, revisit.)
+    const { data: preds, error } = await supabaseAdmin
       .from('shadow_predictions')
       .select('*')
       .gte('predicted_at', sinceISO)
       .order('predicted_at', { ascending: false })
       .limit(2000)
-
-    if (userId !== ADMIN_USER_ID) {
-      query = query.eq('user_id', userId)
-    }
-
-    const { data: preds, error } = await query
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

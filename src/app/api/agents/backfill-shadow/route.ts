@@ -116,8 +116,8 @@ CURRENT STATE:
 - VIX: ${context.vix || 'unknown'}${context.vixChange ? ` (${context.vixChange > 0 ? '+' : ''}${context.vixChange.toFixed(1)}%)` : ''}
 
 MECHANICAL FLOW:
-- Bias: ${context.mechBias || 'unknown'}
-- Candidate direction: ${context.candidateSignal || 'unknown'}
+- Bias: ${context.mechBias || 'unknown (GEX unavailable in this backfill)'}
+- Candidate direction hint: ${context.candidateSignal || 'unknown'}
 - Asymmetric setup: ${context.mechAsymmetric || 'none'}
 
 DAY TYPE REGIME:
@@ -129,32 +129,42 @@ ACTIONABILITY:
 - Verdict: ${context.actionability || 'unknown'}
 - Reasoning: ${context.actionabilityRationale || 'none'}
 
-MICROSTRUCTURE:
-- Cum delta: ${context.cumDelta} (${context.cumDeltaTrend})
-- 15-min trend: ${context.m15Trend || 'unknown'}
+MICROSTRUCTURE (best directional signals when mech/flow unavailable):
+- Cum delta: ${context.cumDelta} (${context.cumDeltaTrend})  ← STRONG_BUY/BUY indicates aggressive buying pressure, SELL/STRONG_SELL aggressive selling
+- 15-min trend: ${context.m15Trend || 'unknown'}             ← BULLISH/BEARISH/RANGING
 
-LEVELS:
-- VWAP: ${context.vwap?.toFixed(2) || '?'} (distance: ${context.vwapDist || '?'})
+LEVELS (interpret price location):
+- VWAP: ${context.vwap?.toFixed(2) || '?'} (current dist: ${context.vwapDist || '?'} pts) ← above VWAP = bullish, below = bearish
 - POC / VAH / VAL: ${context.poc || '?'} / ${context.vah || '?'} / ${context.val || '?'}
-- ORB high/low: ${context.orbHigh || '?'} / ${context.orbLow || '?'}
+- ORB high/low: ${context.orbHigh || '?'} / ${context.orbLow || '?'} ← break above ORB high = bullish breakout, below = bearish
 - PDH/PDL: ${context.pdh || '?'} / ${context.pdl || '?'}
 - Intraday H/L: ${context.intradayHigh || '?'} / ${context.intradayLow || '?'}
+
+YOUR JOB: Make a DIRECTIONAL CALL (LONG or SHORT) more often than not.
+WAIT is reserved ONLY for explicit conflict (e.g. price above VWAP but cum delta STRONG_SELL).
+
+If GEX data is "unknown" (backfill mode), DO NOT default to WAIT.
+Use cum delta + 15-min trend + VWAP distance + ORB position as your primary directional signals.
 
 Return JSON only:
 {
   "signal": "LONG" | "SHORT" | "WAIT",
   "confidence": 50-85,
-  "predictedT1": numeric or null (5-15pts away in signal direction),
-  "predictedStop": numeric or null (5-10pts against signal),
+  "predictedT1": numeric (5-15 SPX points in signal direction; null only for WAIT),
+  "predictedStop": numeric (5-10 SPX points against signal; null only for WAIT),
   "predictedT2": numeric or null,
-  "reasoning": "1-2 sentence rationale citing data above"
+  "reasoning": "1-2 sentence rationale citing the SPECIFIC data points above that drove the call"
 }
 
-RULES:
-- If actionability is NOISE → WAIT
-- If mech bias contradicts day type → WAIT
-- Confidence floor 50, ceiling 85
-- Cite specific data points`
+DIRECTIONAL LOGIC (use this when GEX is unavailable):
+- Cum delta STRONG_BUY + m15 BULLISH + price above VWAP → LONG (high conviction 65-80)
+- Cum delta STRONG_SELL + m15 BEARISH + price below VWAP → SHORT (high conviction 65-80)
+- Cum delta BUY/SELL + one supporting indicator → LONG/SHORT (moderate 55-65)
+- Mixed signals across cum delta and trend → WAIT
+- ORB breakout (price > orbHigh) with momentum → LONG
+- ORB breakdown (price < orbLow) with momentum → SHORT
+
+Confidence floor 50, ceiling 85. Be honest about your confidence — but lean directional over WAIT.`
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
