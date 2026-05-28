@@ -6,11 +6,16 @@
  *   - Win rate at 30/60/90 min horizons
  *   - Calibration: predicted confidence vs actual win rate
  *   - Recent predictions list
+ *
+ * Admin user sees all predictions (including backfill).
+ * Other users see only predictions tagged with their user_id.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase'
+
+const ADMIN_USER_ID = 'user_3BKD6y0MW6t9rxyyZo3HlywvkqT'
 
 const CONFIDENCE_BANDS = [
   { range: '50-59%', min: 50, max: 60 },
@@ -27,16 +32,22 @@ export async function GET(req: NextRequest) {
   try {
     // Pull all predictions (or last N days for performance)
     const url = new URL(req.url)
-    const days = parseInt(url.searchParams.get('days') || '30', 10)
+    const days = parseInt(url.searchParams.get('days') || '60', 10)
     const sinceISO = new Date(Date.now() - days * 86400000).toISOString()
 
-    const { data: preds, error } = await supabaseAdmin
+    // Build query — admin sees all shadow predictions, others see only their own
+    let query = supabaseAdmin
       .from('shadow_predictions')
       .select('*')
-      .eq('user_id', userId)
       .gte('predicted_at', sinceISO)
       .order('predicted_at', { ascending: false })
       .limit(2000)
+
+    if (userId !== ADMIN_USER_ID) {
+      query = query.eq('user_id', userId)
+    }
+
+    const { data: preds, error } = await query
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
