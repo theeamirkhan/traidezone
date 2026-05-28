@@ -26,6 +26,9 @@
     },
     "src/app/api/agents/score-shadow/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/agents/backfill-shadow/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
