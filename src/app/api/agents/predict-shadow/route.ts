@@ -45,26 +45,32 @@ function isAuthorized(req: NextRequest): boolean {
 }
 
 // ── ET market-hours check ──
-function isMarketHoursET(): { open: boolean; reason: string } {
+function isMarketHoursET(): { open: boolean; reason: string; debug?: any } {
   const etFmt = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', hour12: false,
     weekday: 'short', hour: '2-digit', minute: '2-digit',
   })
   const parts = etFmt.formatToParts(new Date())
   const weekdayShort = parts.find(p => p.type === 'weekday')?.value || ''
-  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10)
+  let hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10)
   const min = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10)
   const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
   const dow = weekdayMap[weekdayShort] ?? 0
 
-  if (dow === 0 || dow === 6) return { open: false, reason: 'weekend' }
+  // Intl en-US returns "24" for midnight when hour12:false — normalize
+  if (hour === 24) hour = 0
+
+  const debug = { weekdayShort, dow, hour, min, rawParts: etFmt.format(new Date()) }
+
+  if (dow === 0 || dow === 6) return { open: false, reason: 'weekend', debug }
 
   const minutesSinceOpen = (hour - 9) * 60 + (min - 30)
-  // 9:35am (5 min after open — let prices settle) to 3:55pm (5 min before close)
-  if (minutesSinceOpen < 5) return { open: false, reason: 'pre-market or first 5min' }
-  if (minutesSinceOpen > 385) return { open: false, reason: 'after-hours' }
+  // 9:30am to 4:00pm = 0 to 390 min. We allow 9:30am-3:55pm (5min before close) = 0-385.
+  // Use >= 0 to capture 9:30 onwards, NOT > 5 (that was too strict and unnecessary)
+  if (minutesSinceOpen < 0) return { open: false, reason: 'pre-market', debug }
+  if (minutesSinceOpen > 385) return { open: false, reason: 'after-hours', debug }
 
-  return { open: true, reason: 'market open' }
+  return { open: true, reason: 'market open', debug }
 }
 
 // ── Call Claude Haiku for prediction ──
@@ -181,7 +187,7 @@ export async function GET(req: NextRequest) {
     // 1. Market hours check
     const marketCheck = isMarketHoursET()
     if (!marketCheck.open) {
-      return NextResponse.json({ skipped: true, reason: marketCheck.reason })
+      return NextResponse.json({ skipped: true, reason: marketCheck.reason, debug: marketCheck.debug })
     }
 
     // 2. Build full market state (parallel-fetches all data + runs all computations)
