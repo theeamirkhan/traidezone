@@ -94,7 +94,7 @@ function scoreOutcome(
     else if (maxFav <= 5) outcome = 'WIN'   // correctly predicted no edge
     else outcome = 'SCRATCH'                // ambiguous drift
   } else {
-    // LONG/SHORT: check T1/stop
+    // LONG/SHORT: check T1/stop with chronological awareness
     if (t1 !== null) {
       const targetReached = direction === 'LONG'
         ? windowBars.some(b => b.h >= t1)
@@ -103,21 +103,28 @@ function scoreOutcome(
         ? windowBars.some(b => b.l <= stop)
         : windowBars.some(b => b.h >= stop))
 
-      if (targetReached) outcome = 'WIN'
+      if (targetReached && stopHit) {
+        // Both touched - whichever came first wins
+        const t1Idx = windowBars.findIndex(b =>
+          direction === 'LONG' ? b.h >= t1 : b.l <= t1)
+        const stopIdx = windowBars.findIndex(b =>
+          direction === 'LONG' ? b.l <= stop! : b.h >= stop!)
+        outcome = stopIdx < t1Idx ? 'LOSS' : 'WIN'
+      } else if (targetReached) outcome = 'WIN'
       else if (stopHit) outcome = 'LOSS'
       else {
-        // No clear hit — check final price direction
+        // Neither level hit - need meaningful move, not noise
         const finalMove = direction === 'LONG' ? finalSPX - entrySPX : entrySPX - finalSPX
-        if (finalMove >= 3) outcome = 'WIN'     // mild win
-        else if (finalMove <= -3) outcome = 'LOSS'  // mild loss
-        else outcome = 'SCRATCH'
+        if (finalMove >= 7)       outcome = 'WIN'      // raised from 3 — must be meaningful
+        else if (finalMove <= -5) outcome = 'LOSS'     // raised from -3
+        else                       outcome = 'SCRATCH'
       }
     } else {
-      // No T1 defined — judge by final price direction
+      // No T1 defined - direct meaningful threshold
       const finalMove = direction === 'LONG' ? finalSPX - entrySPX : entrySPX - finalSPX
-      if (finalMove >= 5) outcome = 'WIN'
+      if (finalMove >= 7)       outcome = 'WIN'
       else if (finalMove <= -5) outcome = 'LOSS'
-      else outcome = 'SCRATCH'
+      else                       outcome = 'SCRATCH'
     }
   }
 

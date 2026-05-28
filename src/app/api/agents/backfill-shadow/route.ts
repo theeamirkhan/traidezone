@@ -224,10 +224,20 @@ function gradeFromBars(
 
   let outcome: 'WIN' | 'LOSS' | 'SCRATCH' = 'SCRATCH'
   if (pred.direction === 'WAIT') {
+    // WAIT correct = price stayed near entry (<5pts)
+    // WAIT wrong = significant move (>10pts) — missed an opportunity
     if (maxFav >= 10) outcome = 'LOSS'
     else if (maxFav <= 5) outcome = 'WIN'
     else outcome = 'SCRATCH'
   } else {
+    // LONG/SHORT honest grading:
+    //   1. T1 hit → WIN (clean win, actual target reached)
+    //   2. Stop hit → LOSS (clean loss)
+    //   3. No T1 hit AND no stop hit → grade by RELATIVE move vs baseline noise
+    //      - 5pt move on SPX is ~0.07%, smaller than typical hourly drift
+    //      - Need >= 7pt move to call it a meaningful directional win
+    //      - Need >= 5pt adverse move to call it a meaningful loss
+    //      - Otherwise SCRATCH (noise)
     if (pred.t1 !== null) {
       const targetReached = pred.direction === 'LONG'
         ? windowBars.some(b => b.h >= pred.t1!)
@@ -235,19 +245,34 @@ function gradeFromBars(
       const stopHit = pred.stop !== null && (pred.direction === 'LONG'
         ? windowBars.some(b => b.l <= pred.stop!)
         : windowBars.some(b => b.h >= pred.stop!))
-      if (targetReached) outcome = 'WIN'
-      else if (stopHit) outcome = 'LOSS'
-      else {
+
+      // Order matters: stop usually hits BEFORE T1 if both are touched
+      // (in a real trade, you'd be stopped out first)
+      // We check which one was touched FIRST chronologically
+      if (targetReached && stopHit) {
+        // Both touched - which came first?
+        const t1Idx = windowBars.findIndex(b =>
+          pred.direction === 'LONG' ? b.h >= pred.t1! : b.l <= pred.t1!)
+        const stopIdx = windowBars.findIndex(b =>
+          pred.direction === 'LONG' ? b.l <= pred.stop! : b.h >= pred.stop!)
+        outcome = stopIdx < t1Idx ? 'LOSS' : 'WIN'
+      } else if (targetReached) {
+        outcome = 'WIN'
+      } else if (stopHit) {
+        outcome = 'LOSS'
+      } else {
+        // Neither level hit - judge by meaningful move
         const finalMove = pred.direction === 'LONG' ? finalSPX - pred.entrySPX : pred.entrySPX - finalSPX
-        if (finalMove >= 3) outcome = 'WIN'
-        else if (finalMove <= -3) outcome = 'LOSS'
-        else outcome = 'SCRATCH'
+        if (finalMove >= 7)       outcome = 'WIN'      // raised from 3
+        else if (finalMove <= -5) outcome = 'LOSS'     // raised from -3
+        else                       outcome = 'SCRATCH'  // honest "no clear outcome"
       }
     } else {
+      // No T1 defined - direct price check with meaningful thresholds
       const finalMove = pred.direction === 'LONG' ? finalSPX - pred.entrySPX : pred.entrySPX - finalSPX
-      if (finalMove >= 5) outcome = 'WIN'
+      if (finalMove >= 7)       outcome = 'WIN'
       else if (finalMove <= -5) outcome = 'LOSS'
-      else outcome = 'SCRATCH'
+      else                       outcome = 'SCRATCH'
     }
   }
 
