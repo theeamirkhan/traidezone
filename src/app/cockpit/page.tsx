@@ -1,6 +1,7 @@
 'use client'
 import TutorialModal from './TutorialModal'
 import { TakeTradeModal, CloseTradeModal, ExitPromptModal, OpenPositionsStrip } from './PositionTracker'
+import { ShadowValidationStream } from './ShadowValidationStream'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
@@ -9501,6 +9502,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <span style={{ fontSize: 12, color: C.textMuted }}>Loading insights...</span>
               </div>
             )}
+
+            {/* ── SHADOW VALIDATION STREAM (Phase 2B) ────────────────────── */}
+            <ShadowValidationStream font={font} fontDisplay={fontDisplay} />
+
             {insights && !insightsLoading && (() => {
               const s = insights.summary
               const C2 = { purple: '#7c6aff', green: '#00ff88', red: '#ff4d6d', yellow: '#f59e0b', muted: '#4a5568', text: '#e2e8f0' }
