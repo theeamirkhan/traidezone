@@ -150,11 +150,17 @@ Return JSON only:
 {
   "signal": "LONG" | "SHORT" | "WAIT",
   "confidence": 50-85,
-  "predictedT1": numeric (5-15 SPX points in signal direction; null only for WAIT),
+  "predictedT1": numeric (MUST be 7-15 SPX points in signal direction; null only for WAIT),
   "predictedStop": numeric (5-10 SPX points against signal; null only for WAIT),
   "predictedT2": numeric or null,
   "reasoning": "1-2 sentence rationale citing the SPECIFIC data points above that drove the call"
 }
+
+CRITICAL T1 RULE:
+- For LONG: predictedT1 = currentSPX + (7 to 15 points)
+- For SHORT: predictedT1 = currentSPX - (7 to 15 points)
+- If you cannot identify at least 7 points of expected movement → WAIT
+- A 3-5 point move is NOT a tradeable signal. WAIT instead of low-conviction directional.
 
 DIRECTIONAL LOGIC (use this when GEX is unavailable):
 - Cum delta STRONG_BUY + m15 BULLISH + price above VWAP → LONG (high conviction 65-80)
@@ -230,49 +236,39 @@ function gradeFromBars(
     else if (maxFav <= 5) outcome = 'WIN'
     else outcome = 'SCRATCH'
   } else {
-    // LONG/SHORT honest grading:
-    //   1. T1 hit → WIN (clean win, actual target reached)
-    //   2. Stop hit → LOSS (clean loss)
-    //   3. No T1 hit AND no stop hit → grade by RELATIVE move vs baseline noise
-    //      - 5pt move on SPX is ~0.07%, smaller than typical hourly drift
-    //      - Need >= 7pt move to call it a meaningful directional win
-    //      - Need >= 5pt adverse move to call it a meaningful loss
-    //      - Otherwise SCRATCH (noise)
-    if (pred.t1 !== null) {
-      const targetReached = pred.direction === 'LONG'
-        ? windowBars.some(b => b.h >= pred.t1!)
-        : windowBars.some(b => b.l <= pred.t1!)
-      const stopHit = pred.stop !== null && (pred.direction === 'LONG'
-        ? windowBars.some(b => b.l <= pred.stop!)
-        : windowBars.some(b => b.h >= pred.stop!))
+    // STRICT TARGET-BASED GRADING (no drift fallback):
+    //   T1 hit before stop → WIN
+    //   Stop hit before T1 → LOSS
+    //   Neither hit within window → SCRATCH (no edge demonstrated)
+    //
+    // This is HONEST grading: edge only counts if it actually played out.
+    // A 5pt drift in the right direction without hitting the predicted
+    // target is not a win — it's just noise that happened to align.
 
-      // Order matters: stop usually hits BEFORE T1 if both are touched
-      // (in a real trade, you'd be stopped out first)
-      // We check which one was touched FIRST chronologically
-      if (targetReached && stopHit) {
-        // Both touched - which came first?
-        const t1Idx = windowBars.findIndex(b =>
-          pred.direction === 'LONG' ? b.h >= pred.t1! : b.l <= pred.t1!)
-        const stopIdx = windowBars.findIndex(b =>
-          pred.direction === 'LONG' ? b.l <= pred.stop! : b.h >= pred.stop!)
+    if (pred.t1 === null) {
+      // No T1 predicted = no testable hypothesis → SCRATCH
+      outcome = 'SCRATCH'
+    } else {
+      const t1Idx = windowBars.findIndex(b =>
+        pred.direction === 'LONG' ? b.h >= pred.t1! : b.l <= pred.t1!)
+      const stopIdx = pred.stop !== null
+        ? windowBars.findIndex(b =>
+            pred.direction === 'LONG' ? b.l <= pred.stop! : b.h >= pred.stop!)
+        : -1
+
+      const t1Hit = t1Idx >= 0
+      const stopHit = stopIdx >= 0
+
+      if (t1Hit && stopHit) {
+        // Whichever was first wins
         outcome = stopIdx < t1Idx ? 'LOSS' : 'WIN'
-      } else if (targetReached) {
+      } else if (t1Hit) {
         outcome = 'WIN'
       } else if (stopHit) {
         outcome = 'LOSS'
       } else {
-        // Neither level hit - judge by meaningful move
-        const finalMove = pred.direction === 'LONG' ? finalSPX - pred.entrySPX : pred.entrySPX - finalSPX
-        if (finalMove >= 7)       outcome = 'WIN'      // raised from 3
-        else if (finalMove <= -5) outcome = 'LOSS'     // raised from -3
-        else                       outcome = 'SCRATCH'  // honest "no clear outcome"
+        outcome = 'SCRATCH'  // neither level hit — no demonstrated edge
       }
-    } else {
-      // No T1 defined - direct price check with meaningful thresholds
-      const finalMove = pred.direction === 'LONG' ? finalSPX - pred.entrySPX : pred.entrySPX - finalSPX
-      if (finalMove >= 7)       outcome = 'WIN'
-      else if (finalMove <= -5) outcome = 'LOSS'
-      else                       outcome = 'SCRATCH'
     }
   }
 

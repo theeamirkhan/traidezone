@@ -39,13 +39,20 @@ export async function POST(req: NextRequest) {
         .from('shadow_predictions')
         .select('*', { count: 'exact', head: true })
 
-      const { error } = await supabaseAdmin
+      // Use not.is.null on user_id (every row has a user_id) to match all
+      const { error, count } = await supabaseAdmin
         .from('shadow_predictions')
-        .delete()
-        .gt('id', '00000000-0000-0000-0000-000000000000')
+        .delete({ count: 'exact' })
+        .not('user_id', 'is', null)
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      return NextResponse.json({ ok: true, mode: 'all', deletedApprox: beforeCount })
+      if (error) return NextResponse.json({ error: error.message, beforeCount }, { status: 500 })
+
+      // Verify it actually emptied
+      const { count: afterCount } = await supabaseAdmin
+        .from('shadow_predictions')
+        .select('*', { count: 'exact', head: true })
+
+      return NextResponse.json({ ok: true, mode: 'all', beforeCount, afterCount, deleted: count })
     }
 
     if (backfillOnly) {
