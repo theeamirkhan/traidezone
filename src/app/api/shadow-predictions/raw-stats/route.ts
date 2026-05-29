@@ -33,13 +33,14 @@ export async function GET(req: NextRequest) {
     // User_id distribution
     const { data: allRows } = await supabaseAdmin
       .from('shadow_predictions')
-      .select('user_id, signal_direction, confidence, status, outcome_60m')
-      .limit(2000)
+      .select('user_id, signal_direction, confidence, status, outcome_60m, predicted_at')
+      .limit(5000)
 
     const userIdCounts: Record<string, number> = {}
     const signalDist: Record<string, number> = {}
     const statusDist: Record<string, number> = {}
     const outcome60Dist: Record<string, number> = {}
+    const dateCounts: Record<string, number> = {}
 
     for (const row of (allRows || [])) {
       userIdCounts[row.user_id] = (userIdCounts[row.user_id] || 0) + 1
@@ -47,7 +48,19 @@ export async function GET(req: NextRequest) {
       statusDist[row.status] = (statusDist[row.status] || 0) + 1
       const oKey = row.outcome_60m || 'null'
       outcome60Dist[oKey] = (outcome60Dist[oKey] || 0) + 1
+      const etDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(new Date(row.predicted_at))
+      dateCounts[etDate] = (dateCounts[etDate] || 0) + 1
     }
+
+    // Directional win rate (LONG/SHORT only, exclude WAIT and ungraded)
+    const dirWins = (outcome60Dist['WIN'] || 0)
+    const dirLosses = (outcome60Dist['LOSS'] || 0)
+    const dirScratch = (outcome60Dist['SCRATCH'] || 0)
+    const dirTotal = dirWins + dirLosses + dirScratch
+    const winRateInclScratch = dirTotal > 0 ? Math.round((dirWins / dirTotal) * 100) : null
+    const winRateExclScratch = (dirWins + dirLosses) > 0 ? Math.round((dirWins / (dirWins + dirLosses)) * 100) : null
 
     // Sample rows
     const { data: sample } = await supabaseAdmin
@@ -59,10 +72,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       totalCount,
+      sampledRows: (allRows || []).length,
+      winRate60_inclScratch: winRateInclScratch,
+      winRate60_exclScratch: winRateExclScratch,
       userIdDistribution: userIdCounts,
       signalDistribution: signalDist,
       statusDistribution: statusDist,
       outcome60Distribution: outcome60Dist,
+      dateDistribution: dateCounts,
       latestFiveRows: sample,
     })
   } catch (e: any) {
