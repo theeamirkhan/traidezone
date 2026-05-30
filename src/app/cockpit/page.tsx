@@ -2190,7 +2190,7 @@ export default function CockpitPage() {
         gammaFlip:         gexData?.gammaFlip ?? null,
         callWall:          gexData?.callWall ?? null,
         putWall:           gexData?.putWall ?? null,
-        cumDelta:          microstructure?.cumDelta ?? null,
+        cumDelta:          microstructure?.cumulativeDelta?.strength ?? null,
         m15Trend:          snap.ema200 && currentPrice > snap.ema200 ? 'up' : 'down',
         breadth:           breadthData?.summary ?? null,
         newsSoon:          null,
