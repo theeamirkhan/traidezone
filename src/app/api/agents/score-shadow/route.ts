@@ -226,9 +226,57 @@ export async function GET(req: NextRequest) {
       grades.push({ id: pred.id, horizon: '90m', outcome: score.outcome })
     }
 
+    // ── Also grade trigger_fires (same T1-before-stop logic) ──────────────
+    let triggerGrades = 0
+    const now2 = Date.now()
+    const { data: ungraded } = await supabaseAdmin
+      .from('trigger_fires')
+      .select('*')
+      .is('outcome_90m', null)
+      .lte('fired_at', new Date(now2 - 30 * 60 * 1000).toISOString())
+      .limit(50)
+
+    for (const fire of ungraded || []) {
+      const firedMs = new Date(fire.fired_at).getTime()
+      const age = now2 - firedMs
+
+      const predBase = {
+        signal_direction: fire.direction,
+        current_spx:      fire.entry_spx,
+        predicted_t1:     fire.predicted_t1,
+        predicted_stop:   fire.predicted_stop,
+        predicted_at:     fire.fired_at,
+      }
+
+      const updates: any = {}
+      if (age >= 30 * 60 * 1000 && !fire.outcome_30m) {
+        const bars = await fetchSPXBars(firedMs, firedMs + 30 * 60 * 1000)
+        const s = scoreOutcome(predBase, bars, 30 * 60 * 1000)
+        updates.outcome_30m = s.outcome
+      }
+      if (age >= 60 * 60 * 1000 && !fire.outcome_60m) {
+        const bars = await fetchSPXBars(firedMs, firedMs + 60 * 60 * 1000)
+        const s = scoreOutcome(predBase, bars, 60 * 60 * 1000)
+        updates.outcome_60m = s.outcome
+        updates.actual_spx_60m = s.actualSPX
+      }
+      if (age >= 90 * 60 * 1000 && !fire.outcome_90m) {
+        const bars = await fetchSPXBars(firedMs, firedMs + 90 * 60 * 1000)
+        const s = scoreOutcome(predBase, bars, 90 * 60 * 1000)
+        updates.outcome_90m = s.outcome
+        updates.graded_at = new Date().toISOString()
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabaseAdmin.from('trigger_fires').update(updates).eq('id', fire.id)
+        triggerGrades++
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       graded_count: grades.length,
+      trigger_grades: triggerGrades,
       grades,
     })
   } catch (e: any) {

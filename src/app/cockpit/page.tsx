@@ -2,6 +2,8 @@
 import TutorialModal from './TutorialModal'
 import { TakeTradeModal, CloseTradeModal, ExitPromptModal, OpenPositionsStrip } from './PositionTracker'
 import { ShadowValidationStream } from './ShadowValidationStream'
+import { TriggerManager } from './TriggerManager'
+import { processTick, newAccumulator } from './lib/triggerEngine'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
@@ -1729,6 +1731,12 @@ export default function CockpitPage() {
   const [showCloseTrade, setShowCloseTrade] = useState<any | null>(null)  // position being closed
   const [exitPrompt, setExitPrompt]         = useState<any | null>(null)  // auto-prompt when stop/target hit
   const exitPromptsFired = useRef<Set<string>>(new Set())                 // dedupe auto-prompts
+  // ── Personal Trigger Engine (live) ──────────────────────────────────────
+  const [triggerRules, setTriggerRules]   = useState<any[]>([])
+  const triggerAccumulator = useRef<any>(null)                            // SessionAccumulator
+  const [triggerFire, setTriggerFire]      = useState<any | null>(null)   // a rule that just fired
+  const priorPriceRef = useRef<number | null>(null)                       // price one tick ago (reclaim detection)
+  const recentBarsRef = useRef<{ highs: number[]; lows: number[] }>({ highs: [], lows: [] })
   const [aiLoading, setAiLoading] = useState(false)
   const [lastAITime, setLastAITime] = useState<string | null>(null)
   const [marketIntel, setMarketIntel] = useState<any>({})
@@ -2082,6 +2090,209 @@ export default function CockpitPage() {
       }
     }
   }, [currentPrice, openPositions])
+
+  // ── Load personal trigger rules on mount + refresh every 2min ──────────
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetch('/api/triggers')
+        .then(r => r.json())
+        .then(d => { if (!cancelled) setTriggerRules((d.triggers || []).filter((t: any) => t.enabled)) })
+        .catch(() => {})
+    }
+    load()
+    const iv = setInterval(load, 120000)
+    return () => { cancelled = true; clearInterval(iv) }
+  }, [])
+
+  // ── Personal Trigger Engine — evaluate rules every tick (currentPrice change) ──
+  useEffect(() => {
+    if (!currentPrice || triggerRules.length === 0) return
+
+    // ET session date + minutes since open
+    const etNow = new Date()
+    const etParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit',
+    }).formatToParts(etNow)
+    let hh = parseInt(etParts.find(p => p.type === 'hour')?.value || '0', 10)
+    if (hh === 24) hh = 0
+    const mm = parseInt(etParts.find(p => p.type === 'minute')?.value || '0', 10)
+    const sessionMinutes = (hh - 9) * 60 + (mm - 30)
+    const sessionDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(etNow)
+
+    // Only evaluate during market hours
+    if (sessionMinutes < 0 || sessionMinutes > 390) return
+
+    // Reset accumulator on new session day
+    if (!triggerAccumulator.current || triggerAccumulator.current.sessionDate !== sessionDate) {
+      triggerAccumulator.current = newAccumulator(sessionDate)
+      recentBarsRef.current = { highs: [], lows: [] }
+    }
+
+    // Track recent bar highs/lows (last 3) for hold detection
+    const recent = recentBarsRef.current
+    recent.highs.push(currentPrice)
+    recent.lows.push(currentPrice)
+    if (recent.highs.length > 12) recent.highs.shift()  // ~last 12 ticks
+    if (recent.lows.length > 12) recent.lows.shift()
+
+    // Build the market snapshot from live cockpit state
+    const snap = {
+      currentPrice,
+      timestamp:      Date.now(),
+      vwap:           levels?.spyVwap ?? null,
+      ema200:         levels?.ema200 ?? null,
+      ema90:          null,  // not currently computed cockpit-side; ema90_below primitive will no-op
+      pdh:            levels?.pdh ?? null,
+      pdl:            levels?.pdl ?? null,
+      prevClose:      levels?.prevClose ?? null,
+      orbHigh:        orbHigh ?? null,
+      orbLow:         orbLow ?? null,
+      tick:           marketIntel?.tick ?? null,
+      sessionMinutes,
+    }
+
+    const ctx = {
+      snap,
+      priorPrice:   priorPriceRef.current,
+      recentLows:   [...recent.lows],
+      recentHighs:  [...recent.highs],
+    }
+
+    const { accumulator, fires } = processTick(triggerRules, triggerAccumulator.current, ctx)
+    triggerAccumulator.current = accumulator
+    priorPriceRef.current = currentPrice
+
+    if (fires.length > 0) {
+      const fire = fires[0]  // handle one at a time
+      setTriggerFire(fire)
+      // Increment fire count server-side
+      fetch('/api/triggers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fired', id: fire.rule.id }),
+      }).catch(() => {})
+
+      // Fast deterministic alert so the setup is NEVER missed
+      try { speak(`Setup complete. ${fire.rule.name}. Checking context.`) } catch {}
+
+      // Build full-context snapshot for the LLM overlay
+      const overlayContext = {
+        currentSPX:        currentPrice,
+        timeET:            `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`,
+        sessionWindow:     sessionMinutes < 60 ? 'open_drive' : sessionMinutes < 300 ? 'mid_session' : 'power_hour',
+        vix:               vixPrice ?? null,
+        vwap:              snap.vwap,
+        mechBias:          mechanicalFlow?.mechanicalBias ?? null,
+        dayType:           dayTypeForecast?.dayType ?? null,
+        dayTypeConfidence: dayTypeForecast?.confidence ?? null,
+        dayDirectionalLean: dayTypeForecast?.directionalLean ?? null,
+        gexRegime:         gexData?.regime ?? null,
+        gammaFlip:         gexData?.gammaFlip ?? null,
+        callWall:          gexData?.callWall ?? null,
+        putWall:           gexData?.putWall ?? null,
+        cumDelta:          microstructure?.cumDelta ?? null,
+        m15Trend:          snap.ema200 && currentPrice > snap.ema200 ? 'up' : 'down',
+        breadth:           breadthData?.summary ?? null,
+        newsSoon:          null,
+        earningsToday:     null,
+      }
+
+      const stopPts = 8
+      const entrySpx = currentPrice
+      const predictedT1 = fire.rule.direction === 'LONG' ? entrySpx + 7 : entrySpx - 7
+      const predictedStop = fire.rule.direction === 'LONG' ? entrySpx - stopPts : entrySpx + stopPts
+
+      // Call the LLM overlay — never trade blind
+      ;(async () => {
+        let overlay: any = null
+        try {
+          const res = await fetch('/api/triggers/overlay', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              trigger: {
+                name:            fire.rule.name,
+                direction:       fire.rule.direction,
+                confidence:      fire.rule.confidence,
+                stopHint:        fire.rule.stopHint,
+                firedConditions: fire.evaluation.firedConditions,
+              },
+              context: overlayContext,
+            }),
+          })
+          overlay = await res.json()
+        } catch {}
+
+        // Log the fire with both verdicts for attribution
+        let fireId: string | null = null
+        try {
+          const logRes = await fetch('/api/triggers/fires', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action:          'log',
+              triggerId:       fire.rule.id,
+              triggerName:     fire.rule.name,
+              direction:       fire.rule.direction,
+              setupConfidence: fire.rule.confidence,
+              entrySpx,
+              predictedT1,
+              predictedStop,
+              aiVerdict:       overlay?.verdict ?? null,
+              aiConfidence:    overlay?.aiConfidence ?? null,
+              aiReasoning:     overlay?.reasoning ?? null,
+              conflictFactors: overlay?.conflictFactors ?? null,
+              agreement:       overlay?.agreement ?? null,
+              context:         overlayContext,
+            }),
+          })
+          const logData = await logRes.json()
+          fireId = logData.id || null
+        } catch {}
+
+        const verdict = overlay?.verdict || 'CAUTION'
+
+        // Voice the verdict
+        try {
+          if (verdict === 'CONFIRM') speak(`Confirmed. Context supports your ${fire.rule.direction}.`)
+          else if (verdict === 'CONFLICT') speak(`Conflict. ${overlay?.reasoning?.split('.')[0] || 'Broader context opposes this'}. Your call.`)
+          else speak(`Caution. ${overlay?.reasoning?.split('.')[0] || 'Some yellow flags'}.`)
+        } catch {}
+
+        // Set the rich fire object for the banner
+        setTriggerFire({
+          ...fire,
+          overlay,
+          fireId,
+          entrySpx,
+          predictedT1,
+          predictedStop,
+        })
+
+        // Branch on verdict for the modal behavior (per your spec):
+        //   CONFIRM  → auto-open modal (both aligned, fast path)
+        //   CAUTION  → auto-open modal but conflict shown prominently
+        //   CONFLICT → alert only, NO modal — you consciously choose
+        if (verdict === 'CONFIRM' || verdict === 'CAUTION') {
+          setShowTakeTrade({
+            signal:         fire.rule.direction,
+            confidence:     fire.rule.confidence,
+            entryPrice:     entrySpx,
+            suggestedEntry: entrySpx,
+            stopLevel:      predictedStop,
+            target1:        predictedT1,
+            target2:        fire.rule.direction === 'LONG' ? entrySpx + 12 : entrySpx - 12,
+            aiConfidence:   overlay?.aiConfidence ?? fire.rule.confidence,
+            setupName:      `⚡ ${fire.rule.name}`,
+            strike:         null,
+            expiry:         '0DTE',
+            _triggerFired:  true,
+            _triggerFireId: fireId,
+            _overlay:       overlay,
+          })
+        }
+        // CONFLICT: banner only (setTriggerFire above), no modal
+      })()
+    }
+  }, [currentPrice, triggerRules])
 
   // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────
   useEffect(() => {
@@ -9502,6 +9713,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <span style={{ fontSize: 12, color: C.textMuted }}>Loading insights...</span>
               </div>
             )}
+
+            {/* ── PERSONAL TRIGGER ENGINE (Phase 2C) ──────────────────────── */}
+            <TriggerManager font={font} fontDisplay={fontDisplay} />
 
             {/* ── SHADOW VALIDATION STREAM (Phase 2B) ────────────────────── */}
             <ShadowValidationStream font={font} fontDisplay={fontDisplay} />
