@@ -37,7 +37,11 @@ import { supabaseAdmin } from '@/lib/supabase'
 async function check(name: string, fn: () => Promise<any>): Promise<{ name: string; status: 'ok' | 'warn' | 'error'; detail: string; value?: any }> {
   try {
     const result = await fn()
-    return { name, status: 'ok', detail: result.detail || 'OK', value: result.value }
+    // Honor an explicit status from the check (defaults to 'ok'). This lets
+    // checks return { status: 'warn' } for degraded-but-not-broken states.
+    const status: 'ok' | 'warn' | 'error' =
+      result?.status === 'warn' ? 'warn' : result?.status === 'error' ? 'error' : 'ok'
+    return { name, status, detail: result.detail || 'OK', value: result.value }
   } catch (e: any) {
     return { name, status: 'error', detail: e.message }
   }
@@ -686,6 +690,100 @@ export async function GET(req: NextRequest) {
       }
     }),
 
+    // ── Learning Engine (Shadow Predictions) ───────────────────────────────────
+    check('Learning — Shadow Predictions', async () => {
+      const { count: total } = await supabaseAdmin
+        .from('shadow_predictions')
+        .select('*', { count: 'exact', head: true })
+      if (total === null) throw new Error('shadow_predictions table not reachable — run /api/shadow-predictions/migrate')
+
+      // Is there FRESH data from today? (proves the live cron is producing, not just backfill)
+      const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const todayStartUTC = new Date(`${todayET}T00:00:00-05:00`).toISOString()
+      const { count: todayCount } = await supabaseAdmin
+        .from('shadow_predictions')
+        .select('*', { count: 'exact', head: true })
+        .gte('predicted_at', todayStartUTC)
+
+      const dow = new Date().getDay()
+      const isWeekend = dow === 0 || dow === 6
+      const fresh = (todayCount || 0) > 0
+
+      return {
+        detail: `${total} total predictions | ${todayCount || 0} today` +
+          (fresh ? ' ✓ live cron producing' : isWeekend ? ' (weekend — cron idle, expected)' : ' ⚠ no fresh data today — check predict-shadow cron during market hours'),
+        status: fresh || isWeekend ? 'ok' : (total && total > 0 ? 'warn' : 'error'),
+        value: { total, today: todayCount },
+      }
+    }),
+
+    check('Learning — Shadow Grading', async () => {
+      const { data } = await supabaseAdmin
+        .from('shadow_predictions')
+        .select('status, outcome_60m')
+        .limit(2000)
+      const rows = data || []
+      const graded = rows.filter((r: any) => r.outcome_60m).length
+      const pending = rows.filter((r: any) => r.status === 'pending').length
+      if (rows.length === 0) return { detail: 'No predictions to grade yet', status: 'warn' }
+      const pct = Math.round((graded / rows.length) * 100)
+      return {
+        detail: `${graded}/${rows.length} graded (${pct}%) | ${pending} pending — score-shadow cron grades at 30/60/90min`,
+        status: pct > 50 ? 'ok' : 'warn',
+        value: { graded, pending, total: rows.length },
+      }
+    }),
+
+    // ── Personal Trigger Engine ────────────────────────────────────────────────
+    check('Triggers — Definitions Table', async () => {
+      const { count, error } = await supabaseAdmin
+        .from('personal_triggers')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      if (error) throw new Error('personal_triggers table not reachable — run /api/triggers/migrate')
+      const { data: enabled } = await supabaseAdmin
+        .from('personal_triggers')
+        .select('name, enabled, fire_count')
+        .eq('user_id', userId)
+        .eq('enabled', true)
+      const enabledCount = (enabled || []).length
+      return {
+        detail: count === 0
+          ? 'No triggers defined yet — add one in Learn tab → Personal Trigger Engine'
+          : `${count} trigger(s) | ${enabledCount} enabled${enabledCount > 0 ? ': ' + (enabled || []).map((t: any) => `${t.name} (fired ${t.fire_count || 0}×)`).join(', ') : ''}`,
+        status: 'ok',
+        value: { total: count, enabled: enabledCount },
+      }
+    }),
+
+    check('Triggers — Fires + Attribution', async () => {
+      const { count, error } = await supabaseAdmin
+        .from('trigger_fires')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      if (error) throw new Error('trigger_fires table not reachable — run /api/triggers/fires/migrate')
+      const { data: graded } = await supabaseAdmin
+        .from('trigger_fires')
+        .select('agreement, outcome_60m')
+        .eq('user_id', userId)
+        .not('outcome_60m', 'is', null)
+      const g = graded || []
+      const conflicts = g.filter((f: any) => f.agreement === 'DISAGREE').length
+      return {
+        detail: count === 0
+          ? 'No trigger fires logged yet — fires record when a trigger chain completes live'
+          : `${count} fire(s) logged | ${g.length} graded | ${conflicts} AI-disagreements (attribution data)`,
+        status: 'ok',
+        value: { total: count, graded: g.length, conflicts },
+      }
+    }),
+
+    check('Triggers — Overlay LLM', async () => {
+      const key = process.env.ANTHROPIC_API_KEY
+      if (!key) throw new Error('ANTHROPIC_API_KEY not set — overlay verdicts cannot generate')
+      return { detail: 'Overlay endpoint configured ✓ — fires CONFIRM/CAUTION/CONFLICT verdict on each trigger (Sonnet, not tested to save credits)' }
+    }),
+
   ])
 
   const checks = results.map((r, i) => {
@@ -713,6 +811,8 @@ export async function GET(req: NextRequest) {
       { name: 'Learn Outcomes',     schedule: '5:00pm ET',          path: '/api/agents/learn-from-outcomes', description: 'Extract patterns from scored trades' },
       { name: 'Analyze Chat',       schedule: '6:00pm ET',          path: '/api/agents/analyze-chat',      description: 'Learn from today\'s conversations' },
       { name: 'Usage Report',       schedule: '5:00pm ET',          path: '/api/agents/usage-report',      description: 'API cost tracking' },
+      { name: 'Predict Shadow',     schedule: '*/5 13-21 * * 1-5',  path: '/api/agents/predict-shadow',    description: 'Learning engine — labeled prediction every 5min' },
+      { name: 'Score Shadow',       schedule: '*/5 13-22 * * 1-5',  path: '/api/agents/score-shadow',      description: 'Grade shadow preds + trigger fires at 30/60/90min' },
     ]
   })
 }
