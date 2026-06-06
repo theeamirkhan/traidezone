@@ -24,6 +24,11 @@ const isPublicRoute = createRouteMatcher([
   '/api/system-status',
   '/admin',
   '/api/agents/stream-weights',
+  '/api/agents/send-morning-email(.*)',  // 9am ET cron — sends only to hardcoded admin email
+  '/api/agents/daily-recap(.*)',         // 5:30pm ET cron — same
+  '/api/agents/predict-shadow(.*)',      // */5min learning cron — own cron auth inside
+  '/api/agents/score-shadow(.*)',        // */5min grading cron — own cron auth inside
+  '/api/email-diagnostic(.*)',           // read-only diagnostics + manual fire (admin email only)
   '/api/email/(.*)',
   '/api/gap-outcomes/record(.*)',
   '/api/gap-outcomes/score(.*)',
