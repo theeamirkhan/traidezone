@@ -277,7 +277,14 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
         generated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,recap_date' })
 
-      return NextResponse.json({ ok: true, recap: noOpRecap, signalsAnalyzed: 0 })
+      // Still send the end-of-day email — a quiet day is worth confirming.
+      const emailStatus = await sendRecapEmail({
+        date: todayET, recap: noOpRecap, signalsCount: 0,
+        wins: 0, losses: 0, winRate: null,
+        dayTypePredicted: null, actualDayType: null, signals: [],
+      })
+
+      return NextResponse.json({ ok: true, recap: noOpRecap, signalsAnalyzed: 0, emailStatus })
     }
 
     // ── Classify outcomes ──
@@ -514,6 +521,56 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
 // ─────────────────────────────────────────────────────────────────────────────
 // Email HTML Builder
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Sends the recap email via Resend + logs to email_logs. Shared by both
+// the no-signals (no-activity) path and the normal path so a quiet day
+// still produces an end-of-day email.
+async function sendRecapEmail(p: {
+  date: string
+  recap: any
+  signalsCount: number
+  wins: number
+  losses: number
+  winRate: number | null
+  dayTypePredicted: string | null
+  actualDayType: string | null
+  signals: any[]
+}): Promise<string> {
+  try {
+    const emailHtml = buildRecapEmail(p)
+    const subject = `[trAIde Zone] EOD Recap ${p.date} · ${p.winRate !== null ? p.winRate + '%' : '—'} WR · ${p.signalsCount} signals`
+    const sendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'recap@traidezone.ai',
+        to:   'theeamirkhan@gmail.com',
+        subject,
+        html: emailHtml,
+      }),
+    })
+    const sendResult = await sendRes.json()
+    if (!sendResult.id) console.error('[daily-recap] Resend send failed:', JSON.stringify(sendResult))
+    else console.log('[daily-recap] Email sent OK, Resend id:', sendResult.id)
+    try {
+      await supabaseAdmin.from('email_logs').insert({
+        type: 'daily_recap',
+        recipient: 'theeamirkhan@gmail.com',
+        subject,
+        status:    sendResult.id ? 'sent' : 'failed',
+        resend_id: sendResult.id || null,
+        sent_at:   new Date().toISOString(),
+      })
+    } catch (_e) { /* log table may not exist */ }
+    return sendResult.id ? 'sent' : `failed: ${sendResult.message || sendResult.error || 'unknown'}`
+  } catch (emailErr: any) {
+    console.error('[daily-recap] email send failed:', emailErr)
+    return 'error'
+  }
+}
 
 function buildRecapEmail(p: {
   date: string
