@@ -2105,6 +2105,67 @@ export default function CockpitPage() {
     return () => { cancelled = true; clearInterval(iv) }
   }, [])
 
+  // ── Client-side Shadow Collector ───────────────────────────────────────
+  // Fires the shadow prediction every 5 min while the cockpit is open.
+  // Replaces the unreliable Vercel cron: the endpoint handles its own
+  // market-hours guard, regime dedup, and 30/60/90min grading. This only
+  // runs while you're actually trading (tab open) — which is exactly when
+  // the live-with-GEX data matters. Calls are same-origin so the
+  // endpoint's isAuthorized() passes automatically.
+  useEffect(() => {
+    let cancelled = false
+    const SHADOW_KEY = 'traidezone_last_shadow_fire'
+
+    const firePrediction = async () => {
+      if (cancelled) return
+      // Throttle guard: never fire more than once per ~4.5min even across
+      // remounts (localStorage-backed), so a quick tab refocus won't spam.
+      try {
+        const last = parseInt(localStorage.getItem(SHADOW_KEY) || '0', 10)
+        if (Date.now() - last < 4.5 * 60 * 1000) return
+      } catch {}
+
+      try {
+        const res = await fetch('/api/agents/predict-shadow', { method: 'POST' })
+        const d = await res.json().catch(() => ({}))
+        // Stamp throttle when the endpoint engaged (saved a prediction or
+        // hit regime dedup) — NOT on weekend/after-hours skips, so it
+        // retries promptly once the market opens.
+        const engaged = d?.ok === true || d?.reason === 'regime unchanged from last prediction'
+        if (engaged) {
+          try { localStorage.setItem(SHADOW_KEY, String(Date.now())) } catch {}
+        }
+        if (d?.ok && d?.prediction) {
+          console.log('[shadow-collector] saved:', d.prediction.signal, d.prediction.confidence,
+            '| GEX:', d.prediction.components?.gexRegime || 'none')
+        }
+      } catch {
+        // network blip — try again next interval
+      }
+    }
+
+    // Fire shortly after mount, then every 5 min
+    const kickoff = setTimeout(firePrediction, 15000)  // 15s after load
+    const iv = setInterval(firePrediction, 5 * 60 * 1000)
+
+    // The score-shadow cron is also unreliable — nudge grading from the
+    // client too so predictions actually get graded at 30/60/90min.
+    // Cheap call; endpoint no-ops if nothing is due. Offset from the
+    // prediction fire so they don't hit at the same instant.
+    const fireGrading = async () => {
+      if (cancelled) return
+      try { await fetch('/api/agents/score-shadow', { method: 'POST' }) } catch {}
+    }
+    const gradeKickoff = setTimeout(fireGrading, 45000)  // 45s after load
+    const gradeIv = setInterval(fireGrading, 5 * 60 * 1000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(kickoff); clearInterval(iv)
+      clearTimeout(gradeKickoff); clearInterval(gradeIv)
+    }
+  }, [])
+
   // ── Personal Trigger Engine — evaluate rules every tick (currentPrice change) ──
   useEffect(() => {
     if (!currentPrice || triggerRules.length === 0) return
