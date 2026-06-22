@@ -184,9 +184,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Market hours check
+    // 1. Market hours check (bypassable with ?debug=1 for diagnostics —
+    //    lets us see the real prediction path error after market close)
+    const debugBypass = new URL(req.url).searchParams.get('debug') === '1'
     const marketCheck = isMarketHoursET()
-    if (!marketCheck.open) {
+    if (!marketCheck.open && !debugBypass) {
       return NextResponse.json({ skipped: true, reason: marketCheck.reason, debug: marketCheck.debug })
     }
 
