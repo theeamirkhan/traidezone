@@ -2128,6 +2128,9 @@ export default function CockpitPage() {
       try {
         const res = await fetch('/api/agents/predict-shadow', { method: 'POST' })
         const d = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          console.error('[shadow-collector] endpoint error', res.status, '→', d?.error || JSON.stringify(d))
+        }
         // Stamp throttle when the endpoint engaged (saved a prediction or
         // hit regime dedup) — NOT on weekend/after-hours skips, so it
         // retries promptly once the market opens.
