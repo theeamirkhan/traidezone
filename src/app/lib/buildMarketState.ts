@@ -454,6 +454,7 @@ export async function buildMarketState(): Promise<MarketState> {
         gammaFlip:        gex.gammaFlip,
         currentVolume,
         avgVolume,
+        upcomingEvents:   [],  // shadow agent has no calendar feed; news-blackout check skipped
       } as any)
     }
   } catch (e: any) { errors.push(`Actionability: ${e.message}`) }
