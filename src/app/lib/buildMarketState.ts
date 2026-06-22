@@ -286,7 +286,16 @@ export async function buildMarketState(): Promise<MarketState> {
     fetchGEX(),
   ])
 
-  if (!currentSPX) errors.push('currentSPX unavailable')
+  // currentSPX from last-trade endpoint OFTEN fails for index tickers
+  // (I:SPX is a calculated index, not a traded instrument — /v2/last/trade
+  // returns nothing). Fall back to the most recent 5-min bar's close, which
+  // the aggregates endpoint DOES provide for indices.
+  let resolvedSPX = currentSPX
+  if (!resolvedSPX && bars.length > 0) {
+    resolvedSPX = bars[bars.length - 1].c
+  }
+
+  if (!resolvedSPX) errors.push('currentSPX unavailable')
   if (!bars.length) errors.push('5min bars unavailable')
 
   const et = getETParts(new Date())
@@ -351,7 +360,7 @@ export async function buildMarketState(): Promise<MarketState> {
   // Mechanical flow
   let mechanicalFlow: MechanicalFlow | null = null
   try {
-    if (currentSPX) {
+    if (resolvedSPX) {
       mechanicalFlow = calculateMechanicalFlow({
         netGex:           gex.netGex,
         regime:           gex.regime,
@@ -362,7 +371,7 @@ export async function buildMarketState(): Promise<MarketState> {
         charmNote:        null,
         charmUrgency:     null,
         dexBias:          null,
-        currentPrice:     currentSPX,
+        currentPrice:     resolvedSPX,
         sessionMinsLeft:  Math.max(0, 390 - sessionMinutes),
         optionsFlowBias:  null,
         marketTideBias:   null,
@@ -374,7 +383,7 @@ export async function buildMarketState(): Promise<MarketState> {
   // Day type forecast
   let dayTypeForecast: DayTypeForecast | null = null
   try {
-    if (currentSPX && sessionMinutes >= 30 && orbHigh !== null && orbLow !== null) {
+    if (resolvedSPX && sessionMinutes >= 30 && orbHigh !== null && orbLow !== null) {
       const isOpex = (et.weekday === 5 && et.day >= 15 && et.day <= 21)
       const gapPoints = (priorDay.prevClose && todayBars[0]) ? todayBars[0].o - priorDay.prevClose : null
       const yesterdayRange = (priorDay.pdh && priorDay.pdl) ? priorDay.pdh - priorDay.pdl : null
@@ -399,7 +408,7 @@ export async function buildMarketState(): Promise<MarketState> {
         m15Trend,
         m15RangePct:        null,
         crossAssetBias:     null,
-        currentPrice:       currentSPX,
+        currentPrice:       resolvedSPX,
         pdh: priorDay.pdh, pdl: priorDay.pdl,
         esOvernightTrend,
         gapPoints,
@@ -416,7 +425,7 @@ export async function buildMarketState(): Promise<MarketState> {
   let actionability: ActionabilityResult | null = null
   let candidateSignal: 'LONG' | 'SHORT' | 'WAIT' | null = null
   try {
-    if (currentSPX && mechanicalFlow) {
+    if (resolvedSPX && mechanicalFlow) {
       const currentVolume = todayBars.length > 0 ? todayBars[todayBars.length - 1].v : null
       const avgVolume = todayBars.length >= 20
         ? todayBars.slice(-20).reduce((s, b) => s + b.v, 0) / 20
@@ -436,7 +445,7 @@ export async function buildMarketState(): Promise<MarketState> {
         qualityVerdict:   null,
         mechanicalScore:  mechanicalFlow.mechanicalScore,
         asymmetricSetup:  mechanicalFlow.asymmetricSetup,
-        currentPrice:     currentSPX,
+        currentPrice:     resolvedSPX,
         vwap,
         ema200:           null,
         poc:              volumeProfile?.poc || null,
@@ -450,7 +459,7 @@ export async function buildMarketState(): Promise<MarketState> {
   } catch (e: any) { errors.push(`Actionability: ${e.message}`) }
 
   return {
-    currentSPX:      currentSPX || 0,
+    currentSPX:      resolvedSPX || 0,
     timestamp:       new Date().toISOString(),
     timeET:          et.timeStr,
     sessionMinutes,
