@@ -91,6 +91,14 @@ async function fetchAll(symbol = 'SPX'): Promise<FullGexResult> {
   const dvc     = dexvexchexRes.status === 'fulfilled' ? dexvexchexRes.value : null
   const maxpain = maxpainRes.status === 'fulfilled' ? maxpainRes.value : null
 
+  // Capture WHY calls failed — surfaced via ?debug=1 for diagnosis
+  const fetchErrors: string[] = []
+  if (levelsRes.status === 'rejected')      fetchErrors.push(`levels: ${levelsRes.reason?.message || levelsRes.reason}`)
+  if (gexRes.status === 'rejected')         fetchErrors.push(`gex: ${gexRes.reason?.message || gexRes.reason}`)
+  if (dexvexchexRes.status === 'rejected')  fetchErrors.push(`dexvexchex: ${dexvexchexRes.reason?.message || dexvexchexRes.reason}`)
+  if (maxpainRes.status === 'rejected')     fetchErrors.push(`maxpain: ${maxpainRes.reason?.message || maxpainRes.reason}`)
+  ;(globalThis as any).__gexLastErrors = fetchErrors
+
   // ── Core GEX levels ───────────────────────────────────────────────────────
   const gammaFlip = levels?.levels?.gamma_flip  ?? levels?.gamma_flip  ?? null
   const callWall  = levels?.levels?.call_wall   ?? levels?.call_wall   ?? null
@@ -235,7 +243,12 @@ export async function GET(req: NextRequest) {
     }
 
     cache = { data: result, ts: Date.now() }
-    return NextResponse.json({ ...result, cached: false })
+    const debugMode = req.nextUrl.searchParams.get('debug') === '1'
+    return NextResponse.json({
+      ...result,
+      cached: false,
+      ...(debugMode ? { fetchErrors: (globalThis as any).__gexLastErrors || [] } : {}),
+    })
 
   } catch (e: any) {
     console.error('[GEX]', e.message)
