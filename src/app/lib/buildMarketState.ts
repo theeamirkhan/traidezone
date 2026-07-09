@@ -218,13 +218,31 @@ async function fetchCurrentSPX(polygonKey: string): Promise<number | null> {
 
 async function fetchVIX(polygonKey: string): Promise<{ price: number | null; change: number | null }> {
   try {
-    const url = `https://api.polygon.io/v2/last/trade/I:VIX?apiKey=${polygonKey}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
-    if (!res.ok) return { price: null, change: null }
-    const data: any = await res.json()
-    const price = data?.results?.p || null
+    // NOTE: /v2/last/trade does NOT work for index tickers (same bug as
+    // SPX had). Try it first (harmless), then fall back to the most
+    // recent 1-min aggregate bar, which DOES serve indices.
+    let price: number | null = null
+    try {
+      const url = `https://api.polygon.io/v2/last/trade/I:VIX?apiKey=${polygonKey}`
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      if (res.ok) {
+        const data: any = await res.json()
+        price = data?.results?.p || null
+      }
+    } catch {}
 
-    // Get prev close
+    if (!price) {
+      // Fallback: latest 1-min bar close (works for indices)
+      const today = new Date().toISOString().split('T')[0]
+      const barsUrl = `https://api.polygon.io/v2/aggs/ticker/I:VIX/range/1/minute/${today}/${today}?adjusted=true&sort=desc&limit=1&apiKey=${polygonKey}`
+      const barsRes = await fetch(barsUrl, { signal: AbortSignal.timeout(5000) })
+      if (barsRes.ok) {
+        const barsData: any = await barsRes.json()
+        price = barsData?.results?.[0]?.c || null
+      }
+    }
+
+    // Get prev close for change calc
     const prevUrl = `https://api.polygon.io/v2/aggs/ticker/I:VIX/prev?adjusted=true&apiKey=${polygonKey}`
     const prevRes = await fetch(prevUrl, { signal: AbortSignal.timeout(5000) })
     if (!prevRes.ok) return { price, change: null }
