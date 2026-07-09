@@ -248,21 +248,29 @@ async function fetchPriorDay(polygonKey: string): Promise<{ pdh: number | null; 
 }
 
 async function fetchGEX(): Promise<{ netGex: number | null; regime: 'positive' | 'negative' | null; gammaFlip: number | null; callWall: number | null; putWall: number | null }> {
+  const empty = { netGex: null, regime: null as any, gammaFlip: null, callWall: null, putWall: null }
   try {
-    const apiKey = process.env.FLASHALPHA_API_KEY
-    if (!apiKey) return { netGex: null, regime: null, gammaFlip: null, callWall: null, putWall: null }
-    const url = `https://api.flashalpha.io/v1/gex/SPX?apiKey=${apiKey}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return { netGex: null, regime: null, gammaFlip: null, callWall: null, putWall: null }
+    // Call our own /api/gex route rather than FlashAlpha directly:
+    //  1. It has the CORRECT integration (lab.flashalpha.com, X-Api-Key
+    //     header, /v1/exposure/* paths, snake_case fields). The previous
+    //     direct call here used a wrong domain (api.flashalpha.io) and
+    //     wrong field names — it NEVER returned data, which is why every
+    //     shadow prediction had gexRegime: null.
+    //  2. It has a 15-min cache respecting FlashAlpha's 100 calls/day
+    //     limit. Direct calls every 5min would burn the quota by noon.
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'https://traidezone.ai'
+    const res = await fetch(`${base}/api/gex?symbol=SPX`, { signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return empty
     const data: any = await res.json()
+    const regime = data?.regime === 'positive' || data?.regime === 'negative' ? data.regime : null
     return {
-      netGex:    data?.netGex || null,
-      regime:    data?.regime || null,
-      gammaFlip: data?.gammaFlip || null,
-      callWall:  data?.callWall || null,
-      putWall:   data?.putWall || null,
+      netGex:    data?.netGex ?? null,
+      regime,
+      gammaFlip: data?.gammaFlip ?? null,
+      callWall:  data?.callWall ?? null,
+      putWall:   data?.putWall ?? null,
     }
-  } catch { return { netGex: null, regime: null, gammaFlip: null, callWall: null, putWall: null } }
+  } catch { return empty }
 }
 
 // ═════════════════════════════════════════════════════════════════════════
