@@ -18,9 +18,40 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const FA_BASE = 'https://lab.flashalpha.com'
 
-// Cache: refresh every 15min during market hours (respects 100/day limit)
+import { supabaseAdmin } from '@/lib/supabase'
+
+// TWO-LAYER CACHE (fixes FlashAlpha 429 quota exhaustion):
+//   L1: module memory (fast, but PER-INSTANCE on serverless — every cold
+//       start had an empty cache, so parallel instances each burned 4
+//       FlashAlpha calls; quota died by midday)
+//   L2: Supabase api_cache table — SHARED across all instances. One
+//       fetch per TTL window platform-wide, no matter how many instances.
+// TTL raised 15→20 min: 6.5h session / 20min = ~20 refreshes × 4 calls
+// = ~80/day, safely under the 100/day Basic limit.
 let cache: { data: FullGexResult; ts: number } | null = null
-const CACHE_MS = 15 * 60 * 1000  // 15 minutes
+const CACHE_MS = 20 * 60 * 1000  // 20 minutes
+
+async function readSharedCache(): Promise<{ data: FullGexResult; ts: number } | null> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('api_cache')
+      .select('value, updated_at')
+      .eq('key', 'gex_spx')
+      .maybeSingle()
+    if (!data?.value) return null
+    return { data: data.value as FullGexResult, ts: new Date(data.updated_at).getTime() }
+  } catch { return null }
+}
+
+async function writeSharedCache(result: FullGexResult): Promise<void> {
+  try {
+    await supabaseAdmin.from('api_cache').upsert({
+      key: 'gex_spx',
+      value: result,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' })
+  } catch { /* table may not exist yet — module cache still works */ }
+}
 
 interface FullGexResult {
   symbol:       string
@@ -210,9 +241,24 @@ export async function GET(req: NextRequest) {
   const currentPrice = parseFloat(req.nextUrl.searchParams.get('price') || '0') || undefined
   const force        = req.nextUrl.searchParams.get('force') === 'true'
 
-  // Serve from cache if fresh enough
+  // L1: instance-local cache
   if (!force && cache && Date.now() - cache.ts < CACHE_MS) {
     return NextResponse.json({ ...cache.data, cached: true, cacheAgeMin: Math.round((Date.now() - cache.ts) / 60000) })
+  }
+
+  // L2: shared Supabase cache (survives cold starts / parallel instances)
+  if (!force) {
+    const shared = await readSharedCache()
+    if (shared && Date.now() - shared.ts < CACHE_MS) {
+      cache = shared  // promote to L1
+      return NextResponse.json({ ...shared.data, cached: true, cacheAgeMin: Math.round((Date.now() - shared.ts) / 60000), cacheLayer: 'shared' })
+    }
+    // Outside market hours GEX barely moves — serve stale rather than
+    // burn quota on overnight refreshes
+    if (shared && !isMarketHours()) {
+      cache = shared
+      return NextResponse.json({ ...shared.data, cached: true, stale: true, cacheAgeMin: Math.round((Date.now() - shared.ts) / 60000), cacheLayer: 'shared-afterhours' })
+    }
   }
 
   const key = process.env.FLASHALPHA_API_KEY
@@ -243,6 +289,7 @@ export async function GET(req: NextRequest) {
     }
 
     cache = { data: result, ts: Date.now() }
+    await writeSharedCache(result)  // share across instances
     const debugMode = req.nextUrl.searchParams.get('debug') === '1'
     return NextResponse.json({
       ...result,
