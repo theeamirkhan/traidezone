@@ -196,7 +196,12 @@ async function fetchSPXBars(polygonKey: string): Promise<RawBar[]> {
   try {
     const today = new Date().toISOString().split('T')[0]
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-    const url = `https://api.polygon.io/v2/aggs/ticker/I:SPX/range/5/minute/${yesterday}/${today}?adjusted=true&sort=asc&limit=200&apiKey=${polygonKey}`
+    // limit=5000: with sort=asc, a small limit returns the FIRST N bars of
+    // the window — a FIXED set that never advances as the day progresses.
+    // limit=200 froze 'last bar close' (and VWAP/ORB/intraday H-L inputs)
+    // at a mid-morning bar, poisoning every afternoon prediction with a
+    // stale price. Two days of 5-min bars is ≤ ~400; 5000 is Polygon's max.
+    const url = `https://api.polygon.io/v2/aggs/ticker/I:SPX/range/5/minute/${yesterday}/${today}?adjusted=true&sort=asc&limit=5000&apiKey=${polygonKey}`
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
     if (!res.ok) return []
     const data: any = await res.json()
