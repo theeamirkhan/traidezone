@@ -143,6 +143,15 @@ export async function POST(req: NextRequest) {
   const explicitUserId = url.searchParams.get('userId')
   const force = url.searchParams.get('force') === 'true'
 
+  // DST-proof gate: cron fires at both candidate UTC hours (dual schedule);
+  // only act at the target ET hour. Bypass with ?force=true / preview.
+  const etHourNow = parseInt(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', hour12: false,
+  }).format(new Date()), 10) % 24
+  if (!force && etHourNow !== 17) {
+    return NextResponse.json({ status: 'skipped', reason: `dst-gate: ET hour ${etHourNow} != 17` })
+  }
+
   if (explicitUserId) {
     return runForUser(explicitUserId, force)
   }

@@ -443,18 +443,34 @@ async function fetchOptionsChain() {
 }
 
 // ── MAIN HANDLER ─────────────────────────────────────────────────────────────
+// ── NYSE TICK (breadth momentum — powers tick_above/tick_below triggers) ────
+async function fetchTICK(): Promise<{ tick: number | null; tickHigh: number | null; tickLow: number | null }> {
+  try {
+    const td = today()
+    const res = await polyGet(`/v2/aggs/ticker/I:TICK/range/1/minute/${td}/${td}?adjusted=true&sort=desc&limit=15`)
+    const bars = res?.results || []
+    if (!bars.length) return { tick: null, tickHigh: null, tickLow: null }
+    return {
+      tick:     bars[0]?.c ?? null,
+      tickHigh: Math.max(...bars.map((b: any) => b.h ?? -Infinity)),
+      tickLow:  Math.min(...bars.map((b: any) => b.l ?? Infinity)),
+    }
+  } catch { return { tick: null, tickHigh: null, tickLow: null } }
+}
+
 export async function GET(req: NextRequest) {
   const section = req.nextUrl.searchParams.get('section') || 'all'
 
   try {
     // Run all fetches in parallel
-    const [termStructure, vwapBands, volSpread, sectorRotation, preMarket, optionsChain] = await Promise.all([
+    const [termStructure, vwapBands, volSpread, sectorRotation, preMarket, optionsChain, tickData] = await Promise.all([
       section === 'all' || section === 'vix'     ? fetchVIXTermStructure()  : Promise.resolve(null),
       section === 'all' || section === 'vwap'    ? fetchVWAPBands()         : Promise.resolve(null),
       section === 'all' || section === 'vol'     ? fetchVolSpread()         : Promise.resolve(null),
       section === 'all' || section === 'sectors' ? fetchSectorRotation()    : Promise.resolve(null),
       section === 'all' || section === 'premarket'? fetchPreMarketQuality() : Promise.resolve(null),
       section === 'all' || section === 'options' ? fetchOptionsChain()      : Promise.resolve(null),
+      section === 'all'                          ? fetchTICK()              : Promise.resolve(null),
     ])
 
     const timeContext = getTimeOfDayContext()
@@ -482,6 +498,9 @@ export async function GET(req: NextRequest) {
       preMarket,
       aiContext,
       optionsChain,
+      tick:     tickData?.tick ?? null,
+      tickHigh: tickData?.tickHigh ?? null,
+      tickLow:  tickData?.tickLow ?? null,
       fetchedAt: new Date().toISOString(),
     })
 

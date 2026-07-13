@@ -70,7 +70,7 @@
     },
     {
       "path": "/api/agents/send-morning-email",
-      "schedule": "0 13 * * 1-5"
+      "schedule": "0 13,14 * * 1-5"
     },
     {
       "path": "/api/agents/stream-weights",
@@ -78,15 +78,15 @@
     },
     {
       "path": "/api/agents/daily-recap",
-      "schedule": "30 21 * * 1-5"
+      "schedule": "30 21,22 * * 1-5"
     },
     {
       "path": "/api/agents/predict-shadow",
-      "schedule": "*/5 13-21 * * 1-5"
+      "schedule": "*/5 13-22 * * 1-5"
     },
     {
       "path": "/api/agents/score-shadow",
-      "schedule": "*/5 13-22 * * 1-5"
+      "schedule": "*/5 13-23 * * 1-5"
     }
   ]
 }

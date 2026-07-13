@@ -4,6 +4,7 @@ import { TakeTradeModal, CloseTradeModal, ExitPromptModal, OpenPositionsStrip } 
 import { ShadowValidationStream } from './ShadowValidationStream'
 import { TriggerManager } from './TriggerManager'
 import { processTick, newAccumulator } from './lib/triggerEngine'
+import { FocusPanel } from './FocusPanel'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
 import AlertHistory from './components/AlertHistory'
@@ -2212,7 +2213,7 @@ export default function CockpitPage() {
       prevClose:      levels?.prevClose ?? null,
       orbHigh:        orbHigh ?? null,
       orbLow:         orbLow ?? null,
-      tick:           marketIntel?.tick ?? null,
+      tick:           marketIntel2?.tick ?? null,
       sessionMinutes,
     }
 
@@ -2257,8 +2258,10 @@ export default function CockpitPage() {
         cumDelta:          microstructure?.cumulativeDelta?.strength ?? null,
         m15Trend:          snap.ema200 && currentPrice > snap.ema200 ? 'up' : 'down',
         breadth:           breadthData?.summary ?? null,
-        newsSoon:          null,
-        earningsToday:     null,
+        newsSoon:          economicCalendar ? String(economicCalendar).substring(0, 300) : null,
+        earningsToday:     (typeof earningsCalendar !== 'undefined' && earningsCalendar?.length)
+          ? earningsCalendar.slice(0, 8).map((e: any) => e.ticker || e.symbol || '').filter(Boolean).join(', ')
+          : null,
       }
 
       const stopPts = 8
@@ -4915,6 +4918,33 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: darkMode ? 'transparent' : '#f0f4f8', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
+      {/* ── FOCUS PANEL — what matters right now, always visible ── */}
+      <FocusPanel font={font} fontDisplay={fontDisplay} C={C}
+        inputs={{
+          currentPrice: currentPrice ?? null,
+          vwap:        levels?.spyVwap ?? null,
+          ema200:      levels?.ema200 ?? null,
+          pdh:         levels?.pdh ?? null,
+          pdl:         levels?.pdl ?? null,
+          prevClose:   levels?.prevClose ?? null,
+          orbHigh:     orbHigh ?? null,
+          orbLow:      orbLow ?? null,
+          gammaFlip:   gexData?.gammaFlip ?? null,
+          callWall:    gexData?.callWall ?? null,
+          putWall:     gexData?.putWall ?? null,
+          gexRegime:   (gexData?.regime === 'positive' || gexData?.regime === 'negative') ? gexData.regime : null,
+          dayType:     dayTypeForecast?.dayType ?? null,
+          tick:        marketIntel2?.tick ?? null,
+          sessionMinutes: (() => {
+            const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+            return (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
+          })(),
+          planBias:    morningPlan?.bias || null,
+          armedTriggers: (triggerRules || []).map((t: any) => ({ name: t.name, direction: t.direction })),
+          newsSnippet: economicCalendar ? String(economicCalendar).substring(0, 50) : null,
+        }}
+      />
+
       {/* Always-mounted CSV import input — available on all tabs */}
       <input ref={csvInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
       <style>{`

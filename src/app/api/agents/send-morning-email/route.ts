@@ -327,6 +327,17 @@ function buildHTML(brief: any, data: Awaited<ReturnType<typeof fetchData>>, date
 export async function GET(req: NextRequest) {
   // NO AUTH — open endpoint. Security: it only sends to a hardcoded admin email.
   const isPreview = req.nextUrl.searchParams.get('preview') === 'true'
+  const isForce   = req.nextUrl.searchParams.get('force') === 'true'
+
+  // DST-proof gate: cron fires at both candidate UTC hours (dual schedule);
+  // only act at the target ET hour. Bypass with ?force=true / preview.
+  const etHourNow = parseInt(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', hour12: false,
+  }).format(new Date()), 10) % 24
+  if (!isPreview && !isForce && etHourNow !== 9) {
+    return NextResponse.json({ status: 'skipped', reason: `dst-gate: ET hour ${etHourNow} != 9` })
+  }
+
 
   // Skip weekends
   const etDay = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay()

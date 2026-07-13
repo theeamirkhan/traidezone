@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
   // ── 2. Try to fire morning email manually (no auth on that endpoint) ──
   if (action === 'fire-morning') {
     try {
-      const morningUrl = `https://traidezone.ai/api/agents/send-morning-email`
+      const morningUrl = `https://traidezone.ai/api/agents/send-morning-email?force=true`
       const fireRes = await fetch(morningUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(55000),
