@@ -2268,6 +2268,29 @@ export default function CockpitPage() {
 
       // Call the LLM overlay — never trade blind
       ;(async () => {
+        // Regime memory: measured outcomes from similar historical states,
+        // so the overlay verdict cites evidence, not just vibes
+        let regimeMemoryText: string | null = null
+        try {
+          const memRes = await fetch('/api/regime-memory', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              components: {
+                sessionWindow: overlayContext.sessionWindow,
+                mechBias:      overlayContext.mechBias,
+                cumDelta:      overlayContext.cumDelta,
+                dayType:       overlayContext.dayType,
+                m15Trend:      overlayContext.m15Trend,
+                gexRegime:     overlayContext.gexRegime,
+                vwapDist:      (snap.vwap && currentPrice) ? currentPrice - snap.vwap : null,
+                vix:           vixPrice ?? null,
+              },
+            }),
+          })
+          const memData = await memRes.json()
+          if (memData?.summaryText) regimeMemoryText = memData.summaryText
+        } catch {}
+
         let overlay: any = null
         try {
           const res = await fetch('/api/triggers/overlay', {
@@ -2280,7 +2303,7 @@ export default function CockpitPage() {
                 stopHint:        fire.rule.stopHint,
                 firedConditions: fire.evaluation.firedConditions,
               },
-              context: overlayContext,
+              context: { ...overlayContext, regimeMemory: regimeMemoryText },
             }),
           })
           overlay = await res.json()

@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { buildMarketState } from '../../../lib/buildMarketState'
+import { getRegimeMemory } from '../../../lib/regimeMemory'
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const ADMIN_USER_ID = 'user_3BKD6y0MW6t9rxyyZo3HlywvkqT'  // primary user receiving shadow predictions
@@ -116,7 +117,9 @@ LEVELS:
 - ORB high/low: ${context.orbHigh || '?'} / ${context.orbLow || '?'}
 - PDH/PDL: ${context.pdh || '?'} / ${context.pdl || '?'}
 - Intraday high/low: ${context.intradayHigh || '?'} / ${context.intradayLow || '?'}
-
+${context.regimeMemory ? `
+${context.regimeMemory}
+` : ''}
 OUTPUT: Make a directional prediction for the next 30-90 minutes. Be honest — if there's no clear edge, say WAIT.
 
 Return JSON only:
@@ -273,6 +276,32 @@ export async function GET(req: NextRequest) {
       intradayLow:       state.intradayLow,
     }
 
+    // 5b. REGIME MEMORY — measured outcomes from similar historical states.
+    // This is the learning loop: every graded prediction sharpens these
+    // stats, so the model reasons from evidence instead of guessing.
+    let regimeMemoryStats: any = null
+    try {
+      const memory = await getRegimeMemory({
+        sessionWindow: state.sessionWindow,
+        mechBias:      state.mechanicalFlow?.mechanicalBias || null,
+        cumDelta:      state.cumDelta,
+        dayType:       state.dayTypeForecast?.dayType || null,
+        m15Trend:      state.m15Trend,
+        gexRegime:     state.gexRegime,
+        vwapDist:      (state.vwap && state.currentSPX) ? state.currentSPX - state.vwap : null,
+        vix:           state.vix,
+      })
+      ;(context as any).regimeMemory = memory.summaryText
+      regimeMemoryStats = {
+        sampleSize:    memory.sampleSize,
+        reliability:   memory.reliability,
+        longHit60:     memory.long.h60.hitRate,
+        shortHit60:    memory.short.h60.hitRate,
+        waitCorrect60: memory.wait.h60.hitRate,
+        bestDirection: memory.bestDirection,
+      }
+    } catch { /* memory unavailable — predict without it */ }
+
     // 6. Generate prediction
     const prediction = await generateShadowPrediction(context)
     if (!prediction) {
@@ -291,7 +320,7 @@ export async function GET(req: NextRequest) {
         predicted_stop:    prediction.predictedStop || null,
         predicted_t2:      prediction.predictedT2 || null,
         ai_view:           prediction.reasoning || null,
-        context_snapshot:  context,  // rich context now
+        context_snapshot:  { ...context, _regimeMemory: regimeMemoryStats },  // rich context + memory audit
         regime_signature:  sig,
         status:            'pending',
       })

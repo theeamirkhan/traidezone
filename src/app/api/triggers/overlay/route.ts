@@ -52,7 +52,9 @@ CURRENT FULL MARKET CONTEXT:
 - Breadth: ${context.breadth ?? 'unknown'}
 - Scheduled news within 30min: ${context.newsSoon ? `YES — ${context.newsSoon}` : 'none flagged'}
 - Earnings/events today: ${context.earningsToday ?? 'none flagged'}
-
+${context.regimeMemory ? `
+${context.regimeMemory}
+` : ''}
 YOUR TASK:
 Decide whether the broader context CONFIRMS, cautions, or CONFLICTS with the trader's ${trigger.direction} setup.
 
