@@ -285,7 +285,8 @@ async function fetchGEX(): Promise<{ netGex: number | null; regime: 'positive' |
     const res = await fetch(`${base}/api/gex?symbol=SPX`, { signal: AbortSignal.timeout(10000) })
     if (!res.ok) return empty
     const data: any = await res.json()
-    const regime = data?.regime === 'positive' || data?.regime === 'negative' ? data.regime : null
+    let regime: 'positive' | 'negative' | null =
+      data?.regime === 'positive' || data?.regime === 'negative' ? data.regime : null
     return {
       netGex:    data?.netGex ?? null,
       regime,
@@ -294,6 +295,19 @@ async function fetchGEX(): Promise<{ netGex: number | null; regime: 'positive' |
       putWall:   data?.putWall ?? null,
     }
   } catch { return empty }
+}
+
+// Standard convention: price above the gamma flip = positive-gamma
+// territory (dealers dampen moves), below = negative (dealers amplify).
+// Lets us derive the regime when FlashAlpha's net_gex endpoint is
+// unavailable but the flip level (levels endpoint) is working.
+function deriveGexRegime(
+  gex: { regime: 'positive' | 'negative' | null; gammaFlip: number | null },
+  price: number | null
+): 'positive' | 'negative' | null {
+  if (gex.regime) return gex.regime
+  if (gex.gammaFlip && price) return price > gex.gammaFlip ? 'positive' : 'negative'
+  return null
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -424,7 +438,7 @@ export async function buildMarketState(): Promise<MarketState> {
 
       dayTypeForecast = forecastDayType({
         netGex:             gex.netGex,
-        gexRegime:          gex.regime,
+        gexRegime:          deriveGexRegime(gex, resolvedSPX),
         tickValue:          null,
         tickHigh15m:        null,
         tickLow15m:         null,
@@ -511,7 +525,7 @@ export async function buildMarketState(): Promise<MarketState> {
     vix1d:           null,
     vix30:           null,
     netGex:          gex.netGex,
-    gexRegime:       gex.regime,
+    gexRegime:       deriveGexRegime(gex, resolvedSPX),
     gammaFlip:       gex.gammaFlip,
     callWall:        gex.callWall,
     putWall:         gex.putWall,
