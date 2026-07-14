@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       system_alignment:      body.system_alignment,
       system_alignment_note: body.system_alignment_note,
       wait_reason:           body.wait_reason,
+      no_entry_zone:         body.no_entry_zone ?? false,
       context_snapshot:      body.context_snapshot,
       outcome:               'PENDING',
       logged_at:             new Date().toISOString(),

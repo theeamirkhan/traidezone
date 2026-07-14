@@ -6282,17 +6282,29 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                       const confWord = quality.finalConfidence >= 80 ? 'high confidence' : quality.finalConfidence >= 65 ? 'moderate confidence' : 'low confidence'
                       setTimeout(() => { speak(`${result.signal}. ${quality.finalConfidence}% ${confWord}. ${result.accountability || result.riskFlag || result.marketConditions?.split('.')[0] || ''}`) }, 400)
                       // ── Log alert to Supabase — server agent scores at 30/60/120min ──
-                      if ((result.signal === 'LONG' || result.signal === 'SHORT' || result.signal === 'WAIT' || result.signal === 'NO TRADE') && result.entryZone) {
+                      // Log EVERY signal, including WAIT/NO-TRADE without an entry
+                      // zone. WAIT is a prediction too — the most common one — and
+                      // gating on entryZone silently dropped all of them, leaving
+                      // the flagship signal engine with zero measurable track record
+                      // while the shadow stream (which logs its WAITs) has 1,400 rows.
+                      // Synthetic levels for WAITs let the scorer grade "was standing
+                      // aside correct?" the same way the shadow engine does.
+                      if (result.signal === 'LONG' || result.signal === 'SHORT' || result.signal === 'WAIT' || result.signal === 'NO TRADE') {
+                        const px = currentPrice || 0
+                        const isDirectional = (result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone
+                        const fallbackT1 = result.signal === 'SHORT' ? px - 10 : px + 10
+                        const fallbackStop = result.signal === 'SHORT' ? px + 10 : px - 10
                         fetch('/api/trade-alerts', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
                             signal:               result.signal,
-                            entryZone:            result.entryZone,
-                            stopLevel:            result.stopLevel,
-                            target1:              result.target1,
-                            target2:              result.target2 || (result.target1 + 20),
-                            currentPrice:         currentPrice || 0,
+                            entryZone:            result.entryZone || { low: px, high: px },
+                            stopLevel:            result.stopLevel ?? fallbackStop,
+                            target1:              result.target1 ?? fallbackT1,
+                            target2:              result.target2 || ((result.target1 ?? fallbackT1) + 20),
+                            no_entry_zone:        !isDirectional,   // flags synthetic levels
+                            currentPrice:         px,
                             vwap:                 levels?.spyVwap || null,
                             ema200:               levels?.ema200 || null,
                             vix:                  vixPrice,
