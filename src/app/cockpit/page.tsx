@@ -4920,6 +4920,15 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
     <div style={{ width: '100vw', height: '100vh', background: darkMode ? 'transparent' : '#f0f4f8', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: font, transition: 'background 0.3s' }}>
       {/* ── FOCUS PANEL — what matters right now, always visible ── */}
       <FocusPanel font={font} fontDisplay={fontDisplay} C={C}
+        signalLoading={aiLoading}
+        onGetSignal={() => {
+          // Trigger the FULL signal pipeline (quality gate + alert logging)
+          // via the main button — zero duplicated logic. Switch to the
+          // cockpit tab first if needed (the button only mounts there).
+          const clickMain = () => document.getElementById('tz-get-signal-main')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+          if (tab !== 'cockpit') { setTab('cockpit'); setTimeout(clickMain, 400) }
+          else clickMain()
+        }}
         inputs={{
           currentPrice: currentPrice ?? null,
           vwap:        levels?.spyVwap ?? null,
@@ -6240,7 +6249,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                     <div style={{ fontFamily: fontDisplay, fontSize: 13, fontWeight: 700, color: '#00d4a0', letterSpacing: 1, marginBottom: 3 }}>AI Signal Ready</div>
                     <div style={{ fontSize: 11.5, color: '#6b7a9a', lineHeight: 1.5 }}>Tap to get LONG / SHORT / WAIT with entry, stop & targets</div>
                   </div>
-                  <button onClick={async () => {
+                  <button id="tz-get-signal-main" onClick={async () => {
                     setAiLoading(true)
                     const [intel, flow, tide, tiingo2] = await Promise.all([fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(), fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove)])
                     setMarketIntel(intel); setOptionsFlow(flow); setMarketTide(tide); setTiingoContext(tiingo2)

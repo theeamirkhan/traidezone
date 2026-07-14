@@ -145,8 +145,8 @@ function computeFocus(i: FocusInputs, C: any): Focus {
   return { stance, stanceColor, headline, now, next, risk }
 }
 
-export function FocusPanel(props: { inputs: FocusInputs; C: any; font: string; fontDisplay: string }) {
-  const { inputs, C, font, fontDisplay } = props
+export function FocusPanel(props: { inputs: FocusInputs; C: any; font: string; fontDisplay: string; onGetSignal?: () => void; signalLoading?: boolean }) {
+  const { inputs, C, font, fontDisplay, onGetSignal, signalLoading } = props
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem('tz-focus-collapsed') === '1' } catch { return false }
   })
@@ -181,6 +181,16 @@ export function FocusPanel(props: { inputs: FocusInputs; C: any; font: string; f
         <span style={{ fontSize: 11, color: C.text, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: collapsed ? 'nowrap' as const : 'normal' as const }}>
           {focus.headline}
         </span>
+        {onGetSignal && (
+          <button onClick={onGetSignal} disabled={!!signalLoading} style={{
+            background: signalLoading ? 'rgba(255,255,255,0.06)' : `${C.cyan}18`,
+            border: `1px solid ${signalLoading ? C.dim : C.cyan}55`,
+            borderRadius: 5, color: signalLoading ? C.muted : C.cyan,
+            cursor: signalLoading ? 'wait' : 'pointer', fontSize: 10, fontWeight: 700,
+            letterSpacing: 1, padding: '4px 10px', flexShrink: 0, fontFamily: font,
+            whiteSpace: 'nowrap' as const,
+          }}>{signalLoading ? '⟳ ANALYZING' : '▶ GET SIGNAL'}</button>
+        )}
         <button onClick={toggle} style={{
           background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer',
           fontSize: 11, padding: '2px 4px', flexShrink: 0, fontFamily: font,
