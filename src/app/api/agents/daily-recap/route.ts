@@ -1,7 +1,7 @@
 /**
  * /api/agents/daily-recap — End-of-Day Recap Generator
  *
- * Runs after market close (4:30pm ET via cron). Analyzes today's signals,
+ * Runs after market close (5:30pm ET via cron). Analyzes today's signals,
  * compares to historical baseline, computes what was learned, and writes
  * a narrative recap stored in daily_recaps table.
  *
@@ -265,35 +265,91 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
 
     const signals = todaysSignals || []
 
-    // If no signals today, no recap to write
+    // If no LOGGED TRADES today, report on the SHADOW STREAM instead.
+    // The shadow engine runs every ~5min and is the system's real daily
+    // output right now — reporting 'nothing happened' while ~50 graded
+    // predictions fired is simply wrong.
     if (signals.length === 0) {
-      const noOpRecap = {
+      const { data: shadowRows } = await supabaseAdmin
+        .from('shadow_predictions')
+        .select('signal_direction, confidence, current_spx, outcome_30m, outcome_60m, outcome_90m, context_snapshot, predicted_at')
+        .gte('predicted_at', startOfDayET)
+        .order('predicted_at', { ascending: true })
+
+      const shadows = shadowRows || []
+      const dirs = { LONG: 0, SHORT: 0, WAIT: 0 } as Record<string, number>
+      let sWins = 0, sLosses = 0, sScratch = 0, sPending = 0
+      let gexSeen: string | null = null
+      let dayTypeSeen: string | null = null
+      let spxFirst: number | null = null, spxLast: number | null = null
+
+      for (const r of shadows) {
+        const d = r.signal_direction || 'WAIT'
+        dirs[d] = (dirs[d] || 0) + 1
+        const o = r.outcome_60m
+        if (o === 'WIN') sWins++
+        else if (o === 'LOSS') sLosses++
+        else if (o === 'SCRATCH') sScratch++
+        else sPending++
+        const snap: any = r.context_snapshot || {}
+        if (snap.gexRegime) gexSeen = snap.gexRegime
+        if (snap.dayType && snap.dayType !== 'INDETERMINATE') dayTypeSeen = snap.dayType
+        if (r.current_spx) {
+          if (spxFirst === null) spxFirst = r.current_spx
+          spxLast = r.current_spx
+        }
+      }
+
+      const decided = sWins + sLosses
+      const shadowWR = decided > 0 ? Math.round((sWins / decided) * 100) : null
+      const drift = (spxFirst !== null && spxLast !== null) ? spxLast - spxFirst : null
+
+      const shadowRecap = shadows.length > 0 ? {
+        headline: `No trades logged — shadow engine ran ${shadows.length} predictions`,
+        performanceSummary:
+          `The learning engine collected ${shadows.length} predictions today ` +
+          `(${dirs.LONG} LONG / ${dirs.SHORT} SHORT / ${dirs.WAIT} WAIT). ` +
+          (shadowWR !== null
+            ? `Graded so far: ${sWins}W / ${sLosses}L (${shadowWR}% at 60min, ${sScratch} scratch, ${sPending} still maturing). `
+            : `${sPending} predictions still maturing — grades arrive as the 60/90min windows close. `) +
+          (gexSeen ? `Gamma regime: ${gexSeen}. ` : '') +
+          (dayTypeSeen ? `Day type: ${dayTypeSeen}. ` : '') +
+          (drift !== null ? `SPX moved ${drift >= 0 ? '+' : ''}${drift.toFixed(1)} pts across the session.` : ''),
+        calibrationNote: shadowWR !== null
+          ? `Shadow win rate today: ${shadowWR}% (n=${decided} decided). Baseline to beat: 21% (no-GEX control).`
+          : 'Not enough graded predictions yet today to calibrate.',
+        whatWorked: [], whatFailed: [],
+        learnings: shadows.length > 0
+          ? [`Regime memory grew by ${shadows.length} states — future predictions in similar conditions draw on today's outcomes.`]
+          : [],
+        tomorrowAdjustments: [],
+        didLearnSomething: shadows.length > 0,
+        noLearningReason: '',
+        shadowStats: { total: shadows.length, ...dirs, wins: sWins, losses: sLosses, scratch: sScratch, pending: sPending, winRate: shadowWR },
+      } : {
         headline: 'No signals fired today',
         performanceSummary: 'The system was online but conditions did not warrant signal generation. This is normal on low-volume or untradeable days.',
         calibrationNote: 'No signals to calibrate.',
-        whatWorked: [],
-        whatFailed: [],
-        learnings: [],
-        tomorrowAdjustments: [],
+        whatWorked: [], whatFailed: [], learnings: [], tomorrowAdjustments: [],
         didLearnSomething: false,
         noLearningReason: 'No signals fired — nothing to analyze',
       }
+
       await supabaseAdmin.from('daily_recaps').upsert({
         user_id: userId,
         recap_date: todayET,
-        recap_data: noOpRecap,
-        signals_count: 0,
+        recap_data: shadowRecap,
+        signals_count: shadows.length,
         generated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,recap_date' })
 
-      // Still send the end-of-day email — a quiet day is worth confirming.
       const emailStatus = await sendRecapEmail({
-        date: todayET, recap: noOpRecap, signalsCount: 0,
-        wins: 0, losses: 0, winRate: null,
-        dayTypePredicted: null, actualDayType: null, signals: [],
+        date: todayET, recap: shadowRecap, signalsCount: shadows.length,
+        wins: sWins, losses: sLosses, winRate: shadowWR,
+        dayTypePredicted: null, actualDayType: dayTypeSeen, signals: [],
       })
 
-      return NextResponse.json({ ok: true, recap: noOpRecap, signalsAnalyzed: 0, emailStatus })
+      return NextResponse.json({ ok: true, recap: shadowRecap, signalsAnalyzed: 0, shadowAnalyzed: shadows.length, emailStatus })
     }
 
     // ── Classify outcomes ──
@@ -747,7 +803,7 @@ function buildRecapEmail(p: {
         <tr><td style="padding:18px 28px;background:rgba(0,0,0,0.3);border-top:1px solid rgba(0,229,255,0.06);">
           <div style="font-size:11px;color:#4a5568;letter-spacing:0.5px;line-height:1.7;">
             View full recap and trends in the <a href="https://traidezone.ai/cockpit" style="color:#00e5ff;text-decoration:none;">Learn tab</a>.
-            <br>This is an automated email from your trAIde Zone system. Sent daily at 4:30pm ET.
+            <br>This is an automated email from your trAIde Zone system. Sent daily at 5:30pm ET.
           </div>
         </td></tr>
 
