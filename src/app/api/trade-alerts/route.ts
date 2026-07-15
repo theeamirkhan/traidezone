@@ -25,23 +25,26 @@ export async function POST(req: NextRequest) {
       entry_low:             body.entryZone?.low,
       entry_high:            body.entryZone?.high,
       entry_mid:             ((body.entryZone?.low || 0) + (body.entryZone?.high || 0)) / 2,
-      stop_level:            body.stopLevel,
-      target1:               body.target1,
-      target2:               body.target2,
+      stop_level:            body.stopLevel != null ? Number(body.stopLevel) : null,
+      target1:               body.target1 != null ? Number(body.target1) : null,
+      target2:               body.target2 != null ? Number(body.target2) : null,
       price_at_signal:       body.currentPrice,
       vwap_at_signal:        body.vwap,
       ema200_at_signal:      body.ema200,
       vix_at_signal:         body.vix,
-      confidence:            body.confidence,
-      move_size:             body.moveSize,
+      // Integer columns — Postgres rejects floats/strings outright.
+      // The AI can return confidence 62.5 or moveSize '10-15'; coerce hard.
+      confidence:            Math.round(Number(body.confidence) || 0),
+      move_size:             Math.round(parseFloat(String(body.moveSize ?? '').replace(/[^0-9.\-]/g, '')) || 0),
       proximity_level:       body.proximityLevel,
-      proximity_breakout_pct: body.proximityBreakoutPct,
+      proximity_breakout_pct: body.proximityBreakoutPct != null ? Math.round(Number(body.proximityBreakoutPct) || 0) : null,
       proximity_factors:     body.proximityFactors,
       ai_view:               body.ai_view,
       system_alignment:      body.system_alignment,
       system_alignment_note: body.system_alignment_note,
       wait_reason:           body.wait_reason,
       no_entry_zone:         body.no_entry_zone ?? false,
+      auto_fired:            body.auto_fired ?? false,
       context_snapshot:      body.context_snapshot,
       outcome:               'PENDING',
       logged_at:             new Date().toISOString(),
@@ -112,6 +115,9 @@ export async function PATCH(req: NextRequest) {
     .eq('id', id)
     .eq('user_id', userId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[trade-alerts] insert failed:', JSON.stringify(error))
+    return NextResponse.json({ error: error.message, details: error.details ?? null, hint: error.hint ?? null, code: error.code ?? null }, { status: 500 })
+  }
   return NextResponse.json({ updated: true })
 }

@@ -2170,6 +2170,76 @@ export default function CockpitPage() {
     }
   }, [])
 
+  // ── AUTO-FIRE: real signal engine on a 20-min cadence ──────────────────
+  // The flagship Sonnet signal now builds a continuous track record like
+  // the shadow stream — every auto-fire is logged to trade_alerts and
+  // graded by the scorer. SILENT by design: updates the signal display
+  // but no voice, no modals (those stay exclusive to manual clicks).
+  // Runs market hours only, while the cockpit tab is open.
+  useEffect(() => {
+    let cancelled = false
+    const AUTO_KEY = 'tz-last-autosignal'
+
+    const autoFire = async () => {
+      if (cancelled || aiLoading) return
+      // Market-hours gate (ET): fire 9:35am–3:55pm weekdays
+      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const dow = et.getDay(); const mins = et.getHours() * 60 + et.getMinutes()
+      if (dow === 0 || dow === 6 || mins < 575 || mins > 955) return
+      // Throttle: 18 min across remounts
+      try {
+        const last = parseInt(localStorage.getItem(AUTO_KEY) || '0', 10)
+        if (Date.now() - last < 18 * 60 * 1000) return
+        localStorage.setItem(AUTO_KEY, String(Date.now()))
+      } catch {}
+
+      try {
+        const [intel, flow, tide, tiingo2] = await Promise.all([
+          fetchMarketIntel(), fetchOptionsFlow(), fetchMarketTide(),
+          fetchTiingoContext(morningPlan.gapDirection, morningPlan.gapSize, morningPlan.impliedMove),
+        ])
+        const result = await runSignal(buildSignalInput({ flow, tide, intel, tiingo: tiingo2 }))
+        if (!result || cancelled) return
+        setAiResult(result)
+        setLastAITime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+
+        // Log EVERY auto-fired signal (incl. WAIT) — same conventions as manual
+        const px = currentPrice || 0
+        const isDirectional = (result.signal === 'LONG' || result.signal === 'SHORT') && result.entryZone
+        const fallbackT1 = result.signal === 'SHORT' ? px - 10 : px + 10
+        const fallbackStop = result.signal === 'SHORT' ? px + 10 : px - 10
+        fetch('/api/trade-alerts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            signal:        result.signal,
+            entryZone:     result.entryZone || { low: px, high: px },
+            stopLevel:     result.stopLevel ?? fallbackStop,
+            target1:       result.target1 ?? fallbackT1,
+            target2:       result.target2 || ((result.target1 ?? fallbackT1) + 20),
+            no_entry_zone: !isDirectional,
+            auto_fired:    true,
+            currentPrice:  px,
+            vwap:          levels?.spyVwap ?? null,
+            ema200:        levels?.ema200 ?? null,
+            vix:           vixPrice ?? null,
+            confidence:    result.confidence,
+            moveSize:      result.moveSize,
+            wait_reason:   result.waitReason || result.riskFlag || null,
+            context_snapshot: JSON.stringify({ auto: true, gexRegime: gexData?.regime ?? null, dayType: dayTypeForecast?.dayType ?? null }),
+          }),
+        }).then(r => r.json())
+          .then(d => { if (d?.error) console.error('[AutoSignal] INSERT FAILED:', JSON.stringify(d)); else console.log('[AutoSignal] logged:', result.signal, result.confidence) })
+          .catch(() => {})
+      } catch (e: any) {
+        console.warn('[AutoSignal] fire failed:', e?.message)
+      }
+    }
+
+    const kick = setTimeout(autoFire, 90000)          // 90s after load
+    const ivA = setInterval(autoFire, 5 * 60 * 1000)  // check every 5min; throttle enforces 20min cadence
+    return () => { cancelled = true; clearTimeout(kick); clearInterval(ivA) }
+  }, [aiLoading, currentPrice])
+
   // ── Personal Trigger Engine — evaluate rules every tick (currentPrice change) ──
   useEffect(() => {
     if (!currentPrice || triggerRules.length === 0) return
@@ -6465,6 +6535,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         .then(d => {
                           if (d.needsMigration) {
                             fetch('/api/trade-alerts/migrate').catch(() => {})
+                          } else if (d.error) {
+                            console.error('[TradeAlertAgent] INSERT FAILED:', JSON.stringify(d))
                           } else {
                             console.log('[TradeAlertAgent] Logged:', d.id)
                             // Show outcome capture modal 30s after signal
