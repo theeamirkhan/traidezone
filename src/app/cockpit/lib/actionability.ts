@@ -108,7 +108,7 @@ export function classifyActionability(input: {
 
   // ── 4. News blackout check ──────────────────────────────────────────────
   const now = new Date()
-  const next15MinEvents = (upcomingEvents || []).filter(e => {
+  const next15MinEvents = (Array.isArray(upcomingEvents) ? upcomingEvents : []).filter(e => {
     try {
       const eventTime = new Date(e.time)
       const minsUntil  = (eventTime.getTime() - now.getTime()) / 60000

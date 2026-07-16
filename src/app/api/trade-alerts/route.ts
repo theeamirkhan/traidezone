@@ -21,7 +21,9 @@ export async function POST(req: NextRequest) {
     .from('trade_alerts')
     .insert({
       user_id:               userId,
-      signal:                body.signal,
+      // Normalize to constraint-safe values: the AI can return 'NO TRADE'
+      // etc.; the DB check constraint rejects unknown values outright.
+      signal:                ['LONG', 'SHORT', 'WAIT'].includes(body.signal) ? body.signal : 'WAIT',
       entry_low:             body.entryZone?.low,
       entry_high:            body.entryZone?.high,
       entry_mid:             ((body.entryZone?.low || 0) + (body.entryZone?.high || 0)) / 2,
