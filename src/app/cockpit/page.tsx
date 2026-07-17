@@ -2255,7 +2255,12 @@ export default function CockpitPage() {
             confidence:    result.confidence,
             moveSize:      result.moveSize,
             wait_reason:   result.waitReason || result.riskFlag || null,
-            context_snapshot: JSON.stringify({ auto: true, gexRegime: gexData?.regime ?? null, dayType: dayTypeForecast?.dayType ?? null }),
+            context_snapshot: JSON.stringify({
+              auto: true, gexRegime: gexData?.regime ?? null, dayType: dayTypeForecast?.dayType ?? null,
+              // flow-ablation audit: was UW context present for this signal?
+              hadFlow: !!(flow && !(flow as any).error), flowStale: !!(flow as any)?._stale,
+              hadTide: !!(tide && !(tide as any).error), tideStale: !!(tide as any)?._stale,
+            }),
           }),
         }).then(r => r.json())
           .then(d => { if (d?.error) console.error('[AutoSignal] INSERT FAILED:', JSON.stringify(d)); else console.log('[AutoSignal] logged:', result.signal, result.confidence) })
@@ -6412,8 +6417,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                             stopLevel:            result.stopLevel ?? fallbackStop,
                             target1:              result.target1 ?? fallbackT1,
                             target2:              result.target2 || ((result.target1 ?? fallbackT1) + 20),
-                            no_entry_zone:        !isDirectional,   // flags synthetic levels
-                            currentPrice:         px,
+                            no_entry_zone:        !isDirectional,   // flags synthetic levels                            currentPrice:         px,
                             vwap:                 levels?.spyVwap || null,
                             ema200:               levels?.ema200 || null,
                             vix:                  vixPrice,
@@ -6429,6 +6433,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                             wait_reason:          result.waitReason || null,
                             // Full context snapshot for learning
                             context_snapshot: (() => { try { return JSON.stringify({
+                              // flow-ablation audit: was UW context present?
+                              hadFlow: !!(flow && !(flow as any).error), flowStale: !!(flow as any)?._stale,
+                              hadTide: !!(tide && !(tide as any).error), tideStale: !!(tide as any)?._stale,
                               marketConditions:  result.marketConditions,
                               todaysEdge:        result.todaysEdge,
                               riskFlag:          result.riskFlag,
