@@ -2106,6 +2106,36 @@ export default function CockpitPage() {
     return () => { cancelled = true; clearInterval(iv) }
   }, [])
 
+  // ── LIVE IMPLIED MOVE — auto-populates + decays through the session ────
+  // Full-day 1σ move: SPX × (VIX/100) ÷ √252, scaled by √(time remaining)
+  // so it shrinks realistically intraday (a manual morning number is stale
+  // by noon). Auto-fills the plan field when empty and keeps updating it —
+  // but NEVER overwrites a manual edit: we only touch the field while its
+  // value still equals the last auto value we wrote.
+  const lastAutoIMRef = useRef<string | null>(null)
+  useEffect(() => {
+    const computeAndApply = () => {
+      if (!currentPrice || !vixPrice) return
+      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const minsSinceOpen = (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
+      // Pre-open: full-day move; intraday: remaining-time scaled; capped [0,1]
+      const frac = Math.max(0, Math.min(1, minsSinceOpen <= 0 ? 1 : (390 - minsSinceOpen) / 390))
+      const fullDay = currentPrice * (vixPrice / 100) / Math.sqrt(252)
+      const im = (fullDay * Math.sqrt(frac)).toFixed(1)
+      setMorningPlan(prev => {
+        const cur = (prev.impliedMove || '').trim()
+        const isAutoOrEmpty = cur === '' || cur === lastAutoIMRef.current
+        if (!isAutoOrEmpty) return prev            // manual value — hands off
+        if (cur === im) return prev                // unchanged
+        lastAutoIMRef.current = im
+        return { ...prev, impliedMove: im }
+      })
+    }
+    computeAndApply()
+    const iv = setInterval(computeAndApply, 5 * 60 * 1000)
+    return () => clearInterval(iv)
+  }, [currentPrice, vixPrice])
+
   // ── Client-side Shadow Collector ───────────────────────────────────────
   // Fires the shadow prediction every 5 min while the cockpit is open.
   // Replaces the unreliable Vercel cron: the endpoint handles its own
