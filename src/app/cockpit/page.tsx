@@ -1744,6 +1744,14 @@ export default function CockpitPage() {
   const setupStateRef = useRef<SetupEngineState | null>(null)
   const [setupFireDisplay, setSetupFireDisplay] = useState<any | null>(null)  // rich fire → Focus Panel
   const setupFireBusyRef = useRef(false)                                       // one fire pipeline at a time
+  const [sessionFires, setSessionFires] = useState<any[]>([])                  // today's setup fires (strip + companion)
+  useEffect(() => {   // restore today's fires across refreshes
+    try {
+      const raw = JSON.parse(localStorage.getItem('tz-session-fires') || 'null')
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+      if (raw?.date === today && Array.isArray(raw.fires)) setSessionFires(raw.fires)
+    } catch {}
+  }, [])
   const [aiLoading, setAiLoading] = useState(false)
   const [lastAITime, setLastAITime] = useState<string | null>(null)
   const [marketIntel, setMarketIntel] = useState<any>({})
@@ -2558,6 +2566,16 @@ export default function CockpitPage() {
       level: fire.level, entrySpx, predictedT1, predictedStop,
       measured: null, overlay: null, pending: true, firedAt: fire.firedAt,
     })
+    // Session fires strip: append as pending, resolve below
+    setSessionFires(prev => {
+      const next = [...prev, {
+        firedAt: fire.firedAt, name: fire.name, direction: fire.direction,
+        timeET: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`,
+        verdict: null as string | null, sizing: null as string | null, measured: null as number | null,
+      }]
+      try { localStorage.setItem('tz-session-fires', JSON.stringify({ date: sessionDate, fires: next })) } catch {}
+      return next
+    })
 
     ;(async () => {
       // 1. Measured probability, scoped to this setup + current GEX regime
@@ -2678,6 +2696,13 @@ export default function CockpitPage() {
         name: fire.name, direction: fire.direction, detail: fire.detail,
         level: fire.level, entrySpx, predictedT1, predictedStop,
         measured, overlay, sizing, pending: false, firedAt: fire.firedAt,
+      })
+      setSessionFires(prev => {
+        const next = prev.map(f => f.firedAt === fire.firedAt
+          ? { ...f, verdict, sizing, measured: measured?.hitRate ?? null, measuredN: measured?.n ?? 0 }
+          : f)
+        try { localStorage.setItem('tz-session-fires', JSON.stringify({ date: sessionDate, fires: next })) } catch {}
+        return next
       })
       setupFireBusyRef.current = false
     })().catch(() => { setupFireBusyRef.current = false })
@@ -5050,6 +5075,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       setupEval:     setupEval,
       dayTypeForecast,
       openPositions,
+      setupFire:        setupFireDisplay,
+      sessionSetupFires: sessionFires,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -5254,6 +5281,34 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
           newsSnippet: economicCalendar ? String(economicCalendar).substring(0, 50) : null,
         }}
       />
+
+      {/* ── SESSION FIRES STRIP — today's setup-engine fires, persistent ── */}
+      {sessionFires.length > 0 && (
+        <div style={{
+          margin: '0 10px 4px', padding: '5px 12px',
+          background: 'rgba(8, 12, 24, 0.55)', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 8, fontFamily: font,
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const,
+        }}>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: '#7d8db0', fontFamily: fontDisplay, flexShrink: 0 }}>
+            TODAY&apos;S SETUPS ({sessionFires.length})
+          </span>
+          {sessionFires.slice(-6).map((f: any) => (
+            <span key={f.firedAt} style={{ fontSize: 10.5, color: '#b0c4de', whiteSpace: 'nowrap' as const }}>
+              <span style={{ color: '#7d8db0' }}>{f.timeET}</span>
+              {' '}<span style={{ color: '#e8f0ff', fontWeight: 600 }}>{f.name}</span>
+              {' '}<span style={{ color: f.direction === 'LONG' ? '#00ff88' : '#ff4d6d', fontWeight: 700 }}>{f.direction}</span>
+              {' · '}
+              <span style={{
+                fontWeight: 700,
+                color: f.verdict === 'CONFIRM' ? '#00ff88' : f.verdict === 'CONFLICT' ? '#ff4d6d' : f.verdict === 'CAUTION' ? '#ffb700' : '#7d8db0',
+              }}>{f.verdict || 'pending'}</span>
+              {f.measured !== null && f.measured !== undefined ? <span style={{ color: '#7d8db0' }}> · {f.measured}%</span> : null}
+            </span>
+          ))}
+          {sessionFires.length > 6 && <span style={{ fontSize: 10, color: '#7d8db0' }}>+{sessionFires.length - 6} earlier</span>}
+        </div>
+      )}
 
       {/* Always-mounted CSV import input — available on all tabs */}
       <input ref={csvInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
@@ -6810,6 +6865,10 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                 <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, background: 'radial-gradient(circle, rgba(0,212,160,0.07) 0%, transparent 60%)', animation: 'coreGlow 4s ease-in-out infinite', pointerEvents: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 1 }}>
                   <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontFamily: fontDisplay, fontSize: 9, fontWeight: 800, letterSpacing: 2, color: '#00d4a0', opacity: 0.85 }}>AI VIEW</span>
+                      <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: 1, color: '#7d8db0', border: '1px solid rgba(125,141,176,0.3)', borderRadius: 3, padding: '1px 6px' }}>COMPARISON ARM</span>
+                    </div>
                     <div style={{ fontFamily: fontDisplay, fontSize: 56, fontWeight: 900, color: signalColor, letterSpacing: '4px', textShadow: `0 0 40px ${signalColor}99, 0 0 80px ${signalColor}33`, lineHeight: 1 }}>{aiResult?.signal || (aiLoading ? '···' : 'WAIT')}</div>
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>{aiResult?.marketConditions?.split('.')[0] || 'Analyzing market conditions...'}</div>
                   </div>

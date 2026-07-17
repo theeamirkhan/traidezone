@@ -509,6 +509,8 @@ export function buildCompanionContext(
     setupEval?:      any | null
     dayTypeForecast?: any | null
     openPositions?:   any[] | null
+    setupFire?:        any | null
+    sessionSetupFires?: any[] | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -563,7 +565,33 @@ Implied Move: ±${input.morningPlan?.impliedMove || '?'} pts
 Key Levels: ${input.morningPlan?.keyLevels || 'not set'}
 ${input.morningPlan?.notes ? `Notes: ${input.morningPlan.notes}` : ''}
 
-═══ AI SIGNAL ═══
+═══ SETUP ENGINE (PRIMARY SIGNAL SOURCE — mechanical detectors) ═══
+${(() => {
+  const sf = (input as any).setupFire
+  const fires = (input as any).sessionSetupFires || []
+  const lines: string[] = []
+  if (sf) {
+    const measuredStr = sf.measured
+      ? (sf.measured.hitRate !== null ? `measured ${sf.measured.hitRate}% hit rate (n=${sf.measured.n})` : `no decided sample yet (n=${sf.measured.n})`)
+      : 'stats pending'
+    const verdictStr = sf.overlay?.verdict
+      ? `Risk-officer verdict: ${sf.overlay.verdict}${sf.sizing ? ` (${sf.sizing})` : ''}${sf.overlay.aiConfidence != null ? `, AI conviction ${sf.overlay.aiConfidence}%` : ''}${sf.overlay.reasoning ? ` — ${sf.overlay.reasoning}` : ''}`
+      : 'Risk-officer verdict pending'
+    lines.push(`⚡ ACTIVE FIRE: ${sf.name} — ${sf.direction} | entry ${sf.entrySpx?.toFixed?.(0) ?? sf.entrySpx} | T1 ${sf.predictedT1?.toFixed?.(0) ?? sf.predictedT1} | stop ${sf.predictedStop?.toFixed?.(0) ?? sf.predictedStop}`)
+    lines.push(`Evidence: ${sf.detail}`)
+    lines.push(`Empirical record: ${measuredStr}`)
+    lines.push(verdictStr)
+  } else {
+    lines.push('No setup currently firing. The mechanical detectors (level rejections, VWAP reclaim/fail, ORB holds, gamma-flip crosses, PDH/PDL sweeps) are watching every tick.')
+  }
+  if (fires.length) {
+    lines.push(`Today's fires (${fires.length}): ${fires.slice(-8).map((f: any) => `${f.timeET} ${f.name} ${f.direction}${f.verdict ? ` [${f.verdict}]` : ''}${f.measured !== null && f.measured !== undefined ? ` ${f.measured}%` : ''}`).join(' | ')}`)
+  }
+  lines.push('When the trader asks about "the setup" or "the signal", this section is what fired — mechanical detection with measured probabilities is the primary engine. Cite the measured hit rate and the risk-officer verdict. The AI SIGNAL section below is the advisory/comparison view.')
+  return lines.join('\n')
+})()}
+
+═══ AI SIGNAL (advisory view — comparison arm of the engine experiment) ═══
 ${(() => {
   if (!input.aiResult) return 'No signal generated yet'
   const sig = input.aiResult
