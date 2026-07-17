@@ -178,11 +178,27 @@ function computeFocus(i: FocusInputs): Focus {
   return { stance, stanceColor, headline, now, next, risk, plain: plainStance + plainNext + plainRisk }
 }
 
+export interface SetupFireDisplay {
+  name: string
+  direction: 'LONG' | 'SHORT'
+  detail: string
+  level: number | null
+  entrySpx: number
+  predictedT1: number
+  predictedStop: number
+  measured: { hitRate: number | null; n: number } | null
+  overlay: { verdict?: string; aiConfidence?: number; reasoning?: string } | null
+  sizing?: string
+  pending: boolean
+  firedAt: number
+}
+
 export function FocusPanel(props: {
   inputs: FocusInputs; C: any; font: string; fontDisplay: string
   onGetSignal?: () => void; signalLoading?: boolean
+  setupFire?: SetupFireDisplay | null; onDismissSetup?: () => void
 }) {
-  const { inputs, font, fontDisplay, onGetSignal, signalLoading } = props
+  const { inputs, font, fontDisplay, onGetSignal, signalLoading, setupFire, onDismissSetup } = props
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem('tz-focus-collapsed') === '1' } catch { return false }
   })
@@ -212,6 +228,50 @@ export function FocusPanel(props: {
       borderLeft: `3px solid ${focus.stanceColor}`,
       fontFamily: font, overflow: 'hidden',
     }}>
+      {/* ── SETUP ENGINE fire card (primary signal — shown above everything) ── */}
+      {setupFire && (() => {
+        const dirColor = setupFire.direction === 'LONG' ? P.green : P.red
+        const verdict = setupFire.overlay?.verdict || null
+        const verdictColor = verdict === 'CONFIRM' ? P.green : verdict === 'CONFLICT' ? P.red : P.yellow
+        const measuredLine = setupFire.measured
+          ? (setupFire.measured.hitRate !== null
+              ? `measured ${setupFire.measured.hitRate}% (n=${setupFire.measured.n})`
+              : `no decided sample yet (n=${setupFire.measured.n})`)
+          : setupFire.pending ? 'measuring…' : 'no sample'
+        const aiLine = setupFire.pending
+          ? 'AI: checking…'
+          : verdict
+            ? `AI: ${verdict}${setupFire.sizing ? ` ${setupFire.sizing}` : ''}${setupFire.overlay?.aiConfidence != null ? ` (${setupFire.overlay.aiConfidence}%)` : ''}`
+            : 'AI: unavailable'
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+            background: `${dirColor}0d`, borderBottom: `1px solid ${P.line}`,
+            borderLeft: `3px solid ${dirColor}`, margin: '-1px 0 0 -3px',
+          }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: 1.2, fontFamily: fontDisplay,
+              color: '#0a0e1a', background: dirColor, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+            }}>⚡ SETUP · {setupFire.direction}</span>
+            <span style={{ fontSize: 12, color: P.text, fontWeight: 700, flexShrink: 0 }}>
+              {setupFire.name}
+            </span>
+            <span style={{ fontSize: 11.5, color: P.soft, flex: 1, minWidth: 0 }}>
+              — {measuredLine} — <span style={{ color: verdict ? verdictColor : P.muted, fontWeight: 700 }}>{aiLine}</span>
+              <span style={{ color: P.muted }}>
+                {'  '}· entry {setupFire.entrySpx.toFixed(0)} · T1 {setupFire.predictedT1.toFixed(0)} · stop {setupFire.predictedStop.toFixed(0)}
+              </span>
+            </span>
+            {onDismissSetup && (
+              <button onClick={onDismissSetup} title="Dismiss" style={{
+                background: 'rgba(255,255,255,0.05)', border: `1px solid ${P.line}`, borderRadius: 5,
+                color: P.soft, cursor: 'pointer', fontSize: 11, padding: '3px 8px', flexShrink: 0, fontFamily: font,
+              }}>✕</button>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Header row: stance pill · headline · GET SIGNAL · collapse */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px' }}>
         <span style={{

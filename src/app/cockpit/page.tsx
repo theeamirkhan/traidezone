@@ -4,6 +4,8 @@ import { TakeTradeModal, CloseTradeModal, ExitPromptModal, OpenPositionsStrip } 
 import { ShadowValidationStream } from './ShadowValidationStream'
 import { TriggerManager } from './TriggerManager'
 import { processTick, newAccumulator } from './lib/triggerEngine'
+import { processSetupTick, newSetupState, type SetupEngineState, type SetupFire } from './lib/setupEngine'
+import { SetupStatsCard } from './SetupStatsCard'
 import { FocusPanel } from './FocusPanel'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
@@ -1738,6 +1740,10 @@ export default function CockpitPage() {
   const [triggerFire, setTriggerFire]      = useState<any | null>(null)   // a rule that just fired
   const priorPriceRef = useRef<number | null>(null)                       // price one tick ago (reclaim detection)
   const recentBarsRef = useRef<{ highs: number[]; lows: number[] }>({ highs: [], lows: [] })
+  // ── Setup Engine (PRIMARY signal source — mechanical detectors) ─────────
+  const setupStateRef = useRef<SetupEngineState | null>(null)
+  const [setupFireDisplay, setSetupFireDisplay] = useState<any | null>(null)  // rich fire → Focus Panel
+  const setupFireBusyRef = useRef(false)                                       // one fire pipeline at a time
   const [aiLoading, setAiLoading] = useState(false)
   const [lastAITime, setLastAITime] = useState<string | null>(null)
   const [marketIntel, setMarketIntel] = useState<any>({})
@@ -2256,7 +2262,7 @@ export default function CockpitPage() {
             moveSize:      result.moveSize,
             wait_reason:   result.waitReason || result.riskFlag || null,
             context_snapshot: JSON.stringify({
-              auto: true, gexRegime: gexData?.regime ?? null, dayType: dayTypeForecast?.dayType ?? null,
+              auto: true, engine: 'llm', gexRegime: gexData?.regime ?? null, dayType: dayTypeForecast?.dayType ?? null,
               // flow-ablation audit: was UW context present for this signal?
               hadFlow: !!(flow && !(flow as any).error), flowStale: !!(flow as any)?._stale,
               hadTide: !!(tide && !(tide as any).error), tideStale: !!(tide as any)?._stale,
@@ -2488,6 +2494,194 @@ export default function CockpitPage() {
       })()
     }
   }, [currentPrice, triggerRules])
+
+  // ── SETUP ENGINE — always-on mechanical detectors (PRIMARY, July 17) ────
+  // Evaluates the five setup families every tick alongside the trigger
+  // engine. On fire: measured stats (scoped setup+regime) → LLM risk-officer
+  // overlay → log to trade_alerts (engine:'setup') → Focus Panel display.
+  // The deterministic fire is NEVER blocked by the async LLM/stats calls.
+  useEffect(() => {
+    if (!currentPrice) return
+
+    const etNow = new Date()
+    const etParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit',
+    }).formatToParts(etNow)
+    let hh = parseInt(etParts.find(p => p.type === 'hour')?.value || '0', 10)
+    if (hh === 24) hh = 0
+    const mm = parseInt(etParts.find(p => p.type === 'minute')?.value || '0', 10)
+    const sessionMinutes = (hh - 9) * 60 + (mm - 30)
+    const sessionDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(etNow)
+    if (sessionMinutes < 0 || sessionMinutes > 390) return
+
+    // New session → fresh state machines
+    if (!setupStateRef.current || setupStateRef.current.sessionDate !== sessionDate) {
+      setupStateRef.current = newSetupState(sessionDate)
+    }
+
+    const snap = {
+      currentPrice,
+      timestamp:      Date.now(),
+      vwap:           levels?.spyVwap ?? null,
+      ema200:         levels?.ema200 ?? null,
+      ema90:          null,
+      pdh:            levels?.pdh ?? null,
+      pdl:            levels?.pdl ?? null,
+      prevClose:      levels?.prevClose ?? null,
+      orbHigh:        orbHigh ?? null,
+      orbLow:         orbLow ?? null,
+      tick:           marketIntel2?.tick ?? null,
+      sessionMinutes,
+      gammaFlip:      gexData?.gammaFlip ?? null,
+      callWall:       gexData?.callWall ?? null,
+      putWall:        gexData?.putWall ?? null,
+    }
+
+    const { state: nextState, fires } = processSetupTick(setupStateRef.current, snap)
+    setupStateRef.current = nextState
+    if (fires.length === 0 || setupFireBusyRef.current) return
+
+    const fire: SetupFire = fires[0]   // one at a time (same convention as triggers)
+    setupFireBusyRef.current = true
+
+    // Immediate deterministic alert — the setup is never missed
+    try { speak(`Setup. ${fire.name}. ${fire.direction === 'LONG' ? 'Long' : 'Short'} side. Checking the numbers.`) } catch {}
+
+    const entrySpx = currentPrice
+    const predictedT1   = fire.direction === 'LONG' ? entrySpx + 7 : entrySpx - 7
+    const predictedStop = fire.direction === 'LONG' ? entrySpx - 8 : entrySpx + 8
+    const gexRegimeNow = (gexData?.regime === 'positive' || gexData?.regime === 'negative') ? gexData.regime : null
+
+    // Show the fire in the Focus Panel instantly (measured/AI fill in async)
+    setSetupFireDisplay({
+      name: fire.name, direction: fire.direction, detail: fire.detail,
+      level: fire.level, entrySpx, predictedT1, predictedStop,
+      measured: null, overlay: null, pending: true, firedAt: fire.firedAt,
+    })
+
+    ;(async () => {
+      // 1. Measured probability, scoped to this setup + current GEX regime
+      let measured: { hitRate: number | null; n: number } | null = null
+      try {
+        const q = new URLSearchParams({ setupId: fire.setupId, days: '90' })
+        if (gexRegimeNow) q.set('gexRegime', gexRegimeNow)
+        const st = await fetch(`/api/setups/stats?${q.toString()}`).then(r => r.json())
+        if (st?.ok) measured = { hitRate: st.hitRate ?? null, n: st.n ?? 0 }
+      } catch {}
+
+      // 2. Regime memory — measured outcomes from similar historical states
+      let regimeMemoryText: string | null = null
+      try {
+        const memRes = await fetch('/api/regime-memory', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            components: {
+              sessionWindow: sessionMinutes < 60 ? 'open_drive' : sessionMinutes < 300 ? 'mid_session' : 'power_hour',
+              mechBias:      mechanicalFlow?.mechanicalBias ?? null,
+              cumDelta:      microstructure?.cumulativeDelta?.strength ?? null,
+              dayType:       dayTypeForecast?.dayType ?? null,
+              m15Trend:      snap.ema200 && currentPrice > snap.ema200 ? 'up' : 'down',
+              gexRegime:     gexRegimeNow,
+              vwapDist:      (snap.vwap && currentPrice) ? currentPrice - snap.vwap : null,
+              vix:           vixPrice ?? null,
+            },
+          }),
+        })
+        const memData = await memRes.json()
+        if (memData?.summaryText) regimeMemoryText = memData.summaryText
+      } catch {}
+
+      // 3. LLM as RISK OFFICER — verdict on the mechanical fire
+      let overlay: any = null
+      try {
+        const res = await fetch('/api/triggers/overlay', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trigger: {
+              name:            `[SETUP ENGINE] ${fire.name}`,
+              direction:       fire.direction,
+              confidence:      measured?.hitRate ?? 55,
+              stopHint:        '8 points',
+              firedConditions: [{ primitive: fire.setupId, firedAt: fire.firedAt, detail: fire.detail }],
+            },
+            context: {
+              currentSPX:  currentPrice,
+              timeET:      `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`,
+              sessionWindow: sessionMinutes < 60 ? 'open_drive' : sessionMinutes < 300 ? 'mid_session' : 'power_hour',
+              vix:         vixPrice ?? null,
+              vwap:        snap.vwap,
+              mechBias:    mechanicalFlow?.mechanicalBias ?? null,
+              dayType:     dayTypeForecast?.dayType ?? null,
+              gexRegime:   gexRegimeNow,
+              gammaFlip:   gexData?.gammaFlip ?? null,
+              callWall:    gexData?.callWall ?? null,
+              putWall:     gexData?.putWall ?? null,
+              cumDelta:    microstructure?.cumulativeDelta?.strength ?? null,
+              m15Trend:    snap.ema200 && currentPrice > snap.ema200 ? 'up' : 'down',
+              breadth:     breadthData?.summary ?? null,
+              measuredSetupStats: measured ? `This setup in this regime: ${measured.hitRate !== null ? measured.hitRate + '% hit rate' : 'no decided sample yet'} (n=${measured.n})` : null,
+              regimeMemory: regimeMemoryText,
+            },
+          }),
+        })
+        overlay = await res.json()
+      } catch {}
+
+      // 4. Log to trade_alerts — the treatment arm of the engine experiment.
+      //    Graded automatically by score-alerts (strict T1-before-stop).
+      try {
+        await fetch('/api/trade-alerts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            signal:        fire.direction,
+            entryZone:     { low: entrySpx, high: entrySpx },
+            stopLevel:     predictedStop,
+            target1:       predictedT1,
+            target2:       fire.direction === 'LONG' ? entrySpx + 14 : entrySpx - 14,
+            no_entry_zone: false,
+            auto_fired:    true,
+            currentPrice:  entrySpx,
+            vwap:          snap.vwap,
+            ema200:        snap.ema200,
+            vix:           vixPrice ?? null,
+            confidence:    measured?.hitRate ?? 55,
+            moveSize:      7,
+            ai_view:       overlay?.verdict ?? null,
+            context_snapshot: JSON.stringify({
+              auto: true, engine: 'setup',
+              setupId: fire.setupId, setupName: fire.name,
+              level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
+              gexRegime: gexRegimeNow, dayType: dayTypeForecast?.dayType ?? null,
+              measuredHitRate: measured?.hitRate ?? null, measuredN: measured?.n ?? 0,
+              aiVerdict: overlay?.verdict ?? null, aiConfidence: overlay?.aiConfidence ?? null,
+              agreement: overlay?.agreement ?? null,
+            }),
+          }),
+        }).then(r => r.json())
+          .then(d => { if (d?.error) console.error('[SetupEngine] INSERT FAILED:', JSON.stringify(d)); else console.log('[SetupEngine] logged:', fire.setupId, fire.direction) })
+      } catch {}
+
+      // 5. Voice + Focus Panel update with the full picture
+      const verdict = overlay?.verdict || 'CAUTION'
+      const sizing = verdict === 'CONFIRM'
+        ? ((overlay?.aiConfidence ?? 0) >= 70 ? 'full size' : 'half size')
+        : verdict === 'CAUTION' ? 'half size' : 'stand aside'
+      try {
+        const measuredLine = measured && measured.hitRate !== null && measured.n >= 5
+          ? ` Measured ${measured.hitRate} percent on ${measured.n} samples.` : ''
+        if (verdict === 'CONFIRM') speak(`Confirmed.${measuredLine} ${sizing === 'full size' ? 'Full' : 'Half'} size ${fire.direction === 'LONG' ? 'long' : 'short'}.`)
+        else if (verdict === 'CONFLICT') speak(`Risk officer says conflict. ${overlay?.reasoning?.split('.')[0] || 'Context opposes this'}. Standing aside.`)
+        else speak(`Caution.${measuredLine} Half size if you take it.`)
+      } catch {}
+
+      setSetupFireDisplay({
+        name: fire.name, direction: fire.direction, detail: fire.detail,
+        level: fire.level, entrySpx, predictedT1, predictedStop,
+        measured, overlay, sizing, pending: false, firedAt: fire.firedAt,
+      })
+      setupFireBusyRef.current = false
+    })().catch(() => { setupFireBusyRef.current = false })
+  }, [currentPrice])
 
   // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────
   useEffect(() => {
@@ -5026,6 +5220,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       {/* ── FOCUS PANEL — what matters right now, always visible ── */}
       <FocusPanel font={font} fontDisplay={fontDisplay} C={C}
         signalLoading={aiLoading}
+        setupFire={setupFireDisplay}
+        onDismissSetup={() => setSetupFireDisplay(null)}
         onGetSignal={() => {
           // Trigger the FULL signal pipeline (quality gate + alert logging)
           // via the main button — zero duplicated logic. Switch to the
@@ -9406,6 +9602,9 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         {/* TAB 4 — JOURNAL / ANALYTICS */}
         {tab === 'learn' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
+
+            {/* ── SETUP ENGINE rollup (primary signal source — measured hit rates) ── */}
+            <SetupStatsCard font={font} fontDisplay={fontDisplay} />
 
             {/* ── AI LEARNING DASHBOARD header + signal stats (always top) ── */}
             {insights && !insightsLoading && (() => {
