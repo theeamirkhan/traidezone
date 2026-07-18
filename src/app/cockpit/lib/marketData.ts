@@ -152,7 +152,182 @@ export async function fetchMarketTide(): Promise<any> {
   } catch { return null }
 }
 
-// ── Multi-Timeframe Confluence ────────────────────────────────────────────────
+// ── Multi-Timeframe Structure (MAs + crossovers, July 17 spec) ────────────────
+// Tracks the full requested set on SPX (I:SPX) + SPY:
+//   SPY:        session VWAP (cockpit-side) + daily 200 EMA / 200 SMA
+//   SPX 5-min:  9 EMA, 200 EMA, 200 SMA  (PDH/PDL live in cockpit levels)
+//   SPX hourly: 9 EMA, 200 EMA, 200 SMA
+//   SPX daily:  9 / 20 / 50 EMA, 200 EMA, 200 SMA
+//   SPX weekly: 9 / 20 / 50 EMA, 200 EMA, 200 SMA
+// EMAs are SMA-seeded with real warmup history (the old ema() helper seeded
+// off the first close — fine for short periods, wrong for 200s).
+// Crossovers scanned over the last 12 bars per pair.
+// Slow TFs (daily/weekly/SPY) cached per ET date; fast TFs (5m/1h) computed
+// each call — the cockpit throttles calls to ~5 min.
+// NOTE: add new fields to tv-oracle.mjs CONFIRM list for TV validation.
+
+const MTF_SLOW_KEY = 'tz-mtf-slow'
+
+function smaLast(closes: number[], n: number): number | null {
+  if (closes.length < n) return null
+  const sl = closes.slice(-n)
+  return sl.reduce((s, v) => s + v, 0) / n
+}
+function emaArr(closes: number[], n: number): (number | null)[] {
+  // SMA-seeded EMA series aligned to closes; null during warmup
+  const out: (number | null)[] = new Array(closes.length).fill(null)
+  if (closes.length < n) return out
+  const k = 2 / (n + 1)
+  let e = closes.slice(0, n).reduce((s, v) => s + v, 0) / n
+  out[n - 1] = e
+  for (let i = n; i < closes.length; i++) { e = closes[i] * k + e * (1 - k); out[i] = e }
+  return out
+}
+function smaArr(closes: number[], n: number): (number | null)[] {
+  const out: (number | null)[] = new Array(closes.length).fill(null)
+  if (closes.length < n) return out
+  let sum = closes.slice(0, n).reduce((s, v) => s + v, 0)
+  out[n - 1] = sum / n
+  for (let i = n; i < closes.length; i++) { sum += closes[i] - closes[i - n]; out[i] = sum / n }
+  return out
+}
+function crossScan(fast: (number | null)[], slow: (number | null)[], lookback = 12): { dir: 'GOLDEN' | 'DEATH'; barsAgo: number } | null {
+  const len = Math.min(fast.length, slow.length)
+  for (let ago = 0; ago < lookback; ago++) {
+    const i = len - 1 - ago, j = i - 1
+    if (j < 0) break
+    const f1 = fast[j], s1 = slow[j], f2 = fast[i], s2 = slow[i]
+    if (f1 == null || s1 == null || f2 == null || s2 == null) continue
+    if (f1 <= s1 && f2 > s2) return { dir: 'GOLDEN', barsAgo: ago }
+    if (f1 >= s1 && f2 < s2) return { dir: 'DEATH', barsAgo: ago }
+  }
+  return null
+}
+
+export async function fetchMTFStructure(): Promise<any> {
+  try {
+    const today = new Date()
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+    const back = (days: number) => { const d = new Date(today); d.setDate(d.getDate() - days); return d }
+    const todayStr = fmt(today)
+    const etDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(today)
+
+    const proxy = (path: string) =>
+      fetch(`/api/polygon?apiKey=server&path=${encodeURIComponent(path)}`).then(r => r.json()).catch(() => null)
+
+    // ── Slow TFs: daily / weekly / SPY — computed once per ET session ──
+    let slow: any = null
+    try {
+      const cached = JSON.parse(localStorage.getItem(MTF_SLOW_KEY) || 'null')
+      if (cached?.date === etDate) slow = cached.data
+    } catch {}
+
+    const fastPromises = [
+      proxy(`/v2/aggs/ticker/I:SPX/range/5/minute/${fmt(back(14))}/${todayStr}?adjusted=true&sort=asc&limit=2500`),
+      proxy(`/v2/aggs/ticker/I:SPX/range/1/hour/${fmt(back(110))}/${todayStr}?adjusted=true&sort=asc&limit=2000`),
+    ]
+    const slowPromises = slow ? [] : [
+      proxy(`/v2/aggs/ticker/I:SPX/range/1/day/${fmt(back(1200))}/${todayStr}?adjusted=true&sort=asc&limit=1000`),
+      proxy(`/v2/aggs/ticker/I:SPX/range/1/week/${fmt(back(2400))}/${todayStr}?adjusted=true&sort=asc&limit=500`),
+      proxy(`/v2/aggs/ticker/SPY/range/1/day/${fmt(back(1200))}/${todayStr}?adjusted=true&sort=asc&limit=1000`),
+    ]
+    const results = await Promise.all([...fastPromises, ...slowPromises])
+    const m5c = (results[0]?.results || []).map((b: any) => b.c)
+    const h1c = (results[1]?.results || []).map((b: any) => b.c)
+
+    if (!slow) {
+      const d1c  = (results[2]?.results || []).map((b: any) => b.c)
+      const w1c  = (results[3]?.results || []).map((b: any) => b.c)
+      const spyc = (results[4]?.results || []).map((b: any) => b.c)
+      if (!d1c.length) return null
+      const dE9 = emaArr(d1c, 9), dE20 = emaArr(d1c, 20), dE50 = emaArr(d1c, 50), dE200 = emaArr(d1c, 200), dS200 = smaArr(d1c, 200)
+      const wE9 = emaArr(w1c, 9), wE20 = emaArr(w1c, 20), wE50 = emaArr(w1c, 50), wE200 = emaArr(w1c, 200), wS200 = smaArr(w1c, 200)
+      const last = (a: (number | null)[]) => (a.length ? a[a.length - 1] : null)
+      slow = {
+        d1: {
+          price: d1c[d1c.length - 1],
+          ema9: last(dE9), ema20: last(dE20), ema50: last(dE50), ema200: last(dE200), sma200: last(dS200),
+          crosses: {
+            e9x20:   crossScan(dE9, dE20),
+            e20x50:  crossScan(dE20, dE50),
+            e50x200: crossScan(dE50, dE200),
+          },
+          warmupOK: d1c.length >= 400,
+        },
+        w1: {
+          price: w1c.length ? w1c[w1c.length - 1] : null,
+          ema9: last(wE9), ema20: last(wE20), ema50: last(wE50), ema200: last(wE200), sma200: last(wS200),
+          crosses: { e9x20: crossScan(wE9, wE20), e20x50: crossScan(wE20, wE50) },
+          warmupOK: w1c.length >= 260,
+        },
+        spy: {
+          price: spyc.length ? spyc[spyc.length - 1] : null,
+          ema200d: emaArr(spyc, 200).slice(-1)[0] ?? null,
+          sma200d: smaLast(spyc, 200),
+        },
+      }
+      try { localStorage.setItem(MTF_SLOW_KEY, JSON.stringify({ date: etDate, data: slow })) } catch {}
+    }
+
+    // ── Fast TFs: 5m + hourly ──
+    const m5E9 = emaArr(m5c, 9), m5E200 = emaArr(m5c, 200)
+    const h1E9 = emaArr(h1c, 9), h1E200 = emaArr(h1c, 200)
+    const lastV = (a: (number | null)[]) => (a.length ? a[a.length - 1] : null)
+    const m5 = {
+      price: m5c.length ? m5c[m5c.length - 1] : null,
+      ema9: lastV(m5E9), ema200: lastV(m5E200), sma200: smaLast(m5c, 200),
+      crosses: { e9x200: crossScan(m5E9, m5E200) },
+      warmupOK: m5c.length >= 400,
+    }
+    const h1 = {
+      price: h1c.length ? h1c[h1c.length - 1] : null,
+      ema9: lastV(h1E9), ema200: lastV(h1E200), sma200: smaLast(h1c, 200),
+      crosses: { e9x200: crossScan(h1E9, h1E200) },
+      warmupOK: h1c.length >= 300,
+    }
+
+    // ── Assemble + AI context ──
+    const p = m5.price || slow.d1.price
+    const pos = (v: number | null) => (v == null || p == null) ? '?' : `${p > v ? 'ABOVE' : 'BELOW'} (${(p - v) >= 0 ? '+' : ''}${(p - v).toFixed(1)})`
+    const crossLine = (label: string, c: any) => c ? `${label}: ${c.dir} cross ${c.barsAgo === 0 ? 'THIS BAR' : c.barsAgo + ' bars ago'}` : null
+    const crosses = [
+      crossLine('5m 9/200 EMA',    m5.crosses.e9x200),
+      crossLine('1H 9/200 EMA',    h1.crosses.e9x200),
+      crossLine('Daily 9/20 EMA',  slow.d1.crosses.e9x20),
+      crossLine('Daily 20/50 EMA', slow.d1.crosses.e20x50),
+      crossLine('Daily 50/200 EMA',slow.d1.crosses.e50x200),
+      crossLine('Weekly 9/20 EMA', slow.w1.crosses.e9x20),
+      crossLine('Weekly 20/50 EMA',slow.w1.crosses.e20x50),
+    ].filter(Boolean)
+
+    const allMAs: Array<[string, number | null]> = [
+      ['5m 9EMA', m5.ema9], ['5m 200EMA', m5.ema200], ['5m 200SMA', m5.sma200],
+      ['1H 9EMA', h1.ema9], ['1H 200EMA', h1.ema200], ['1H 200SMA', h1.sma200],
+      ['D 9EMA', slow.d1.ema9], ['D 20EMA', slow.d1.ema20], ['D 50EMA', slow.d1.ema50], ['D 200EMA', slow.d1.ema200], ['D 200SMA', slow.d1.sma200],
+      ['W 9EMA', slow.w1.ema9], ['W 20EMA', slow.w1.ema20], ['W 50EMA', slow.w1.ema50], ['W 200EMA', slow.w1.ema200], ['W 200SMA', slow.w1.sma200],
+    ]
+    const known = allMAs.filter(([, v]) => v != null && p != null)
+    const aboveN = known.filter(([, v]) => p! > v!).length
+    const structureRead = known.length
+      ? `${aboveN}/${known.length} MAs below price — ${aboveN / known.length >= 0.75 ? 'STRONG BULL structure' : aboveN / known.length >= 0.5 ? 'bull-leaning structure' : aboveN / known.length >= 0.25 ? 'bear-leaning structure' : 'STRONG BEAR structure'}`
+      : 'insufficient MA data'
+
+    const aiContext = [
+      `SPX ${p?.toFixed(1) ?? '?'} | ${structureRead}`,
+      `5-min:  9EMA ${m5.ema9?.toFixed(1) ?? '?'} ${pos(m5.ema9)} | 200EMA ${m5.ema200?.toFixed(1) ?? '?'} ${pos(m5.ema200)} | 200SMA ${m5.sma200?.toFixed(1) ?? '?'} ${pos(m5.sma200)}`,
+      `Hourly: 9EMA ${h1.ema9?.toFixed(1) ?? '?'} ${pos(h1.ema9)} | 200EMA ${h1.ema200?.toFixed(1) ?? '?'} ${pos(h1.ema200)} | 200SMA ${h1.sma200?.toFixed(1) ?? '?'} ${pos(h1.sma200)}`,
+      `Daily:  9EMA ${slow.d1.ema9?.toFixed(1) ?? '?'} ${pos(slow.d1.ema9)} | 20EMA ${slow.d1.ema20?.toFixed(1) ?? '?'} ${pos(slow.d1.ema20)} | 50EMA ${slow.d1.ema50?.toFixed(1) ?? '?'} ${pos(slow.d1.ema50)} | 200EMA ${slow.d1.ema200?.toFixed(1) ?? '?'} ${pos(slow.d1.ema200)} | 200SMA ${slow.d1.sma200?.toFixed(1) ?? '?'} ${pos(slow.d1.sma200)}`,
+      `Weekly: 9EMA ${slow.w1.ema9?.toFixed(1) ?? '?'} ${pos(slow.w1.ema9)} | 20EMA ${slow.w1.ema20?.toFixed(1) ?? '?'} ${pos(slow.w1.ema20)} | 50EMA ${slow.w1.ema50?.toFixed(1) ?? '?'} ${pos(slow.w1.ema50)} | 200EMA ${slow.w1.ema200?.toFixed(1) ?? '?'} ${pos(slow.w1.ema200)} | 200SMA ${slow.w1.sma200?.toFixed(1) ?? '?'} ${pos(slow.w1.sma200)}`,
+      `SPY:    ${slow.spy.price?.toFixed(2) ?? '?'} | D200EMA ${slow.spy.ema200d?.toFixed(2) ?? '?'} | D200SMA ${slow.spy.sma200d?.toFixed(2) ?? '?'} (session VWAP tracked live cockpit-side)`,
+      crosses.length ? `RECENT CROSSOVERS: ${crosses.join(' | ')}` : 'No MA crossovers in the last 12 bars on any tracked pair.',
+      (!slow.w1.warmupOK || !slow.d1.warmupOK) ? '⚠ Some 200-period values have limited warmup history — treat as approximate.' : '',
+    ].filter(Boolean).join('\n')
+
+    return { asOf: Date.now(), spx: { m5, h1, d1: slow.d1, w1: slow.w1 }, spy: slow.spy, crosses, aiContext }
+  } catch { return null }
+}
+
+// ── Multi-Timeframe Confluence (legacy — superseded by fetchMTFStructure for MAs) ──
 export async function fetchMultiTFConfluence(ticker = 'I:SPX'): Promise<any> {
   try {
     const today = new Date()

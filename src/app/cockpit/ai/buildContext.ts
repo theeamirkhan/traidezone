@@ -461,6 +461,7 @@ Reference this scoring when setting your final confidence number.`,
     `\n═══ 5-MIN CANDLE ANALYSIS (SPX) ═══\n${buildRecentCandles(market.candles)}`,
     (input as any).volumeProfile ? `\n═══ VOLUME PROFILE (SESSION) ═══\n${(input as any).volumeProfile.aiContext}` : '',
     (input as any).mechanicalFlow ? `\n═══ MECHANICAL FLOW (DEALER HEDGING) ═══\n${(input as any).mechanicalFlow.aiContext}` : '',
+    (input as any).mtfStructure?.aiContext ? `\n═══ MULTI-TIMEFRAME MA STRUCTURE ═══\n${(input as any).mtfStructure.aiContext}` : '',
     `Flow:\n${buildFlowSection(optionsFlow)}`,
     zeroDTESkew   ? `0DTE: ${zeroDTESkew.skewLabel} P/C ${zeroDTESkew.pcRatio}` : '',
     marketScore   ? `Score: ${marketScore.score}/100 ${marketScore.label}` : '',
@@ -511,6 +512,7 @@ export function buildCompanionContext(
     openPositions?:   any[] | null
     setupFire?:        any | null
     sessionSetupFires?: any[] | null
+    mtfStructure?:     any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -551,6 +553,9 @@ PDH: ${fmt(market.levels?.pdh ?? null)} | PDL: ${fmt(market.levels?.pdl ?? null)
 VIX: ${market.vixPrice?.toFixed(2) || '—'}
 ${warnings.length ? `⚠ DATA ISSUES: ${warnings.join('; ')}` : ''}
 
+${(input as any).mtfStructure?.aiContext ? `═══ MULTI-TIMEFRAME MA STRUCTURE (measured, all key EMAs/SMAs + crossovers) ═══
+${(input as any).mtfStructure.aiContext}
+` : ''}
 ═══ MARKET INTELLIGENCE ═══
 Breadth: ${input.marketIntel?.breadth?.bias || 'No data'}
 Tide: ${input.marketTide?.bias || '?'} | P/C: ${input.marketTide?.putCallRatio || '—'}

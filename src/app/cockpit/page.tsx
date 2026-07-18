@@ -39,7 +39,7 @@ import { forecastDayType, type DayTypeForecast } from './lib/dayTypeForecaster'
 import { loadSessionMemory, addMemory, extractMemoryFromSession } from './lib/memory'
 import {
   fetchMarketNews, fetchEconomicCalendar, fetchMacroRegime, fetchEarningsCalendar,
-  fetchOptionsFlow, fetchMarketTide, fetchMultiTFConfluence, fetchZeroDTESkew, fetchMarketIntel,
+  fetchOptionsFlow, fetchMarketTide, fetchMultiTFConfluence, fetchMTFStructure, fetchZeroDTESkew, fetchMarketIntel,
   fetchTiingoContext
 } from './lib/marketData'
 import { useState, useEffect, useRef, useCallback } from 'react'
@@ -1762,6 +1762,22 @@ export default function CockpitPage() {
   const [economicCalendar, setEconomicCalendar] = useState<string>('')
   const [marketScore, setMarketScore] = useState<any>(null)
   const [multiTFData, setMultiTFData] = useState<any>(null)
+  const [mtfStructure, setMtfStructure] = useState<any>(null)   // full MA/crossover layer (July 17 spec)
+  useEffect(() => {   // fetch MA structure on mount + every 5 min (slow TFs cached per session internally)
+    let cancelled = false
+    const run = async () => {
+      try {
+        const last = parseInt(localStorage.getItem('tz-mtf-last') || '0', 10)
+        if (Date.now() - last < 4 * 60 * 1000) return
+        localStorage.setItem('tz-mtf-last', String(Date.now()))
+      } catch {}
+      const mtf = await fetchMTFStructure()
+      if (mtf && !cancelled) setMtfStructure(mtf)
+    }
+    const kick = setTimeout(run, 4000)
+    const iv = setInterval(run, 5 * 60 * 1000)
+    return () => { cancelled = true; clearTimeout(kick); clearInterval(iv) }
+  }, [])
   const [zeroDTESkew, setZeroDTESkew] = useState<any>(null)
   const [tradePatterns, setTradePatterns] = useState<any>(null)
   const [macroRegime, setMacroRegime] = useState<any>(null)
@@ -1903,6 +1919,7 @@ export default function CockpitPage() {
     marketScore,
     tradePatterns,
     multiTFData,
+    mtfStructure,
     marketNews,
     economicCalendar,
     macroRegime,
@@ -2543,6 +2560,12 @@ export default function CockpitPage() {
       gammaFlip:      gexData?.gammaFlip ?? null,
       callWall:       gexData?.callWall ?? null,
       putWall:        gexData?.putWall ?? null,
+      extraLevels: [
+        { label: 'D200EMA', value: mtfStructure?.spx?.d1?.ema200 ?? null },
+        { label: 'D200SMA', value: mtfStructure?.spx?.d1?.sma200 ?? null },
+        { label: 'H200EMA', value: mtfStructure?.spx?.h1?.ema200 ?? null },
+        { label: 'D50EMA',  value: mtfStructure?.spx?.d1?.ema50 ?? null },
+      ],
     }
 
     const { state: nextState, fires } = processSetupTick(setupStateRef.current, snap)
@@ -5077,6 +5100,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       openPositions,
       setupFire:        setupFireDisplay,
       sessionSetupFires: sessionFires,
+      mtfStructure,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -5277,6 +5301,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
             return (et.getHours() - 9) * 60 + (et.getMinutes() - 30)
           })(),
           planBias:    morningPlan?.bias || null,
+          extraLevels: [
+            ['D200EMA', mtfStructure?.spx?.d1?.ema200 ?? null],
+            ['D200SMA', mtfStructure?.spx?.d1?.sma200 ?? null],
+            ['H200EMA', mtfStructure?.spx?.h1?.ema200 ?? null],
+            ['D50EMA',  mtfStructure?.spx?.d1?.ema50 ?? null],
+            ['D20EMA',  mtfStructure?.spx?.d1?.ema20 ?? null],
+          ] as Array<[string, number | null]>,
           armedTriggers: (triggerRules || []).map((t: any) => ({ name: t.name, direction: t.direction })),
           newsSnippet: economicCalendar ? String(economicCalendar).substring(0, 50) : null,
         }}

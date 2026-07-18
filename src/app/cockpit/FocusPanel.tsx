@@ -46,6 +46,7 @@ interface FocusInputs {
   tick: number | null
   sessionMinutes: number
   planBias: string | null
+  extraLevels?: Array<[string, number | null]>
   armedTriggers: { name: string; direction: string }[]
   newsSnippet: string | null
 }
@@ -91,6 +92,7 @@ function computeFocus(i: FocusInputs): Focus {
     ['VWAP', i.vwap], ['flip', i.gammaFlip], ['PDH', i.pdh], ['PDL', i.pdl],
     ['ORB-H', i.orbHigh], ['ORB-L', i.orbLow], ['call wall', i.callWall],
     ['put wall', i.putWall], ['prev close', i.prevClose], ['200EMA', i.ema200],
+    ...(i.extraLevels || []),
   ]
   let nearAbove: [string, number] | null = null
   let nearBelow: [string, number] | null = null

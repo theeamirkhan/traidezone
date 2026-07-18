@@ -34,6 +34,9 @@ export interface SetupSnapshot extends MarketSnapshot {
   gammaFlip: number | null
   callWall:  number | null
   putWall:   number | null
+  // Optional higher-timeframe MA levels (D200EMA, H200EMA, ...) — treated as
+  // named key levels for the rejection detector. Fed from fetchMTFStructure.
+  extraLevels?: { label: string; value: number | null }[]
 }
 
 export type SetupId =
@@ -144,6 +147,7 @@ function collectLevels(snap: SetupSnapshot): KeyLevel[] {
   push('gamma flip', snap.gammaFlip)
   push('call wall', snap.callWall)
   push('put wall', snap.putWall)
+  for (const xl of snap.extraLevels || []) push(xl.label, xl.value)
 
   // Round numbers: multiples of 25 within ±30pts of price (SPX psychology levels)
   if (snap.currentPrice) {
