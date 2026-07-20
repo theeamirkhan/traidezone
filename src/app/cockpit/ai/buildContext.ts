@@ -513,6 +513,7 @@ export function buildCompanionContext(
     setupFire?:        any | null
     sessionSetupFires?: any[] | null
     mtfStructure?:     any | null
+    swingAlert?:       any | null
   }
 ): CompanionContext {
   const warnings: string[] = []
@@ -582,7 +583,8 @@ ${(() => {
     const verdictStr = sf.overlay?.verdict
       ? `Risk-officer verdict: ${sf.overlay.verdict}${sf.sizing ? ` (${sf.sizing})` : ''}${sf.overlay.aiConfidence != null ? `, AI conviction ${sf.overlay.aiConfidence}%` : ''}${sf.overlay.reasoning ? ` — ${sf.overlay.reasoning}` : ''}`
       : 'Risk-officer verdict pending'
-    lines.push(`⚡ ACTIVE FIRE: ${sf.name} — ${sf.direction} | entry ${sf.entrySpx?.toFixed?.(0) ?? sf.entrySpx} | T1 ${sf.predictedT1?.toFixed?.(0) ?? sf.predictedT1} | stop ${sf.predictedStop?.toFixed?.(0) ?? sf.predictedStop}`)
+    const ct = sf.contract ? ` | recommended contract: SPX ${sf.contract.strike}${sf.contract.type === 'CALL' ? 'C' : 'P'} ${sf.contract.expiryLabel}` : ''
+    lines.push(`⚡ ACTIVE FIRE: ${sf.name} — ${sf.direction} | entry ${sf.entrySpx?.toFixed?.(0) ?? sf.entrySpx} | T1 ${sf.predictedT1?.toFixed?.(0) ?? sf.predictedT1} | stop ${sf.predictedStop?.toFixed?.(0) ?? sf.predictedStop}${ct}`)
     lines.push(`Evidence: ${sf.detail}`)
     lines.push(`Empirical record: ${measuredStr}`)
     lines.push(verdictStr)
@@ -591,6 +593,11 @@ ${(() => {
   }
   if (fires.length) {
     lines.push(`Today's fires (${fires.length}): ${fires.slice(-8).map((f: any) => `${f.timeET} ${f.name} ${f.direction}${f.verdict ? ` [${f.verdict}]` : ''}${f.measured !== null && f.measured !== undefined ? ` ${f.measured}%` : ''}`).join(' | ')}`)
+  }
+  const sw = (input as any).swingAlert
+  if (sw) {
+    const swc = sw.contract ? ` | recommended: SPX ${sw.contract.strike}${sw.contract.type === 'CALL' ? 'C' : 'P'} exp ${sw.contract.expiryLabel} (~${sw.contract.dte} DTE)` : ''
+    lines.push(`◈ ACTIVE SWING ALERT (multi-day, separate from intraday): ${sw.name} — ${sw.direction} | basis: ${sw.basis} | entry ${sw.entry?.toFixed?.(0)} | T1 ${sw.t1?.toFixed?.(0)} | T2 ${sw.t2?.toFixed?.(0)} | stop ${sw.stop?.toFixed?.(0)}${swc}. This is a structure-based swing idea, NOT an intraday setup — different sizing, different timeframe, held days not minutes.`)
   }
   lines.push('When the trader asks about "the setup" or "the signal", this section is what fired — mechanical detection with measured probabilities is the primary engine. Cite the measured hit rate and the risk-officer verdict. The AI SIGNAL section below is the advisory/comparison view.')
   return lines.join('\n')

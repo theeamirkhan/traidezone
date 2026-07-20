@@ -63,6 +63,8 @@ export async function GET(req: NextRequest) {
     const isPending = row.outcome === 'PENDING'
     const isScratch = !isWin && !isLoss && !isPending
 
+    if (ctx.engine === 'swing') continue   // multi-day swings: separate grading, not part of this experiment
+
     if (ctx.engine !== 'setup') {
       // Comparison arm: the LLM auto-signal (engine:'llm' or legacy unstamped)
       if (row.signal === 'LONG' || row.signal === 'SHORT') {

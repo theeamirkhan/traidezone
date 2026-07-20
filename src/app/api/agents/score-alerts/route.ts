@@ -150,6 +150,7 @@ export async function GET(req: NextRequest) {
     .from('trade_alerts')
     .select('*')
     .eq('outcome', 'PENDING')
+    .not('context_snapshot', 'ilike', '%"engine":"swing"%')   // swings are multi-day — intraday grader must not touch them
     .order('logged_at', { ascending: true })
     .limit(100)
 

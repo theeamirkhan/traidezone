@@ -188,6 +188,7 @@ export interface SetupFireDisplay {
   entrySpx: number
   predictedT1: number
   predictedStop: number
+  contract?: { type: 'CALL' | 'PUT'; strike: number; expiryLabel: string } | null
   measured: { hitRate: number | null; n: number } | null
   overlay: { verdict?: string; aiConfidence?: number; reasoning?: string } | null
   sizing?: string
@@ -199,8 +200,9 @@ export function FocusPanel(props: {
   inputs: FocusInputs; C: any; font: string; fontDisplay: string
   onGetSignal?: () => void; signalLoading?: boolean
   setupFire?: SetupFireDisplay | null; onDismissSetup?: () => void
+  swingAlert?: any | null; onDismissSwing?: () => void
 }) {
-  const { inputs, font, fontDisplay, onGetSignal, signalLoading, setupFire, onDismissSetup } = props
+  const { inputs, font, fontDisplay, onGetSignal, signalLoading, setupFire, onDismissSetup, swingAlert, onDismissSwing } = props
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem('tz-focus-collapsed') === '1' } catch { return false }
   })
@@ -262,10 +264,44 @@ export function FocusPanel(props: {
               — {measuredLine} — <span style={{ color: verdict ? verdictColor : P.muted, fontWeight: 700 }}>{aiLine}</span>
               <span style={{ color: P.muted }}>
                 {'  '}· entry {setupFire.entrySpx.toFixed(0)} · T1 {setupFire.predictedT1.toFixed(0)} · stop {setupFire.predictedStop.toFixed(0)}
+                {setupFire.contract ? <> · <span style={{ color: P.text, fontWeight: 700 }}>{setupFire.contract.strike}{setupFire.contract.type === 'CALL' ? 'C' : 'P'} {setupFire.contract.expiryLabel}</span></> : null}
               </span>
             </span>
             {onDismissSetup && (
               <button onClick={onDismissSetup} title="Dismiss" style={{
+                background: 'rgba(255,255,255,0.05)', border: `1px solid ${P.line}`, borderRadius: 5,
+                color: P.soft, cursor: 'pointer', fontSize: 11, padding: '3px 8px', flexShrink: 0, fontFamily: font,
+              }}>✕</button>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ── SWING STRUCTURE card (multi-day, violet — distinct from intraday) ── */}
+      {swingAlert && (() => {
+        const dirColor = swingAlert.direction === 'LONG' ? P.green : P.red
+        const violet = '#7c6aff'
+        const c = swingAlert.contract
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+            background: 'rgba(124,106,255,0.07)', borderBottom: `1px solid ${P.line}`,
+            borderLeft: `3px solid ${violet}`, margin: '-1px 0 0 -3px',
+          }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: 1.2, fontFamily: fontDisplay,
+              color: '#0a0e1a', background: violet, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+            }}>◈ SWING · <span style={{ color: swingAlert.direction === 'LONG' ? '#043d24' : '#4a0d1a' }}>{swingAlert.direction}</span></span>
+            <span style={{ fontSize: 12, color: P.text, fontWeight: 700, flexShrink: 0 }}>{swingAlert.name}</span>
+            <span style={{ fontSize: 11.5, color: P.soft, flex: 1, minWidth: 0 }}>
+              {c ? <span style={{ color: P.text, fontWeight: 700 }}>{c.strike}{c.type === 'CALL' ? 'C' : 'P'} exp {c.expiryLabel}</span> : null}
+              <span style={{ color: P.muted }}>
+                {'  '}· entry {swingAlert.entry?.toFixed(0)} · T1 {swingAlert.t1?.toFixed(0)} · T2 {swingAlert.t2?.toFixed(0)} · stop {swingAlert.stop?.toFixed(0)}
+              </span>
+              {'  '}<span style={{ color: dirColor, fontWeight: 700 }}>multi-day</span>
+            </span>
+            {onDismissSwing && (
+              <button onClick={onDismissSwing} title="Dismiss swing alert" style={{
                 background: 'rgba(255,255,255,0.05)', border: `1px solid ${P.line}`, borderRadius: 5,
                 color: P.soft, cursor: 'pointer', fontSize: 11, padding: '3px 8px', flexShrink: 0, fontFamily: font,
               }}>✕</button>

@@ -4,7 +4,7 @@ import { TakeTradeModal, CloseTradeModal, ExitPromptModal, OpenPositionsStrip } 
 import { ShadowValidationStream } from './ShadowValidationStream'
 import { TriggerManager } from './TriggerManager'
 import { processTick, newAccumulator } from './lib/triggerEngine'
-import { processSetupTick, newSetupState, type SetupEngineState, type SetupFire } from './lib/setupEngine'
+import { processSetupTick, newSetupState, recommendDayContract, recommendSwingContract, detectSwingFromStructure, type SetupEngineState, type SetupFire } from './lib/setupEngine'
 import { SetupStatsCard } from './SetupStatsCard'
 import { FocusPanel } from './FocusPanel'
 import SettingsModal from './components/SettingsModal'
@@ -1778,6 +1778,60 @@ export default function CockpitPage() {
     const iv = setInterval(run, 5 * 60 * 1000)
     return () => { cancelled = true; clearTimeout(kick); clearInterval(iv) }
   }, [])
+  // ── Swing structure alerts (multi-day, from MTF crossovers) ─────────────
+  const [swingAlert, setSwingAlert] = useState<any | null>(null)
+  useEffect(() => {   // restore active swing alert (valid up to 5 days, until dismissed)
+    try {
+      const raw = JSON.parse(localStorage.getItem('tz-swing-alert') || 'null')
+      if (raw?.firedAt && Date.now() - raw.firedAt < 5 * 86400000) setSwingAlert(raw)
+    } catch {}
+  }, [])
+  useEffect(() => {
+    if (!mtfStructure) return
+    const sig = detectSwingFromStructure(mtfStructure)
+    if (!sig) return
+    let firedMap: Record<string, number> = {}
+    try { firedMap = JSON.parse(localStorage.getItem('tz-swing-fired') || '{}') } catch {}
+    if (firedMap[sig.id] && Date.now() - firedMap[sig.id] < 10 * 86400000) return   // same cross, already alerted
+    firedMap[sig.id] = Date.now()
+    try { localStorage.setItem('tz-swing-fired', JSON.stringify(firedMap)) } catch {}
+
+    const spot = mtfStructure?.spx?.m5?.price || currentPrice
+    if (!spot) return
+    const contract = recommendSwingContract(sig.direction, spot)
+    const entry = spot
+    const t1 = sig.direction === 'LONG' ? entry * 1.01 : entry * 0.99
+    const t2 = sig.direction === 'LONG' ? entry * 1.02 : entry * 0.98
+    const stop = sig.stopAnchor != null
+      ? (sig.direction === 'LONG' ? sig.stopAnchor * 0.997 : sig.stopAnchor * 1.003)
+      : (sig.direction === 'LONG' ? entry * 0.988 : entry * 1.012)
+    const alert = { ...sig, contract, entry, t1, t2, stop, firedAt: Date.now() }
+    setSwingAlert(alert)
+    try { localStorage.setItem('tz-swing-alert', JSON.stringify(alert)) } catch {}
+    try { speak(`Swing structure alert. ${sig.name}. ${sig.direction === 'LONG' ? 'Long' : 'Short'} bias for a multi-day move. Check the violet card.`) } catch {}
+
+    // Record it (engine:'swing' — excluded from intraday grading and the engine experiment)
+    fetch('/api/trade-alerts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signal: sig.direction,
+        entryZone: { low: entry, high: entry },
+        stopLevel: stop, target1: t1, target2: t2,
+        no_entry_zone: false, auto_fired: true, currentPrice: entry,
+        vwap: null, ema200: null, vix: vixPrice ?? null,
+        confidence: 55, moveSize: Math.round(entry * 0.01),
+        context_snapshot: JSON.stringify({
+          auto: true, engine: 'swing',
+          swingId: sig.id, name: sig.name, basis: sig.basis,
+          recommendedContract: contract,
+          gexRegime: gexData?.regime ?? null,
+        }),
+      }),
+    }).then(r => r.json())
+      .then(d => { if (d?.error) console.error('[Swing] INSERT FAILED:', JSON.stringify(d)); else console.log('[Swing] logged:', sig.id) })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mtfStructure])
   const [zeroDTESkew, setZeroDTESkew] = useState<any>(null)
   const [tradePatterns, setTradePatterns] = useState<any>(null)
   const [macroRegime, setMacroRegime] = useState<any>(null)
@@ -2581,12 +2635,13 @@ export default function CockpitPage() {
     const entrySpx = currentPrice
     const predictedT1   = fire.direction === 'LONG' ? entrySpx + 7 : entrySpx - 7
     const predictedStop = fire.direction === 'LONG' ? entrySpx - 8 : entrySpx + 8
+    const dayContract   = recommendDayContract(fire.direction, entrySpx)
     const gexRegimeNow = (gexData?.regime === 'positive' || gexData?.regime === 'negative') ? gexData.regime : null
 
     // Show the fire in the Focus Panel instantly (measured/AI fill in async)
     setSetupFireDisplay({
       name: fire.name, direction: fire.direction, detail: fire.detail,
-      level: fire.level, entrySpx, predictedT1, predictedStop,
+      level: fire.level, entrySpx, predictedT1, predictedStop, contract: dayContract,
       measured: null, overlay: null, pending: true, firedAt: fire.firedAt,
     })
     // Session fires strip: append as pending, resolve below
@@ -2693,6 +2748,7 @@ export default function CockpitPage() {
               setupId: fire.setupId, setupName: fire.name,
               level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
               gexRegime: gexRegimeNow, dayType: dayTypeForecast?.dayType ?? null,
+              recommendedContract: dayContract,
               measuredHitRate: measured?.hitRate ?? null, measuredN: measured?.n ?? 0,
               aiVerdict: overlay?.verdict ?? null, aiConfidence: overlay?.aiConfidence ?? null,
               agreement: overlay?.agreement ?? null,
@@ -2717,7 +2773,7 @@ export default function CockpitPage() {
 
       setSetupFireDisplay({
         name: fire.name, direction: fire.direction, detail: fire.detail,
-        level: fire.level, entrySpx, predictedT1, predictedStop,
+        level: fire.level, entrySpx, predictedT1, predictedStop, contract: dayContract,
         measured, overlay, sizing, pending: false, firedAt: fire.firedAt,
       })
       setSessionFires(prev => {
@@ -5101,6 +5157,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
       setupFire:        setupFireDisplay,
       sessionSetupFires: sessionFires,
       mtfStructure,
+      swingAlert,
     })
     const context = companionCtx.systemPrompt
     try {
@@ -5273,6 +5330,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         signalLoading={aiLoading}
         setupFire={setupFireDisplay}
         onDismissSetup={() => setSetupFireDisplay(null)}
+        swingAlert={swingAlert}
+        onDismissSwing={() => { setSwingAlert(null); try { localStorage.removeItem('tz-swing-alert') } catch {} }}
         onGetSignal={() => {
           // Trigger the FULL signal pipeline (quality gate + alert logging)
           // via the main button — zero duplicated logic. Switch to the

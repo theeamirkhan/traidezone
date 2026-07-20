@@ -395,3 +395,89 @@ export function processSetupTick(
 
   return { state: s, fires }
 }
+
+// ── Contract recommendation (deterministic, ITM per trader's system) ────
+export interface ContractRec {
+  type: 'CALL' | 'PUT'
+  strike: number
+  expiry: string        // ISO date
+  expiryLabel: string   // '0DTE' or 'Aug 14'
+  dte: number
+}
+
+/** Day trade: 0DTE, ~15pts ITM, strikes in 5s (≈0.60-0.65 delta at entry). */
+export function recommendDayContract(direction: 'LONG' | 'SHORT', spot: number): ContractRec {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+  if (direction === 'LONG') {
+    return { type: 'CALL', strike: Math.floor((spot - 15) / 5) * 5, expiry: today, expiryLabel: '0DTE', dte: 0 }
+  }
+  return { type: 'PUT', strike: Math.ceil((spot + 15) / 5) * 5, expiry: today, expiryLabel: '0DTE', dte: 0 }
+}
+
+/** Swing: ~50pts ITM (≈0.70 delta), strikes in 25s, first Friday ≥21 days out. */
+export function recommendSwingContract(direction: 'LONG' | 'SHORT', spot: number): ContractRec {
+  const d = new Date()
+  d.setDate(d.getDate() + 21)
+  while (d.getDay() !== 5) d.setDate(d.getDate() + 1)   // roll forward to Friday
+  const expiry = d.toISOString().split('T')[0]
+  const expiryLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const dte = Math.round((d.getTime() - Date.now()) / 86400000)
+  if (direction === 'LONG') {
+    return { type: 'CALL', strike: Math.floor((spot - 50) / 25) * 25, expiry, expiryLabel, dte }
+  }
+  return { type: 'PUT', strike: Math.ceil((spot + 50) / 25) * 25, expiry, expiryLabel, dte }
+}
+
+// ── Swing structure detector (multi-day, from MTF crossovers) ───────────
+// Fires on fresh daily/weekly MA crossovers that AGREE with overall MA
+// structure. Distinct from intraday setups: different card, different
+// contract profile, excluded from the intraday grader.
+export interface SwingSignal {
+  id: string
+  name: string
+  direction: 'LONG' | 'SHORT'
+  basis: string
+  stopAnchor: number | null   // slower MA of the crossed pair
+  barsAgo: number
+}
+
+export function detectSwingFromStructure(mtf: any): SwingSignal | null {
+  if (!mtf?.spx?.d1) return null
+  const d1 = mtf.spx.d1, w1 = mtf.spx.w1
+  const p = mtf.spx.m5?.price ?? d1.price
+  if (!p) return null
+
+  // Structure agreement: fraction of tracked MAs below price
+  const mas = [
+    mtf.spx.m5?.ema9, mtf.spx.m5?.ema200, mtf.spx.m5?.sma200,
+    mtf.spx.h1?.ema9, mtf.spx.h1?.ema200, mtf.spx.h1?.sma200,
+    d1.ema9, d1.ema20, d1.ema50, d1.ema200, d1.sma200,
+    w1?.ema9, w1?.ema20, w1?.ema50, w1?.ema200, w1?.sma200,
+  ].filter((v: any) => v != null) as number[]
+  if (!mas.length) return null
+  const aboveFrac = mas.filter(v => p > v).length / mas.length
+
+  // Priority order: major crosses first, then faster ones
+  const candidates: Array<{ id: string; name: string; cross: any; maxAge: number; slower: number | null; weekly?: boolean }> = [
+    { id: 'd_50x200', name: 'Daily 50/200 EMA', cross: d1.crosses?.e50x200, maxAge: 3, slower: d1.ema200 },
+    { id: 'w_9x20',   name: 'Weekly 9/20 EMA',  cross: w1?.crosses?.e9x20,  maxAge: 1, slower: w1?.ema20 ?? null, weekly: true },
+    { id: 'd_20x50',  name: 'Daily 20/50 EMA',  cross: d1.crosses?.e20x50,  maxAge: 2, slower: d1.ema50 },
+    { id: 'd_9x20',   name: 'Daily 9/20 EMA',   cross: d1.crosses?.e9x20,   maxAge: 2, slower: d1.ema20 },
+  ]
+  for (const c of candidates) {
+    if (!c.cross || c.cross.barsAgo > c.maxAge) continue
+    const direction: 'LONG' | 'SHORT' = c.cross.dir === 'GOLDEN' ? 'LONG' : 'SHORT'
+    // Structure must agree: golden needs bull-leaning MAs, death needs bear-leaning
+    if (direction === 'LONG' && aboveFrac < 0.5) continue
+    if (direction === 'SHORT' && aboveFrac > 0.5) continue
+    return {
+      id: `swing:${c.id}:${c.cross.dir}`,
+      name: `${c.name} ${c.cross.dir === 'GOLDEN' ? 'golden' : 'death'} cross`,
+      direction,
+      basis: `${c.name} ${c.cross.dir} cross ${c.cross.barsAgo === 0 ? 'this bar' : c.cross.barsAgo + (c.weekly ? ' weeks' : ' days') + ' ago'}; structure ${Math.round(aboveFrac * 100)}% of MAs ${direction === 'LONG' ? 'below' : 'above'} price`,
+      stopAnchor: c.slower,
+      barsAgo: c.cross.barsAgo,
+    }
+  }
+  return null
+}
