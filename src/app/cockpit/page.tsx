@@ -2274,6 +2274,10 @@ export default function CockpitPage() {
     const fireGrading = async () => {
       if (cancelled) return
       try { await fetch('/api/agents/score-shadow', { method: 'POST' }) } catch {}
+      // CRITICAL (July 20 lesson): trade_alerts grading was ONLY wired to the
+      // dead Vercel cron — 13 signals sat PENDING all day. Nudge it from the
+      // client like everything else. GET route; no-ops outside 9am-5pm ET.
+      try { await fetch('/api/agents/score-alerts') } catch {}
     }
     const gradeKickoff = setTimeout(fireGrading, 45000)  // 45s after load
     const gradeIv = setInterval(fireGrading, 5 * 60 * 1000)
@@ -10161,7 +10165,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                   {modelValidation.message || 'Validation will activate once signals are scored.'}
                 </div>
                 <div style={{ fontSize: 11.5, color: '#6b7a9a', marginTop: 6, fontStyle: 'italic' as const }}>
-                  Every signal is auto-scored vs actual SPX action by the score-alerts cron (runs every 30min during market hours). Calibration metrics appear after ~10 scored signals.
+                  Every signal is auto-scored vs actual SPX action by the score-alerts grader (nudged by the cockpit every ~5min during market hours — keep a tab open). Calibration metrics appear after ~10 scored signals.
                 </div>
               </div>
             )}

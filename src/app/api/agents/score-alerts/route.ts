@@ -150,7 +150,6 @@ export async function GET(req: NextRequest) {
     .from('trade_alerts')
     .select('*')
     .eq('outcome', 'PENDING')
-    .not('context_snapshot', 'ilike', '%"engine":"swing"%')   // swings are multi-day — intraday grader must not touch them
     .order('logged_at', { ascending: true })
     .limit(100)
 
@@ -163,6 +162,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ scored: 0, message: 'No pending alerts' })
   }
 
+  // Swings are multi-day — the intraday grader must not touch them.
+  // Filtered in JS (not SQL NOT ILIKE) so NULL context_snapshot rows still grade.
+  const gradable = pending.filter(r => !(r.context_snapshot || '').includes('"engine":"swing"'))
+
   // Get current SPX price (only during market hours — skip outside)
   let currentPrice: number | null = null
   if (!isWeekend && isMarketHours) {
@@ -171,7 +174,7 @@ export async function GET(req: NextRequest) {
 
   const results: any[] = []
 
-  for (const alert of pending) {
+  for (const alert of gradable) {
     const ageMs = Date.now() - new Date(alert.logged_at).getTime()
     const ageMin = ageMs / 60000
 
@@ -226,7 +229,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     scored:        results.length,
-    pending:       pending.length,
+    pending:       gradable.length,
     currentPrice,
     marketHours:   !isWeekend && isMarketHours,
     results,
