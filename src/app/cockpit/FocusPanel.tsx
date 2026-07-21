@@ -260,6 +260,9 @@ export function FocusPanel(props: {
             <span style={{ fontSize: 12, color: P.text, fontWeight: 700, flexShrink: 0 }}>
               {setupFire.name}
             </span>
+            <span style={{ fontSize: 10, color: P.muted, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+              {new Date(setupFire.firedAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET
+            </span>
             <span style={{ fontSize: 11.5, color: P.soft, flex: 1, minWidth: 0 }}>
               — {measuredLine} — <span style={{ color: verdict ? verdictColor : P.muted, fontWeight: 700 }}>{aiLine}</span>
               <span style={{ color: P.muted }}>
@@ -293,6 +296,9 @@ export function FocusPanel(props: {
               color: '#0a0e1a', background: violet, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
             }}>◈ SWING · <span style={{ color: swingAlert.direction === 'LONG' ? '#043d24' : '#4a0d1a' }}>{swingAlert.direction}</span></span>
             <span style={{ fontSize: 12, color: P.text, fontWeight: 700, flexShrink: 0 }}>{swingAlert.name}</span>
+            <span style={{ fontSize: 10, color: P.muted, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+              {swingAlert.firedAt ? new Date(swingAlert.firedAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET' : ''}
+            </span>
             <span style={{ fontSize: 11.5, color: P.soft, flex: 1, minWidth: 0 }}>
               {c ? <span style={{ color: P.text, fontWeight: 700 }}>{c.strike}{c.type === 'CALL' ? 'C' : 'P'} exp {c.expiryLabel}</span> : null}
               <span style={{ color: P.muted }}>

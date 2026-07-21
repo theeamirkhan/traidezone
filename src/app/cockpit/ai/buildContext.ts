@@ -584,7 +584,8 @@ ${(() => {
       ? `Risk-officer verdict: ${sf.overlay.verdict}${sf.sizing ? ` (${sf.sizing})` : ''}${sf.overlay.aiConfidence != null ? `, AI conviction ${sf.overlay.aiConfidence}%` : ''}${sf.overlay.reasoning ? ` — ${sf.overlay.reasoning}` : ''}`
       : 'Risk-officer verdict pending'
     const ct = sf.contract ? ` | recommended contract: SPX ${sf.contract.strike}${sf.contract.type === 'CALL' ? 'C' : 'P'} ${sf.contract.expiryLabel}` : ''
-    lines.push(`⚡ ACTIVE FIRE: ${sf.name} — ${sf.direction} | entry ${sf.entrySpx?.toFixed?.(0) ?? sf.entrySpx} | T1 ${sf.predictedT1?.toFixed?.(0) ?? sf.predictedT1} | stop ${sf.predictedStop?.toFixed?.(0) ?? sf.predictedStop}${ct}`)
+    const ft = sf.firedAt ? ` at ${new Date(sf.firedAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : ''
+    lines.push(`⚡ ACTIVE FIRE${ft}: ${sf.name} — ${sf.direction} | entry ${sf.entrySpx?.toFixed?.(0) ?? sf.entrySpx} | T1 ${sf.predictedT1?.toFixed?.(0) ?? sf.predictedT1} | stop ${sf.predictedStop?.toFixed?.(0) ?? sf.predictedStop}${ct}`)
     lines.push(`Evidence: ${sf.detail}`)
     lines.push(`Empirical record: ${measuredStr}`)
     lines.push(verdictStr)
