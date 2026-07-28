@@ -2660,12 +2660,13 @@ export default function CockpitPage() {
     })
 
     ;(async () => {
+      try {
       // 1. Measured probability, scoped to this setup + current GEX regime
       let measured: { hitRate: number | null; n: number } | null = null
       try {
         const q = new URLSearchParams({ setupId: fire.setupId, days: '90' })
         if (gexRegimeNow) q.set('gexRegime', gexRegimeNow)
-        const st = await fetch(`/api/setups/stats?${q.toString()}`).then(r => r.json())
+        const st = await fetch(`/api/setups/stats?${q.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json())
         if (st?.ok) measured = { hitRate: st.hitRate ?? null, n: st.n ?? 0 }
       } catch {}
 
@@ -2673,7 +2674,7 @@ export default function CockpitPage() {
       let regimeMemoryText: string | null = null
       try {
         const memRes = await fetch('/api/regime-memory', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
           body: JSON.stringify({
             components: {
               sessionWindow: sessionMinutes < 60 ? 'open_drive' : sessionMinutes < 300 ? 'mid_session' : 'power_hour',
@@ -2695,7 +2696,7 @@ export default function CockpitPage() {
       let overlay: any = null
       try {
         const res = await fetch('/api/triggers/overlay', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000),
           body: JSON.stringify({
             trigger: {
               name:            `[SETUP ENGINE] ${fire.name}`,
@@ -2729,9 +2730,10 @@ export default function CockpitPage() {
 
       // 4. Log to trade_alerts — the treatment arm of the engine experiment.
       //    Graded automatically by score-alerts (strict T1-before-stop).
+      let logOk = false
       try {
         await fetch('/api/trade-alerts', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
           body: JSON.stringify({
             signal:        fire.direction,
             entryZone:     { low: entrySpx, high: entrySpx },
@@ -2759,8 +2761,8 @@ export default function CockpitPage() {
             }),
           }),
         }).then(r => r.json())
-          .then(d => { if (d?.error) console.error('[SetupEngine] INSERT FAILED:', JSON.stringify(d)); else console.log('[SetupEngine] logged:', fire.setupId, fire.direction) })
-      } catch {}
+          .then(d => { if (d?.error) { console.error('[SetupEngine] INSERT FAILED:', JSON.stringify(d)) } else { logOk = true; console.log('[SetupEngine] logged:', fire.setupId, fire.direction) } })
+      } catch (e) { console.error('[SetupEngine] log request failed:', e) }
 
       // 5. Voice + Focus Panel update with the full picture
       const verdict = overlay?.verdict || 'CAUTION'
@@ -2778,7 +2780,7 @@ export default function CockpitPage() {
       setSetupFireDisplay({
         name: fire.name, direction: fire.direction, detail: fire.detail,
         level: fire.level, entrySpx, predictedT1, predictedStop, contract: dayContract,
-        measured, overlay, sizing, pending: false, firedAt: fire.firedAt,
+        measured, overlay, sizing, pending: false, firedAt: fire.firedAt, logFailed: !logOk,
       })
       setSessionFires(prev => {
         const next = prev.map(f => f.firedAt === fire.firedAt
@@ -2787,8 +2789,12 @@ export default function CockpitPage() {
         try { localStorage.setItem('tz-session-fires', JSON.stringify({ date: sessionDate, fires: next })) } catch {}
         return next
       })
-      setupFireBusyRef.current = false
-    })().catch(() => { setupFireBusyRef.current = false })
+      } finally {
+        // CRITICAL (July 23 lesson): the busy lock MUST release no matter what —
+        // a single hung request here suppressed every subsequent fire for a day.
+        setupFireBusyRef.current = false
+      }
+    })().catch(e => { console.error('[SetupEngine] pipeline error:', e); setupFireBusyRef.current = false })
   }, [currentPrice])
 
   // ── Day Type Forecaster — auto-fires at 10am ET when OR completes ───────

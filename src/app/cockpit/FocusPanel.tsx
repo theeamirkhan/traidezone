@@ -194,6 +194,7 @@ export interface SetupFireDisplay {
   sizing?: string
   pending: boolean
   firedAt: number
+  logFailed?: boolean
 }
 
 export function FocusPanel(props: {
@@ -270,6 +271,12 @@ export function FocusPanel(props: {
                 {setupFire.contract ? <> · <span style={{ color: P.text, fontWeight: 700 }}>{setupFire.contract.strike}{setupFire.contract.type === 'CALL' ? 'C' : 'P'} {setupFire.contract.expiryLabel}</span></> : null}
               </span>
             </span>
+            {setupFire.logFailed && (
+              <span title="This fire was NOT saved to trade_alerts — it will not be graded" style={{
+                fontSize: 9, fontWeight: 800, letterSpacing: 1, color: '#ff4d6d',
+                border: '1px solid rgba(255,77,109,0.5)', borderRadius: 4, padding: '2px 6px', flexShrink: 0,
+              }}>LOG FAILED</span>
+            )}
             {onDismissSetup && (
               <button onClick={onDismissSetup} title="Dismiss" style={{
                 background: 'rgba(255,255,255,0.05)', border: `1px solid ${P.line}`, borderRadius: 5,
