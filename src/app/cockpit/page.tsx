@@ -6,6 +6,7 @@ import { TriggerManager } from './TriggerManager'
 import { processTick, newAccumulator } from './lib/triggerEngine'
 import { processSetupTick, newSetupState, recommendDayContract, recommendSwingContract, detectSwingFromStructure, type SetupEngineState, type SetupFire } from './lib/setupEngine'
 import { SetupStatsCard } from './SetupStatsCard'
+import { SessionLog } from './SessionLog'
 import { FocusPanel } from './FocusPanel'
 import SettingsModal from './components/SettingsModal'
 import AgentStatus from './components/AgentStatus'
@@ -5382,33 +5383,8 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
         }}
       />
 
-      {/* ── SESSION FIRES STRIP — today's setup-engine fires, persistent ── */}
-      {sessionFires.length > 0 && (
-        <div style={{
-          margin: '0 10px 4px', padding: '5px 12px',
-          background: 'rgba(8, 12, 24, 0.55)', border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: 8, fontFamily: font,
-          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const,
-        }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: '#7d8db0', fontFamily: fontDisplay, flexShrink: 0 }}>
-            TODAY&apos;S SETUPS ({sessionFires.length})
-          </span>
-          {sessionFires.slice(-6).map((f: any) => (
-            <span key={f.firedAt} style={{ fontSize: 10.5, color: '#b0c4de', whiteSpace: 'nowrap' as const }}>
-              <span style={{ color: '#7d8db0' }}>{f.timeET}</span>
-              {' '}<span style={{ color: '#e8f0ff', fontWeight: 600 }}>{f.name}</span>
-              {' '}<span style={{ color: f.direction === 'LONG' ? '#00ff88' : '#ff4d6d', fontWeight: 700 }}>{f.direction}</span>
-              {' · '}
-              <span style={{
-                fontWeight: 700,
-                color: f.verdict === 'CONFIRM' ? '#00ff88' : f.verdict === 'CONFLICT' ? '#ff4d6d' : f.verdict === 'CAUTION' ? '#ffb700' : '#7d8db0',
-              }}>{f.verdict || 'pending'}</span>
-              {f.measured !== null && f.measured !== undefined ? <span style={{ color: '#7d8db0' }}> · {f.measured}%</span> : null}
-            </span>
-          ))}
-          {sessionFires.length > 6 && <span style={{ fontSize: 10, color: '#7d8db0' }}>+{sessionFires.length - 6} earlier</span>}
-        </div>
-      )}
+      {/* ── LIVE SESSION LOG — all engines, outcomes update as grader resolves ── */}
+      <SessionLog font={font} fontDisplay={fontDisplay} />
 
       {/* Always-mounted CSV import input — available on all tabs */}
       <input ref={csvInputRef} type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
