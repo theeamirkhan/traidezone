@@ -18,7 +18,7 @@
  *   8. Day-of-week / calendar (OPEX = consolidation, etc.)
  */
 
-import type { SetupId } from './setupEvaluator'
+import type { SetupId } from './setupEngine'
 
 export type DayType = 'TREND' | 'CONSOLIDATION' | 'INDETERMINATE'
 
@@ -303,18 +303,19 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
     .filter(s => s.status === 'NEUTRAL')
     .reduce((sum, s) => sum + s.weight, 0)
 
-  const totalWeight = trendScore + rangeScore + neutralScore
-
-  // Base probability: split based on weighted votes
-  let trendProb = totalWeight > 0 ? (trendScore / totalWeight) * 100 : 33
-  let rangeProb = totalWeight > 0 ? (rangeScore / totalWeight) * 100 : 33
-  let indeterminateProb = totalWeight > 0 ? (neutralScore / totalWeight) * 100 : 34
-
-  // Normalize to 100
-  const sum = trendProb + rangeProb + indeterminateProb
-  trendProb = Math.round((trendProb / sum) * 100)
-  rangeProb = Math.round((rangeProb / sum) * 100)
-  indeterminateProb = 100 - trendProb - rangeProb
+  // v9 (July 30): NEUTRAL votes no longer dilute the call. Only decisive
+  // evidence sets the trend/range split — neutral weight is reported as
+  // data coverage instead. Previously any mixed/partial-data morning
+  // mathematically converged to INDETERMINATE.
+  const decisiveWeight = trendScore + rangeScore
+  let trendProb: number, rangeProb: number, indeterminateProb: number
+  if (decisiveWeight === 0) {
+    trendProb = 33; rangeProb = 33; indeterminateProb = 34
+  } else {
+    trendProb = Math.round((trendScore / decisiveWeight) * 100)
+    rangeProb = 100 - trendProb
+    indeterminateProb = 0
+  }
 
   // Cap raw confidence — even strongest signal stack tops at ~75%
   if (trendProb > 75) {
@@ -331,9 +332,12 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
   }
 
   // ── Determine day type ───────────────────────────────────────────────────
+  // v9: spread lowered 15→8; INDETERMINATE now requires genuinely split
+  // evidence or insufficient decisive weight (<4), not just missing data.
   let dayType: DayType
-  if (trendProb >= rangeProb + 15) dayType = 'TREND'
-  else if (rangeProb >= trendProb + 15) dayType = 'CONSOLIDATION'
+  if (decisiveWeight < 4) dayType = 'INDETERMINATE'
+  else if (trendProb >= rangeProb + 8) dayType = 'TREND'
+  else if (rangeProb >= trendProb + 8) dayType = 'CONSOLIDATION'
   else dayType = 'INDETERMINATE'
 
   // ── Directional lean (only if TREND) ─────────────────────────────────────
@@ -366,20 +370,23 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
   // ─────────────────────────────────────────────────────────────────────────
   // Recommend specific setups based on day type
   // ─────────────────────────────────────────────────────────────────────────
+  // v9: recommendations now speak the LIVE setup engine's dialect —
+  // these IDs match setupEngine.ts detectors, so the forecast genuinely
+  // biases the primary engine. legacyId preserves the old evaluator link.
   const TREND_SETUPS = [
-    { id: 'orb_breakout_long'    as SetupId, name: 'Opening Range Breakout',  direction: 'LONG'  as const, baseProb: 0 },
-    { id: 'orb_breakdown_short'  as SetupId, name: 'Opening Range Breakdown', direction: 'SHORT' as const, baseProb: 0 },
-    { id: 'pdh_breakout'         as SetupId, name: 'Prior Day High Breakout', direction: 'LONG'  as const, baseProb: 0 },
-    { id: 'pdl_breakdown'        as SetupId, name: 'Prior Day Low Breakdown', direction: 'SHORT' as const, baseProb: 0 },
-    { id: 'trendline_break_long' as SetupId, name: 'Trend Line Break (LONG)', direction: 'LONG'  as const, baseProb: 0 },
-    { id: 'trendline_break_short'as SetupId, name: 'Trend Line Break (SHORT)',direction: 'SHORT' as const, baseProb: 0 },
+    { id: 'orb_hold_up'     as SetupId, legacyId: 'orb_breakout_long',   name: 'ORB break + hold (up)',    direction: 'LONG'  as const },
+    { id: 'orb_hold_down'   as SetupId, legacyId: 'orb_breakdown_short', name: 'ORB break + hold (down)',  direction: 'SHORT' as const },
+    { id: 'flip_cross_up'   as SetupId, legacyId: 'pdh_breakout',        name: 'Gamma-flip cross (up)',    direction: 'LONG'  as const },
+    { id: 'flip_cross_down' as SetupId, legacyId: 'pdl_breakdown',       name: 'Gamma-flip cross (down)',  direction: 'SHORT' as const },
+    { id: 'vwap_reclaim'    as SetupId, legacyId: 'trendline_break_long',  name: 'VWAP reclaim (continuation)', direction: 'LONG'  as const },
+    { id: 'vwap_fail'       as SetupId, legacyId: 'trendline_break_short', name: 'VWAP fail (continuation)',    direction: 'SHORT' as const },
   ]
 
   const RANGE_SETUPS = [
-    { id: 'vwap_retest_long'  as SetupId, name: 'VWAP Retest Bounce',         direction: 'LONG'  as const, baseProb: 0 },
-    { id: 'vwap_retest_short' as SetupId, name: 'VWAP Retest Reject',         direction: 'SHORT' as const, baseProb: 0 },
-    { id: 'double_top'        as SetupId, name: 'Double Top (Supply Zone)',   direction: 'SHORT' as const, baseProb: 0 },
-    { id: 'double_bottom'     as SetupId, name: 'Double Bottom (Demand Zone)',direction: 'LONG'  as const, baseProb: 0 },
+    { id: 'level_rejection'   as SetupId, legacyId: 'double_top',        name: 'Key-level rejection (short side)', direction: 'SHORT' as const },
+    { id: 'level_rejection'   as SetupId, legacyId: 'double_bottom',     name: 'Key-level rejection (long side)',  direction: 'LONG'  as const },
+    { id: 'pdh_sweep_reverse' as SetupId, legacyId: 'vwap_retest_short', name: 'PDH sweep + reverse',              direction: 'SHORT' as const },
+    { id: 'pdl_sweep_reverse' as SetupId, legacyId: 'vwap_retest_long',  name: 'PDL sweep + reverse',              direction: 'LONG'  as const },
   ]
 
   // Build recommended setups list
@@ -404,11 +411,12 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
         if (s.direction === directionalLean) prob += 5
         recommendedSetups.push({
           id: s.id,
+          legacyId: (s as any).legacyId,
           name: s.name,
           direction: s.direction,
           probability: Math.min(75, prob),
-          rationale: `Trend day favors breakouts${directionalLean !== 'NEUTRAL' ? ` in ${directionalLean} direction` : ''}`,
-        })
+          rationale: `Trend day favors continuation${directionalLean !== 'NEUTRAL' ? ` in ${directionalLean} direction` : ''}`,
+        } as any)
       }
     })
     // Avoid mean-revert setups
@@ -427,11 +435,12 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
       else if (confidence === 'MEDIUM') prob += 5
       recommendedSetups.push({
         id: s.id,
+        legacyId: (s as any).legacyId,
         name: s.name,
         direction: s.direction,
         probability: Math.min(72, prob),
         rationale: 'Consolidation day favors mean-revert at key levels',
-      })
+      } as any)
     })
     // Avoid breakouts on consolidation days
     TREND_SETUPS.forEach(s => {
@@ -446,11 +455,12 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
     [...TREND_SETUPS, ...RANGE_SETUPS].forEach(s => {
       recommendedSetups.push({
         id: s.id,
+        legacyId: (s as any).legacyId,
         name: s.name,
         direction: s.direction,
         probability: 50,
         rationale: 'Day type unclear — wait for cleaner signals or use small size',
-      })
+      } as any)
     })
   }
 
@@ -481,11 +491,14 @@ export function forecastDayType(input: DayTypeInput): DayTypeForecast {
     ? `CONSOLIDATION DAY ${rangeProb}%`
     : `INDETERMINATE — mixed signals (${Math.max(trendProb, rangeProb)}% max)`
 
-  const reasoning = dayType === 'TREND'
+  const coverageNote = ` Evidence: ${decisiveWeight} decisive vs ${neutralScore} neutral weight.`
+  const reasoning = (dayType === 'TREND'
     ? `${signals.filter(s => s.status === 'SUPPORTS_TREND').length} of 8 signals support trending. Negative gamma + opening drive committed = chase moves, don't fade. Wider stops, trend continuation plays.`
     : dayType === 'CONSOLIDATION'
     ? `${signals.filter(s => s.status === 'SUPPORTS_RANGE').length} of 8 signals support range-bound. Positive gamma + lack of directional commitment = fade extremes, mean-revert to VWAP/POC.`
-    : 'Signals split — wait for cleaner picture by 10:30am or use small size and adapt.'
+    : decisiveWeight < 4
+    ? 'Insufficient decisive evidence — data feeds thin or genuinely mixed open.'
+    : 'Signals genuinely split — wait for cleaner picture by 10:30am or use small size and adapt.') + coverageNote
 
   return {
     dayType,

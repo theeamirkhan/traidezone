@@ -2272,9 +2272,28 @@ export default function CockpitPage() {
     // client too so predictions actually get graded at 30/60/90min.
     // Cheap call; endpoint no-ops if nothing is due. Offset from the
     // prediction fire so they don't hit at the same instant.
+    const fireDailyLearning = async () => {
+      // v9 (dead-cron closure): learn-from-outcomes / update-edge / stream-weights
+      // were only ever wired to Vercel crons — same silent-freeze failure as
+      // score-alerts. Nudge once per weekday after the close.
+      try {
+        const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+        const day = et.getDay()
+        if (day === 0 || day === 6) return
+        if (et.getHours() * 60 + et.getMinutes() < 16 * 60 + 10) return
+        const todayET = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+        if (localStorage.getItem('tz-daily-learn') === todayET) return
+        localStorage.setItem('tz-daily-learn', todayET)
+        try { await fetch('/api/agents/learn-from-outcomes', { method: 'POST', signal: AbortSignal.timeout(60000) }) } catch {}
+        try { await fetch('/api/agents/update-edge', { signal: AbortSignal.timeout(60000) }) } catch {}
+        try { await fetch('/api/agents/stream-weights', { signal: AbortSignal.timeout(60000) }) } catch {}
+        console.log('[DailyLearning] post-close agents nudged for', todayET)
+      } catch {}
+    }
     const fireGrading = async () => {
       if (cancelled) return
       try { await fetch('/api/agents/score-shadow', { method: 'POST' }) } catch {}
+      fireDailyLearning()
       // CRITICAL (July 20 lesson): trade_alerts grading was ONLY wired to the
       // dead Vercel cron — 13 signals sat PENDING all day. Nudge it from the
       // client like everything else. GET route; no-ops outside 9am-5pm ET.
@@ -2905,6 +2924,24 @@ export default function CockpitPage() {
       })
       setDayTypeForecast(forecast)
       if (!dayTypeFired && minutesSinceOpen >= 30) setDayTypeFired(true)
+      // v9: persist the LOCKED morning forecast (once per day at 10:45 ET) with
+      // per-signal votes — daily_recaps already stores predicted vs actual, this
+      // adds WHICH signals voted, so weights can be re-derived from accuracy.
+      if (minutesSinceOpen >= 75) {
+        const todayET = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+        try {
+          if (localStorage.getItem('tz-daytype-locked') !== todayET) {
+            localStorage.setItem('tz-daytype-locked', todayET)
+            fetch('/api/day-type/track', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              signal: AbortSignal.timeout(8000),
+              body: JSON.stringify({ forecast }),
+            }).then(r => r.json())
+              .then(d => { if (d?.needsMigration) console.warn('[DayType] tracking table missing — run migration_day_type_signal_log.sql') })
+              .catch(() => { try { localStorage.removeItem('tz-daytype-locked') } catch {} })
+          }
+        } catch {}
+      }
     } catch (e) {
       console.warn('[DayType] forecast failed:', e)
     }
@@ -6889,7 +6926,7 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                               // Was the trader's setup aligned with the day-type recommendation?
                               setupAlignsWithDayType: (() => {
                                 if (!setupEval || !dayTypeForecast) return null
-                                const rec = (dayTypeForecast.recommendedSetups || []).find((s: any) => s.id === setupEval.setup.id)
+                                const rec = (dayTypeForecast.recommendedSetups || []).find((s: any) => s.id === setupEval.setup.id || s.legacyId === setupEval.setup.id)
                                 return rec ? true : false
                               })(),
                             }) } catch(e) { return null } })(),
