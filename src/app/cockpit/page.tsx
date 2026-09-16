@@ -2272,6 +2272,18 @@ export default function CockpitPage() {
     // client too so predictions actually get graded at 30/60/90min.
     // Cheap call; endpoint no-ops if nothing is due. Offset from the
     // prediction fire so they don't hit at the same instant.
+    const shadowWatchdog = () => {
+      // v10: shadow died silently for 19 days (Aug 27→Sep 15). Make stalls loud.
+      try {
+        const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+        const mins = et.getHours() * 60 + et.getMinutes()
+        if (et.getDay() === 0 || et.getDay() === 6 || mins < 10 * 60 || mins > 16 * 60) return
+        const last = parseInt(localStorage.getItem('traidezone_last_shadow_fire') || '0', 10)
+        const ageMin = Math.round((Date.now() - last) / 60000)
+        if (last && ageMin > 30) console.warn(`[shadow-collector] STALLED — last engaged ${ageMin}min ago. Check /api/agents/predict-shadow errors above.`)
+        if (!last) console.warn('[shadow-collector] has never engaged in this browser — shadow arm may be dead on this device.')
+      } catch {}
+    }
     const fireDailyLearning = async () => {
       // v9 (dead-cron closure): learn-from-outcomes / update-edge / stream-weights
       // were only ever wired to Vercel crons — same silent-freeze failure as
@@ -2280,10 +2292,16 @@ export default function CockpitPage() {
         const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
         const day = et.getDay()
         if (day === 0 || day === 6) return
-        if (et.getHours() * 60 + et.getMinutes() < 16 * 60 + 10) return
         const todayET = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
-        if (localStorage.getItem('tz-daily-learn') === todayET) return
-        localStorage.setItem('tz-daily-learn', todayET)
+        const afterClose = et.getHours() * 60 + et.getMinutes() >= 16 * 60 + 10
+        // v10: morning catch-up — if the tab was closed before yesterday's
+        // 4:10pm nudge (the likely reason discovered-rules went 141d stale),
+        // run the agents on load; they process all graded data to date.
+        const prev = new Date(et); do { prev.setDate(prev.getDate() - 1) } while (prev.getDay() === 0 || prev.getDay() === 6)
+        const prevET = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(prev)
+        const flag = localStorage.getItem('tz-daily-learn')
+        if (afterClose) { if (flag === todayET) return; localStorage.setItem('tz-daily-learn', todayET) }
+        else { if (flag === todayET || flag === prevET) return; localStorage.setItem('tz-daily-learn', prevET) }
         try { await fetch('/api/agents/learn-from-outcomes', { method: 'POST', signal: AbortSignal.timeout(60000) }) } catch {}
         try { await fetch('/api/agents/update-edge', { signal: AbortSignal.timeout(60000) }) } catch {}
         try { await fetch('/api/agents/stream-weights', { signal: AbortSignal.timeout(60000) }) } catch {}
@@ -2293,6 +2311,7 @@ export default function CockpitPage() {
     const fireGrading = async () => {
       if (cancelled) return
       try { await fetch('/api/agents/score-shadow', { method: 'POST' }) } catch {}
+      shadowWatchdog()
       fireDailyLearning()
       // CRITICAL (July 20 lesson): trade_alerts grading was ONLY wired to the
       // dead Vercel cron — 13 signals sat PENDING all day. Nudge it from the
@@ -2690,6 +2709,48 @@ export default function CockpitPage() {
         if (st?.ok) measured = { hitRate: st.hitRate ?? null, n: st.n ?? 0 }
       } catch {}
 
+      // v10 GATE: a setup+regime with a decided sample of 10+ and a measured
+      // hit rate under 45% is demoted to OBSERVATION ONLY — still detected,
+      // logged, and graded (so it can earn its way back), but not traded:
+      // no risk-officer spend, no trade voice, card badged SUPPRESSED.
+      const gated = !!(measured && measured.n >= 10 && measured.hitRate !== null && measured.hitRate < 45)
+      if (gated) {
+        try { speak(`${fire.name} suppressed. Measured ${measured!.hitRate} percent. Logging only.`) } catch {}
+        try {
+          await fetch('/api/trade-alerts', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
+            body: JSON.stringify({
+              signal: fire.direction, entryZone: { low: entrySpx, high: entrySpx },
+              stopLevel: predictedStop, target1: predictedT1,
+              target2: fire.direction === 'LONG' ? entrySpx + 14 : entrySpx - 14,
+              no_entry_zone: false, auto_fired: true, currentPrice: entrySpx,
+              vwap: snap.vwap, ema200: snap.ema200, vix: vixPrice ?? null,
+              confidence: measured!.hitRate, moveSize: 7,
+              context_snapshot: JSON.stringify({
+                auto: true, engine: 'setup', suppressed: true,
+                setupId: fire.setupId, setupName: fire.name,
+                level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
+                recommendedContract: dayContract,
+                gexRegime: gexRegimeNow, dayType: dayTypeForecast?.dayType ?? null,
+                measuredHitRate: measured!.hitRate, measuredN: measured!.n,
+              }),
+            }),
+          }).then(r => r.json()).then(d => { if (d?.error) console.error('[SetupEngine] suppressed-fire INSERT FAILED:', JSON.stringify(d)) })
+        } catch (e) { console.error('[SetupEngine] suppressed-fire log failed:', e) }
+        setSetupFireDisplay({
+          name: fire.name, direction: fire.direction, detail: fire.detail,
+          level: fire.level, entrySpx, predictedT1, predictedStop, contract: dayContract,
+          measured, overlay: { verdict: 'SUPPRESSED' }, sizing: 'observation only',
+          pending: false, firedAt: fire.firedAt, logFailed: false,
+        })
+        setSessionFires(prev => {
+          const next = prev.map(f => f.firedAt === fire.firedAt ? { ...f, verdict: 'SUPPRESSED', sizing: 'observation only', measured: measured!.hitRate, measuredN: measured!.n } : f)
+          try { localStorage.setItem('tz-session-fires', JSON.stringify({ date: sessionDate, fires: next })) } catch {}
+          return next
+        })
+        return
+      }
+
       // 2. Regime memory — measured outcomes from similar historical states
       let regimeMemoryText: string | null = null
       try {
@@ -2786,9 +2847,12 @@ export default function CockpitPage() {
 
       // 5. Voice + Focus Panel update with the full picture
       const verdict = overlay?.verdict || 'CAUTION'
-      const sizing = verdict === 'CONFIRM'
-        ? ((overlay?.aiConfidence ?? 0) >= 70 ? 'full size' : 'half size')
-        : verdict === 'CAUTION' ? 'half size' : 'stand aside'
+      // v10 sizing ladder: measured hit rate leads, verdict modulates.
+      const hr = measured && measured.n >= 10 ? measured.hitRate : null
+      const sizing = verdict === 'CONFLICT' ? 'stand aside'
+        : (hr !== null && hr >= 60 && verdict === 'CONFIRM') ? 'full size'
+        : (hr !== null && hr < 50) ? 'quarter size'
+        : 'half size'
       try {
         const measuredLine = measured && measured.hitRate !== null && measured.n >= 5
           ? ` Measured ${measured.hitRate} percent on ${measured.n} samples.` : ''
@@ -3604,17 +3668,47 @@ export default function CockpitPage() {
             return barStr === todayStr && (h > 9 || (h === 9 && m >= 30))
           })
           if (rthSpx.length >= 1) {
-            let tpv = 0, tv = 0
-            rthSpx.forEach((c: any) => {
-              const tp = (c.h + c.l + c.c) / 3
-              const vol = c.v || 1
-              tpv += tp * vol; tv += vol
-            })
-            const spxVwap = tv > 0 ? tpv / tv : 0
-            if (spxVwap > 5000 && spxVwap < 15000) {
-              // Use setTimeout to ensure this runs AFTER the SPY fetch's setLevels
-              setTimeout(() => setLevels((p: any) => ({ ...p, spyVwap: spxVwap, spxVwapDirect: spxVwap })), 200)
-            }
+            // v10 (Sept 16): TRUE volume-weighted VWAP. I:SPX bars carry no
+            // volume, so the old `c.v || 1` silently collapsed to an
+            // equal-weighted typical-price average — wrong on any day where
+            // volume front-loads. SPY carries real volume: compute SPY VWAP
+            // with volume, rescale to SPX by the concurrent close ratio.
+            // Falls back to the equal-weight approximation if SPY bars fail.
+            ;(async () => {
+              const equalWeight = () => {
+                let tpv = 0, tv = 0
+                rthSpx.forEach((c: any) => { const tp = (c.h + c.l + c.c) / 3; tpv += tp; tv += 1 })
+                return tv > 0 ? tpv / tv : 0
+              }
+              let spxVwap = 0
+              let method = 'equal-weight fallback'
+              try {
+                const dayET = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+                const spy5 = await proxyFetch(`/v2/aggs/ticker/SPY/range/5/minute/${dayET}/${dayET}?adjusted=true&sort=asc&limit=200`).then((r: any) => r.json())
+                const rthSpy = (spy5?.results || []).filter((c: any) => {
+                  const estT = new Date(new Date(c.t).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+                  const h = estT.getHours(), m = estT.getMinutes()
+                  return (h > 9 || (h === 9 && m >= 30)) && h < 16 && (c.v || 0) > 0
+                })
+                if (rthSpy.length >= 1) {
+                  let tpv = 0, tv = 0
+                  rthSpy.forEach((c: any) => { const tp = (c.h + c.l + c.c) / 3; tpv += tp * c.v; tv += c.v })
+                  const spyVwapRaw = tv > 0 ? tpv / tv : 0
+                  const lastSpx = rthSpx[rthSpx.length - 1]?.c
+                  const lastSpy = rthSpy[rthSpy.length - 1]?.c
+                  if (spyVwapRaw > 0 && lastSpx && lastSpy) {
+                    spxVwap = spyVwapRaw * (lastSpx / lastSpy)
+                    method = 'volume-weighted (SPY rescaled)'
+                  }
+                }
+              } catch {}
+              if (!spxVwap) spxVwap = equalWeight()
+              if (spxVwap > 5000 && spxVwap < 15000) {
+                if (Math.random() < 0.1) console.log(`[VWAP] ${method}: ${spxVwap.toFixed(2)} (equal-weight would be ${equalWeight().toFixed(2)})`)
+                // setTimeout ensures this runs AFTER the SPY fetch's setLevels
+                setTimeout(() => setLevels((p: any) => ({ ...p, spyVwap: spxVwap, spxVwapDirect: spxVwap })), 200)
+              }
+            })()
           }
           // currentPrice will also be updated from SPY derivation when SPY loads
           if (prevP && last.c !== prevP) {

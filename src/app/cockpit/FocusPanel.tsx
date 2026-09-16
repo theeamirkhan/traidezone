@@ -237,7 +237,7 @@ export function FocusPanel(props: {
       {setupFire && (() => {
         const dirColor = setupFire.direction === 'LONG' ? P.green : P.red
         const verdict = setupFire.overlay?.verdict || null
-        const verdictColor = verdict === 'CONFIRM' ? P.green : verdict === 'CONFLICT' ? P.red : P.yellow
+        const verdictColor = verdict === 'CONFIRM' ? P.green : verdict === 'CONFLICT' ? P.red : verdict === 'SUPPRESSED' ? P.muted : P.yellow
         const measuredLine = setupFire.measured
           ? (setupFire.measured.hitRate !== null
               ? `measured ${setupFire.measured.hitRate}% (n=${setupFire.measured.n})`
