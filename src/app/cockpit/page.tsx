@@ -2676,8 +2676,13 @@ export default function CockpitPage() {
     try { speak(`Setup. ${fire.name}. ${fire.direction === 'LONG' ? 'Long' : 'Short'} side. Checking the numbers.`) } catch {}
 
     const entrySpx = currentPrice
-    const predictedT1   = fire.direction === 'LONG' ? entrySpx + 7 : entrySpx - 7
-    const predictedStop = fire.direction === 'LONG' ? entrySpx - 8 : entrySpx + 8
+    // v11 (Sept 16): target structure retuned from the 139-fire replay
+    // backtest — +9/−7 showed 0.96 pts/trade expectancy vs 0.27 at the old
+    // +7/−8 (wider-target structures clustered positive: these fires trend).
+    // Structure is stamped into context_snapshot so eras stay comparable.
+    const T1_PTS = 9, STOP_PTS = 7, T2_PTS = 16
+    const predictedT1   = fire.direction === 'LONG' ? entrySpx + T1_PTS : entrySpx - T1_PTS
+    const predictedStop = fire.direction === 'LONG' ? entrySpx - STOP_PTS : entrySpx + STOP_PTS
     const dayContract   = recommendDayContract(fire.direction, entrySpx)
     const gexRegimeNow = (gexData?.regime === 'positive' || gexData?.regime === 'negative') ? gexData.regime : null
 
@@ -2722,15 +2727,16 @@ export default function CockpitPage() {
             body: JSON.stringify({
               signal: fire.direction, entryZone: { low: entrySpx, high: entrySpx },
               stopLevel: predictedStop, target1: predictedT1,
-              target2: fire.direction === 'LONG' ? entrySpx + 14 : entrySpx - 14,
+              target2: fire.direction === 'LONG' ? entrySpx + T2_PTS : entrySpx - T2_PTS,
               no_entry_zone: false, auto_fired: true, currentPrice: entrySpx,
               vwap: snap.vwap, ema200: snap.ema200, vix: vixPrice ?? null,
-              confidence: measured!.hitRate, moveSize: 7,
+              confidence: measured!.hitRate, moveSize: T1_PTS,
               context_snapshot: JSON.stringify({
                 auto: true, engine: 'setup', suppressed: true,
                 setupId: fire.setupId, setupName: fire.name,
                 level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
                 recommendedContract: dayContract,
+                targetStructure: { t1: T1_PTS, stop: STOP_PTS, t2: T2_PTS },
                 gexRegime: gexRegimeNow, dayType: dayTypeForecast?.dayType ?? null,
                 measuredHitRate: measured!.hitRate, measuredN: measured!.n,
               }),
@@ -2783,7 +2789,7 @@ export default function CockpitPage() {
               name:            `[SETUP ENGINE] ${fire.name}`,
               direction:       fire.direction,
               confidence:      measured?.hitRate ?? 55,
-              stopHint:        '8 points',
+              stopHint:        `${STOP_PTS} points`,
               firedConditions: [{ primitive: fire.setupId, firedAt: fire.firedAt, detail: fire.detail }],
             },
             context: {
@@ -2820,7 +2826,7 @@ export default function CockpitPage() {
             entryZone:     { low: entrySpx, high: entrySpx },
             stopLevel:     predictedStop,
             target1:       predictedT1,
-            target2:       fire.direction === 'LONG' ? entrySpx + 14 : entrySpx - 14,
+            target2:       fire.direction === 'LONG' ? entrySpx + T2_PTS : entrySpx - T2_PTS,
             no_entry_zone: false,
             auto_fired:    true,
             currentPrice:  entrySpx,
@@ -2828,7 +2834,7 @@ export default function CockpitPage() {
             ema200:        snap.ema200,
             vix:           vixPrice ?? null,
             confidence:    measured?.hitRate ?? 55,
-            moveSize:      7,
+            moveSize:      T1_PTS,
             ai_view:       overlay?.verdict ?? null,
             context_snapshot: JSON.stringify({
               auto: true, engine: 'setup',
@@ -2836,6 +2842,7 @@ export default function CockpitPage() {
               level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
               gexRegime: gexRegimeNow, dayType: dayTypeForecast?.dayType ?? null,
               recommendedContract: dayContract,
+              targetStructure: { t1: T1_PTS, stop: STOP_PTS, t2: T2_PTS },
               measuredHitRate: measured?.hitRate ?? null, measuredN: measured?.n ?? 0,
               aiVerdict: overlay?.verdict ?? null, aiConfidence: overlay?.aiConfidence ?? null,
               agreement: overlay?.agreement ?? null,

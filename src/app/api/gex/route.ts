@@ -135,8 +135,16 @@ async function fetchAll(symbol = 'SPX'): Promise<FullGexResult> {
   const callWall  = levels?.levels?.call_wall   ?? levels?.call_wall   ?? null
   const putWall   = levels?.levels?.put_wall    ?? levels?.put_wall    ?? null
   const netGex    = gex?.net_gex ?? null
-  const regimeRaw = gex?.net_gex_label ?? gex?.regime ?? (netGex !== null ? (netGex >= 0 ? 'positive' : 'negative') : 'unknown')
-  const regime    = ['positive','negative','neutral'].includes(regimeRaw) ? regimeRaw : 'unknown'
+  const regimeRaw = gex?.net_gex_label ?? gex?.regime ?? ''
+  // v11 (Sept 16): normalize case/format-insensitively. The old exact-match
+  // check silently produced 'unknown' for labels like "Positive" or "NEG GEX",
+  // which left every trade_alert's gexRegime unstamped — measured setup stats
+  // were never actually regime-scoped. netGex sign is the fallback.
+  const rl = String(regimeRaw).toLowerCase()
+  const regime = rl.includes('pos') ? 'positive'
+    : rl.includes('neg') ? 'negative'
+    : rl.includes('neut') || rl.includes('flat') ? 'neutral'
+    : (netGex !== null ? (netGex >= 0 ? 'positive' : 'negative') : 'unknown')
 
   // ── DEX — net dealer delta ────────────────────────────────────────────────
   // Positive DEX = dealers net long delta → they sell into strength (suppressive)
