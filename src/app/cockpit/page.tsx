@@ -1745,6 +1745,9 @@ export default function CockpitPage() {
   const setupStateRef = useRef<SetupEngineState | null>(null)
   const [setupFireDisplay, setSetupFireDisplay] = useState<any | null>(null)  // rich fire → Focus Panel
   const setupFireBusyRef = useRef(false)                                       // one fire pipeline at a time
+  // v12 day-type feed repairs: rolling 15-min TICK history + session-open VIX
+  const tickHistRef = useRef<{ t: number; v: number }[]>([])
+  const vixOpenRef  = useRef<{ date: string; v: number } | null>(null)
   const [sessionFires, setSessionFires] = useState<any[]>([])                  // today's setup fires (strip + companion)
   useEffect(() => {   // restore today's fires across refreshes
     try {
@@ -2705,22 +2708,40 @@ export default function CockpitPage() {
 
     ;(async () => {
       try {
-      // 1. Measured probability, scoped to this setup + current GEX regime
+      // 1. Measured probability (setup+regime) + direction aggregate, in parallel
       let measured: { hitRate: number | null; n: number } | null = null
+      let dirAgg:   { hitRate: number | null; n: number } | null = null
       try {
         const q = new URLSearchParams({ setupId: fire.setupId, days: '90' })
         if (gexRegimeNow) q.set('gexRegime', gexRegimeNow)
-        const st = await fetch(`/api/setups/stats?${q.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json())
+        const dq = new URLSearchParams({ direction: fire.direction, days: '30' })
+        const [st, ds] = await Promise.all([
+          fetch(`/api/setups/stats?${q.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null),
+          fetch(`/api/setups/stats?${dq.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null),
+        ])
         if (st?.ok) measured = { hitRate: st.hitRate ?? null, n: st.n ?? 0 }
+        if (ds?.ok) dirAgg   = { hitRate: ds.hitRate ?? null, n: ds.n ?? 0 }
       } catch {}
 
       // v10 GATE: a setup+regime with a decided sample of 10+ and a measured
       // hit rate under 45% is demoted to OBSERVATION ONLY — still detected,
       // logged, and graded (so it can earn its way back), but not traded:
       // no risk-officer spend, no trade voice, card badged SUPPRESSED.
-      const gated = !!(measured && measured.n >= 10 && measured.hitRate !== null && measured.hitRate < 45)
+      const setupGated = !!(measured && measured.n >= 10 && measured.hitRate !== null && measured.hitRate < 45)
+      // v12 DIRECTIONAL GATE (Sept 23): the era review showed direction-level
+      // failure the per-setup gate can't see (LONG 2W-10L spread across
+      // setups, no bucket reaching n=10). If a whole SIDE is under 45% over
+      // n>=15 decided in the trailing 30d, that side goes observation-only.
+      // Self-healing: suppressed fires are still logged and graded, so the
+      // aggregate keeps updating and the side re-opens when it recovers.
+      const dirGated = !!(dirAgg && dirAgg.n >= 15 && dirAgg.hitRate !== null && dirAgg.hitRate < 45)
+      const gated = setupGated || dirGated
+      const suppressReason = setupGated ? 'setup' : dirGated ? 'direction' : null
       if (gated) {
-        try { speak(`${fire.name} suppressed. Measured ${measured!.hitRate} percent. Logging only.`) } catch {}
+        try {
+          if (dirGated && !setupGated) speak(`${fire.name} suppressed. ${fire.direction === 'LONG' ? 'Long' : 'Short'} side measuring ${dirAgg!.hitRate} percent over ${dirAgg!.n} trades. Logging only.`)
+          else speak(`${fire.name} suppressed. Measured ${measured!.hitRate} percent. Logging only.`)
+        } catch {}
         try {
           await fetch('/api/trade-alerts', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
@@ -2730,9 +2751,10 @@ export default function CockpitPage() {
               target2: fire.direction === 'LONG' ? entrySpx + T2_PTS : entrySpx - T2_PTS,
               no_entry_zone: false, auto_fired: true, currentPrice: entrySpx,
               vwap: snap.vwap, ema200: snap.ema200, vix: vixPrice ?? null,
-              confidence: measured!.hitRate, moveSize: T1_PTS,
+              confidence: measured?.hitRate ?? dirAgg?.hitRate ?? 40, moveSize: T1_PTS,
               context_snapshot: JSON.stringify({
-                auto: true, engine: 'setup', suppressed: true,
+                auto: true, engine: 'setup', suppressed: true, suppressReason,
+                directionAgg: dirAgg,
                 setupId: fire.setupId, setupName: fire.name,
                 level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
                 recommendedContract: dayContract,
@@ -2912,14 +2934,36 @@ export default function CockpitPage() {
     }
 
     // Compute TICK range from breadthData over last 15min if we have history
-    // For now we use the current value as both high and low — refine later when we add tick history
-    const tickHigh = breadthData?.tick?.value || null
-    const tickLow  = breadthData?.tick?.value || null
+    // v12 (Sept 23): TICK now has real 15-min history. The old code read
+    // breadthData?.tick?.value (null in practice — autopsy showed this signal
+    // NEVER voted) and used one value as both high and low. Live source is
+    // marketIntel2.tick, the same field the setup engine reads.
+    const tickNow = marketIntel2?.tick ?? breadthData?.tick?.value ?? null
+    if (tickNow !== null && isFinite(tickNow)) {
+      tickHistRef.current.push({ t: Date.now(), v: tickNow })
+      const cutoff15 = Date.now() - 15 * 60 * 1000
+      tickHistRef.current = tickHistRef.current.filter(x => x.t >= cutoff15)
+    }
+    const tickWindow = tickHistRef.current
+    const tickHigh = tickWindow.length ? Math.max(...tickWindow.map(x => x.v)) : null
+    const tickLow  = tickWindow.length ? Math.min(...tickWindow.map(x => x.v)) : null
 
-    // Compute VIX change today
+    // Compute VIX change today. v12: vixPrevClose is null in practice (this
+    // signal never voted), so fall back to intraday change vs the first VIX
+    // seen this session — captured from the live vixPrice the cockpit shows.
+    const todayETv = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+    const liveVix = marketIntel2?.vixPrice ?? vixPrice ?? null
+    if (liveVix !== null && isFinite(liveVix) && (!vixOpenRef.current || vixOpenRef.current.date !== todayETv)) {
+      vixOpenRef.current = { date: todayETv, v: liveVix }
+    }
     const vixChange = (() => {
-      if (!marketIntel2?.vixPrice || !marketIntel2?.vixPrevClose) return null
-      return ((marketIntel2.vixPrice - marketIntel2.vixPrevClose) / marketIntel2.vixPrevClose) * 100
+      if (marketIntel2?.vixPrice && marketIntel2?.vixPrevClose) {
+        return ((marketIntel2.vixPrice - marketIntel2.vixPrevClose) / marketIntel2.vixPrevClose) * 100
+      }
+      if (liveVix !== null && vixOpenRef.current && vixOpenRef.current.date === todayETv && vixOpenRef.current.v > 0) {
+        return ((liveVix - vixOpenRef.current.v) / vixOpenRef.current.v) * 100
+      }
+      return null
     })()
 
     // Day of week + OPEX detection (ET-based, robust)
@@ -2979,7 +3023,13 @@ export default function CockpitPage() {
         orbHigh,
         orbLow,
         orbWindowMins,
-        m15Trend:             multiTFData?.m15?.trend || null,
+        m15Trend:             multiTFData?.m15?.trend || (() => {
+          // v12 fallback: last ~15min of 5m SPX candles (drive signal never
+          // voted because the legacy multiTF m15 feed rarely populates)
+          if (!candles || candles.length < 4) return null
+          const slope = candles[candles.length - 1].c - candles[candles.length - 4].c
+          return slope > 3 ? 'BULLISH' : slope < -3 ? 'BEARISH' : 'RANGING'
+        })(),
         m15RangePct:          multiTFData?.m15?.rangePct || null,
         crossAssetBias:       multiTFData?.crossAsset?.confirmation || null,
         currentPrice,
@@ -3006,7 +3056,20 @@ export default function CockpitPage() {
             fetch('/api/day-type/track', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               signal: AbortSignal.timeout(8000),
-              body: JSON.stringify({ forecast }),
+              // v12: append a raw-inputs pseudo-signal to the logged copy so
+              // each day's row shows exactly which feeds were null at lock
+              // time — dead wires become visible in the vote autopsy.
+              body: JSON.stringify({ forecast: { ...forecast, trendSignals: [
+                ...forecast.trendSignals,
+                { name: '_inputs', status: 'NEUTRAL', detail: JSON.stringify({
+                  gexRegime: gexData?.regime ?? null, netGex: gexData?.netGex ?? null,
+                  tickNow: marketIntel2?.tick ?? null, tickHi: tickHigh, tickLo: tickLow,
+                  vix: liveVix, vixChange: vixChange !== null ? +vixChange.toFixed(2) : null,
+                  vix1d: marketIntel2?.termStructure?.vix1d ?? null, vix30: marketIntel2?.termStructure?.vix30 ?? null,
+                  m15: multiTFData?.m15?.trend ?? 'derived', xAsset: multiTFData?.crossAsset?.confirmation ?? null,
+                  cumDelta: microstructure?.cumulativeDelta?.strength ?? null,
+                }) },
+              ] } }),
             }).then(r => r.json())
               .then(d => { if (d?.needsMigration) console.warn('[DayType] tracking table missing — run migration_day_type_signal_log.sql') })
               .catch(() => { try { localStorage.removeItem('tz-daytype-locked') } catch {} })

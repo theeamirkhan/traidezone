@@ -38,6 +38,9 @@ export async function GET(req: NextRequest) {
   const days = Math.min(365, parseInt(req.nextUrl.searchParams.get('days') || '60', 10) || 60)
   const filterSetup  = req.nextUrl.searchParams.get('setupId')
   const filterRegime = req.nextUrl.searchParams.get('gexRegime')
+  // v12: ?direction=LONG|SHORT (no setupId) → one aggregate hit rate across
+  // ALL setup-engine fires in that direction. Powers the directional gate.
+  const filterDirection = req.nextUrl.searchParams.get('direction')
   const cutoff = new Date(Date.now() - days * 86400000).toISOString()
 
   const { data, error } = await supabaseAdmin
@@ -75,6 +78,7 @@ export async function GET(req: NextRequest) {
       continue
     }
 
+    if (filterDirection && row.signal !== filterDirection) continue
     const setupId = ctx.setupId || 'unknown'
     if (filterSetup && setupId !== filterSetup) continue
     const regime = ctx.gexRegime || 'unknown'
@@ -110,6 +114,16 @@ export async function GET(req: NextRequest) {
     for (const r of Object.values(b.byRegime)) r.hitRate = finalize(r.wins, r.losses)
     return b
   }).sort((a, b) => b.n - a.n)
+
+  // v12: direction aggregate — one number across all setups in that direction
+  if (filterDirection && !filterSetup) {
+    let W = 0, L = 0, total = 0
+    for (const b of setups) { W += b.wins; L += b.losses; total += b.n }
+    return NextResponse.json({
+      ok: true, direction: filterDirection, days,
+      n: W + L, hitRate: finalize(W, L), totalFires: total,
+    })
+  }
 
   // Single scoped stat convenience (fire-time display line)
   if (filterSetup) {
