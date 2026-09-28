@@ -1,0 +1,96 @@
+# trAIde Zone watchdog — replaces the dead Vercel crons with GitHub Actions.
+# Job 1 (market hours): grading + shadow predictions every 15 min, no browser
+#   tab required ever again.
+# Job 2 (post-close): learning agents + feed health + pipeline freshness.
+#   Any stall FAILS the run, so GitHub emails you instead of dying silently.
+# Secrets required (repo Settings -> Secrets and variables -> Actions):
+#   CRON_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# Optional repo variable: APP_URL (defaults to https://traidezone.ai)
+
+name: traidezone-watchdog
+
+on:
+  schedule:
+    - cron: '*/15 13-20 * * 1-5'   # market-hours window in UTC (script gates by ET)
+    - cron: '50 20 * * 1-5'        # post-close pass (~4:50pm EDT)
+  workflow_dispatch: {}
+
+env:
+  APP: ${{ vars.APP_URL || 'https://traidezone.ai' }}
+
+jobs:
+  grade:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/15 13-20 * * 1-5'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate to ET market hours
+        id: gate
+        run: |
+          NOW=$(TZ=America/New_York date +%H%M)
+          DOW=$(TZ=America/New_York date +%u)
+          if [ "$DOW" -ge 6 ] || [ "$NOW" -lt 0935 ] || [ "$NOW" -gt 1615 ]; then
+            echo "open=false" >> "$GITHUB_OUTPUT"; echo "Outside ET session ($NOW) — skipping."
+          else
+            echo "open=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Grade trade alerts
+        if: steps.gate.outputs.open == 'true'
+        run: |
+          curl -sf --retry 2 --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/score-alerts" | head -c 400
+      - name: Shadow prediction
+        if: steps.gate.outputs.open == 'true'
+        run: |
+          curl -sf --retry 2 --max-time 90 -X POST -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/predict-shadow" | head -c 400
+      - name: Grade shadow predictions
+        if: steps.gate.outputs.open == 'true'
+        run: |
+          curl -sf --retry 2 --max-time 60 -X POST -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/score-shadow" | head -c 400
+
+  daily:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '50 20 * * 1-5'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Learn from outcomes
+        run: |
+          curl -sf --retry 2 --max-time 120 -X POST -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/learn-from-outcomes" | head -c 400
+      - name: Update edge weights
+        run: |
+          curl -sf --retry 2 --max-time 120 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/update-edge" | head -c 400
+      - name: Stream weights
+        run: |
+          curl -sf --retry 2 --max-time 120 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/stream-weights" | head -c 400
+      - name: Data-feed health
+        run: |
+          RES=$(curl -sf --retry 2 --max-time 60 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$APP/api/agents/health-check")
+          echo "$RES" | head -c 800
+          echo "$RES" | grep -q '"status":"error"' && { echo '::error::health-check reports a feed ERROR'; exit 1; } || true
+      - name: Pipeline freshness (Supabase)
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cat > fresh.mjs << 'EOF'
+          const H = { apikey: process.env.SB_KEY, Authorization: `Bearer ${process.env.SB_KEY}` }
+          const latest = async (path) => {
+            const r = await fetch(`${process.env.SB_URL}/rest/v1/${path}`, { headers: H })
+            const d = await r.json().catch(() => [])
+            return Array.isArray(d) && d[0] ? Object.values(d[0])[0] : null
+          }
+          const ageH = ts => ts ? (Date.now() - new Date(ts).getTime()) / 3600000 : Infinity
+          const checks = [
+            ['shadow predictions', await latest('shadow_predictions?select=created_at&order=created_at.desc&limit=1'), 72],
+            ['alert grading',      await latest('trade_alerts?select=scored_at&scored_at=not.is.null&order=scored_at.desc&limit=1'), 72],
+            ['discovered rules',   await latest('user_discovered_rules?select=updated_at&order=updated_at.desc&limit=1'), 192],
+          ]
+          let bad = 0
+          for (const [name, ts, maxH] of checks) {
+            const a = ageH(ts)
+            const stale = a > maxH
+            console.log(`${stale ? 'STALE' : 'ok   '}  ${name}: ${ts ? Math.round(a) + 'h ago' : 'NEVER'} (limit ${maxH}h)`)
+            if (stale) bad++
+          }
+          if (bad) { console.error(`${bad} pipeline(s) stale — the learning loop is not fully running.`); process.exit(1) }
+          EOF
+          node fresh.mjs

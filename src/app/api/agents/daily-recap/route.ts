@@ -54,6 +54,11 @@ ${JSON.stringify(payload, null, 2)}
 
 WRITE A RECAP that is HONEST. If little was learned, say so. Don't fabricate insights.
 
+INTERPRETATION RULES (v13):
+- The headline win rate covers TRADEABLE signals only. Signals marked suppressedByGate were observation-only — the measured-stats gate kept them from being traded. When a suppressed fire LOSES, that is the gate WORKING (a dodged loss), never a system failure. Report the gateReport as its own line.
+- WAIT signals are advisory (no trade, no P&L). Never count them as losses in the headline framing; mention the waitRecord separately.
+- Do not recommend disabling WAIT signals or the gate — they are measurement arms.
+
 Return JSON with this exact structure:
 {
   "headline": "1 sentence summary of the day (e.g. 'Strong session: 4 of 6 signals hit T1+, day-type forecast was accurate')",
@@ -362,11 +367,34 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
       return null
     }
 
-    const scored = signals.map(s => ({ ...s, _class: classify(s) })).filter(s => s._class && s._class !== 'PENDING')
-    const wins = scored.filter(s => s._class === 'WIN').length
-    const losses = scored.filter(s => s._class === 'LOSS').length
-    const scratches = scored.filter(s => s._class === 'SCRATCH').length
+    // v13 (Sept 24): segment before scoring. Suppressed fires are the gate
+    // OBSERVING, not the system trading — counting them in the headline made
+    // every post-v12 recap read worse than the actual traded day. WAITs are
+    // the LLM arm's advisory calls (no trade, no P&L). Headline = what was
+    // actually tradeable.
+    const parseCtx = (a: any) => { try { return JSON.parse(a.context_snapshot || '{}') } catch { return {} } }
+    const enriched = signals.map(s => {
+      const ctx = parseCtx(s)
+      return { ...s, _class: classify(s), _ctx: ctx,
+        _suppressed: !!ctx.suppressed, _engine: ctx.engine || 'llm',
+        _isWait: s.signal === 'WAIT' || s.signal === 'NO TRADE' }
+    })
+    const scoredAll = enriched.filter(s => s._class && s._class !== 'PENDING')
+    const tradeable = scoredAll.filter(s => !s._suppressed && !s._isWait && s._engine !== 'swing')
+    const gateFires = scoredAll.filter(s => s._suppressed)
+    const waitFires = scoredAll.filter(s => s._isWait && !s._suppressed)
+
+    const scored = tradeable   // downstream calibration/feature blocks now see tradeable only
+    const wins = tradeable.filter(s => s._class === 'WIN').length
+    const losses = tradeable.filter(s => s._class === 'LOSS').length
+    const scratches = tradeable.filter(s => s._class === 'SCRATCH').length
     const winRate = (wins + losses) > 0 ? Math.round((wins / (wins + losses)) * 100) : null
+
+    // Gate report card: what suppression avoided (or cost) today
+    const gateWouldWin  = gateFires.filter(s => s._class === 'WIN').length
+    const gateWouldLose = gateFires.filter(s => s._class === 'LOSS').length
+    const waitRight = waitFires.filter(s => s._class === 'WIN').length
+    const waitWrong = waitFires.filter(s => s._class === 'LOSS').length
 
     // ── Today's calibration ──
     const confidenceVsOutcome = scored.map(s => ({
@@ -455,17 +483,32 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
       losses,
       scratches,
       winRate,
-      signals: signals.map(s => ({
+      signals: enriched.map(s => ({
         time: new Date(s.logged_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' }),
         signal: s.signal,
         confidence: s.confidence,
         outcome: s.outcome,
-        outcomeClass: classify(s),
+        outcomeClass: s._class,
         outcomeNote: s.outcome_note,
         ptsToT1: s.pts_to_t1,
+        engine: s._engine,
+        suppressedByGate: s._suppressed || undefined,
+        suppressReason: s._ctx.suppressReason || undefined,
         systemAlignment: s.system_alignment,
         aiView: s.ai_view?.substring(0, 200),
       })),
+      gateReport: {
+        firesHeldBack: gateFires.length,
+        wouldHaveWon: gateWouldWin,
+        wouldHaveLost: gateWouldLose,
+        note: gateFires.length
+          ? `The measured-stats gate held ${gateFires.length} fire(s) at observation-only; ${gateWouldLose} would have lost, ${gateWouldWin} would have won. Losses avoided > wins missed means the gate paid for itself.`
+          : 'No fires were gate-suppressed today.',
+      },
+      waitRecord: {
+        n: waitFires.length, right: waitRight, wrong: waitWrong,
+        note: 'WAIT signals are the AI advisory arm saying stand aside — no trade occurs, no P&L impact. Graded punitively on trending days by design.',
+      },
       calibration: {
         highConfidenceSignals: highConf.length,
         highConfidenceActualWinRate: highConfActual,
