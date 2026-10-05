@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
+  // Oct 4: the proxy was fully open — anyone could pull market data through
+  // the server's key (a redistribution problem under individual-tier data
+  // licensing). Require the request to originate from the app itself.
+  const from = (req.headers.get('origin') || '') + ' ' + (req.headers.get('referer') || '')
+  if (!from.includes('traidezone') && !from.includes('localhost')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(req.url)
   const apiKeyParam = searchParams.get('apiKey')
   const path = searchParams.get('path')
