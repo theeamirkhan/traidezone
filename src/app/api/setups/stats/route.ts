@@ -41,7 +41,13 @@ export async function GET(req: NextRequest) {
   // v12: ?direction=LONG|SHORT (no setupId) → one aggregate hit rate across
   // ALL setup-engine fires in that direction. Powers the directional gate.
   const filterDirection = req.nextUrl.searchParams.get('direction')
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString()
+  // v14: ?today=1 scopes the window to the current ET session — powers the
+  // same-day override that outranks the 30-day directional gate.
+  const todayOnly = req.nextUrl.searchParams.get('today') === '1'
+  const etToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+  const cutoff = todayOnly
+    ? new Date(`${etToday}T04:00:00Z`).toISOString()
+    : new Date(Date.now() - days * 86400000).toISOString()
 
   const { data, error } = await supabaseAdmin
     .from('trade_alerts')
@@ -120,8 +126,8 @@ export async function GET(req: NextRequest) {
     let W = 0, L = 0, total = 0
     for (const b of setups) { W += b.wins; L += b.losses; total += b.n }
     return NextResponse.json({
-      ok: true, direction: filterDirection, days,
-      n: W + L, hitRate: finalize(W, L), totalFires: total,
+      ok: true, direction: filterDirection, days: todayOnly ? 0 : days, today: todayOnly,
+      n: W + L, wins: W, losses: L, hitRate: finalize(W, L), totalFires: total,
     })
   }
 

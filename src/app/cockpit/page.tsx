@@ -2711,16 +2711,20 @@ export default function CockpitPage() {
       // 1. Measured probability (setup+regime) + direction aggregate, in parallel
       let measured: { hitRate: number | null; n: number } | null = null
       let dirAgg:   { hitRate: number | null; n: number } | null = null
+      let dirToday: { wins: number; losses: number } | null = null
       try {
         const q = new URLSearchParams({ setupId: fire.setupId, days: '90' })
         if (gexRegimeNow) q.set('gexRegime', gexRegimeNow)
         const dq = new URLSearchParams({ direction: fire.direction, days: '30' })
-        const [st, ds] = await Promise.all([
+        const tq = new URLSearchParams({ direction: fire.direction, today: '1' })
+        const [st, ds, td] = await Promise.all([
           fetch(`/api/setups/stats?${q.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null),
           fetch(`/api/setups/stats?${dq.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null),
+          fetch(`/api/setups/stats?${tq.toString()}`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null),
         ])
         if (st?.ok) measured = { hitRate: st.hitRate ?? null, n: st.n ?? 0 }
         if (ds?.ok) dirAgg   = { hitRate: ds.hitRate ?? null, n: ds.n ?? 0 }
+        if (td?.ok) dirToday = { wins: td.wins ?? 0, losses: td.losses ?? 0 }
       } catch {}
 
       // v10 GATE: a setup+regime with a decided sample of 10+ and a measured
@@ -2734,9 +2738,23 @@ export default function CockpitPage() {
       // n>=15 decided in the trailing 30d, that side goes observation-only.
       // Self-healing: suppressed fires are still logged and graded, so the
       // aggregate keeps updating and the side re-opens when it recovers.
-      const dirGated = !!(dirAgg && dirAgg.n >= 15 && dirAgg.hitRate !== null && dirAgg.hitRate < 45)
+      const dirGated30 = !!(dirAgg && dirAgg.n >= 15 && dirAgg.hitRate !== null && dirAgg.hitRate < 45)
+      // v14 SAME-DAY OVERRIDE (Oct 5): today's graded fires outrank the 30-day
+      // aggregate both ways. RE-OPEN: a gated side at >=3W/<=1L today trades
+      // normally for the session (suppressed fires still grade, so a gated
+      // side earns its way back same-morning — Oct 5: 8 suppressed winners,
+      // ~85pts foregone). BREAKER: a side at >=3L/<=1W today goes
+      // observation-only regardless of aggregate (Sep 25 -60pt fix). Daily reset.
+      const dayReopen  = !!(dirToday && dirToday.wins >= 3 && dirToday.losses <= 1)
+      const dayBreaker = !!(dirToday && dirToday.losses >= 3 && dirToday.wins <= 1)
+      const dirGated = dayBreaker ? true : dayReopen ? false : dirGated30
       const gated = setupGated || dirGated
-      const suppressReason = setupGated ? 'setup' : dirGated ? 'direction' : null
+      const suppressReason = setupGated ? 'setup'
+        : dayBreaker ? 'direction-breaker'
+        : dirGated ? 'direction' : null
+      if (dayReopen && dirGated30 && !setupGated) {
+        console.log(`[SetupEngine] ${fire.direction} gate OVERRIDDEN by intraday form (${dirToday!.wins}W-${dirToday!.losses}L today)`)
+      }
       if (gated) {
         try {
           if (dirGated && !setupGated) speak(`${fire.name} suppressed. ${fire.direction === 'LONG' ? 'Long' : 'Short'} side measuring ${dirAgg!.hitRate} percent over ${dirAgg!.n} trades. Logging only.`)
@@ -2754,7 +2772,7 @@ export default function CockpitPage() {
               confidence: measured?.hitRate ?? dirAgg?.hitRate ?? 40, moveSize: T1_PTS,
               context_snapshot: JSON.stringify({
                 auto: true, engine: 'setup', suppressed: true, suppressReason,
-                directionAgg: dirAgg,
+                directionAgg: dirAgg, directionToday: dirToday,
                 setupId: fire.setupId, setupName: fire.name,
                 level: fire.level, levelLabel: fire.levelLabel, detail: fire.detail,
                 recommendedContract: dayContract,
@@ -2865,6 +2883,7 @@ export default function CockpitPage() {
               gexRegime: gexRegimeNow, dayType: dayTypeForecast?.dayType ?? null,
               recommendedContract: dayContract,
               targetStructure: { t1: T1_PTS, stop: STOP_PTS, t2: T2_PTS },
+              gateOverride: (dayReopen && dirGated30) ? `intraday ${dirToday!.wins}W-${dirToday!.losses}L` : undefined,
               measuredHitRate: measured?.hitRate ?? null, measuredN: measured?.n ?? 0,
               aiVerdict: overlay?.verdict ?? null, aiConfidence: overlay?.aiConfidence ?? null,
               agreement: overlay?.agreement ?? null,
@@ -8020,6 +8039,13 @@ THIS IS NOT FINANCIAL ADVICE. You are an accountability and analysis tool only.`
                         <div style={{ background: 'rgba(0,212,160,0.04)', borderRadius: 6, padding: '8px 12px', border: '1px solid rgba(0,212,160,0.12)' }}>
                           <div style={{ fontSize: 10, fontWeight: 700, color: '#00d4a0', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>Today's Plan</div>
                           <div style={{ fontSize: 12, color: C.text, lineHeight: 1.75 }}>{morningBrief.tradingPlan}</div>
+                        </div>
+                      )}
+                      {/* Plain-English translation (Oct 9 — same convention as the Focus Panel) */}
+                      {morningBrief.plainEnglish && (
+                        <div style={{ background: 'rgba(124,106,255,0.05)', borderRadius: 6, padding: '8px 12px', border: '1px solid rgba(124,106,255,0.15)' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#7c6aff', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: 4 }}>In Plain English</div>
+                          <div style={{ fontSize: 12.5, color: C.text, lineHeight: 1.8, fontStyle: 'italic' as const }}>{morningBrief.plainEnglish}</div>
                         </div>
                       )}
                     </div>

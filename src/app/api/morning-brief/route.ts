@@ -73,7 +73,8 @@ Format your response as JSON only. No markdown, no backticks, no preamble:
   "keyLevels": "Specific SPX levels to watch today (VWAP, prior close, key support/resistance)",
   "catalystWatch": "What economic events or news could move the market today",
   "biggestRisk": "The single most important risk to be aware of today — the thing that could invalidate the bias",
-  "tradingPlan": "2 sentences: specific guidance for how to approach today given all of the above"
+  "tradingPlan": "2 sentences: specific guidance for how to approach today given all of the above",
+  "plainEnglish": "3-4 sentences translating the whole brief for someone who has never heard a trading term. HARD RULES: no jargon whatsoever — never say gamma, GEX, max pain, dealer, wall, regime, VWAP, breadth, skew, or any level name. Express every price level as what to DO there (e.g. 'if it climbs past 7815, don't chase it — heavy automatic selling kicks in up there'). Structure: (1) what the market is doing in human terms, (2) what to do and when, (3) the one thing that would change the plan. Write like you're texting a smart friend."
 }`
 
     const userContent = `Today: ${today}
