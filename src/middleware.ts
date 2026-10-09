@@ -39,6 +39,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/breadth(.*)',
   '/api/gex(.*)',
   '/api/reference-price(.*)',      // Yahoo Finance proxy
+  '/api/alerts/high-prob(.*)',
 ])
 
 export default clerkMiddleware(async (auth, request) => {
