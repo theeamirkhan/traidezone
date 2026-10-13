@@ -2847,6 +2847,8 @@ export default function CockpitPage() {
               cumDelta:    microstructure?.cumulativeDelta?.strength ?? null,
               m15Trend:    snap.ema200 && currentPrice > snap.ema200 ? 'up' : 'down',
               breadth:     breadthData?.summary ?? null,
+              morningPlanBias: morningPlan?.bias || null,
+              briefBias:       morningBrief?.todaysBias || null,
               measuredSetupStats: measured ? `This setup in this regime: ${measured.hitRate !== null ? measured.hitRate + '% hit rate' : 'no decided sample yet'} (n=${measured.n})` : null,
               regimeMemory: regimeMemoryText,
             },
@@ -2854,6 +2856,17 @@ export default function CockpitPage() {
         })
         overlay = await res.json()
       } catch {}
+
+      // v16: mechanical plan-conflict check — does this fire go against the
+      // trader's morning plan bias or the AI brief's bias? Stamped for
+      // measurement; no behavior change until the data says counter-plan
+      // fires actually underperform.
+      const _planBias = String(morningPlan?.bias || '').toUpperCase()
+      const planBiasNorm = (_planBias === 'LONG' || _planBias === 'SHORT') ? _planBias : null
+      const briefBiasNorm = (morningBrief?.todaysBias === 'LONG' || morningBrief?.todaysBias === 'SHORT') ? morningBrief.todaysBias : null
+      const planConflict = !!(planBiasNorm && planBiasNorm !== fire.direction)
+      const briefConflict = !!(briefBiasNorm && briefBiasNorm !== fire.direction)
+      if (planConflict || briefConflict) console.log('[SetupEngine] fire goes AGAINST', planConflict ? `plan (${planBiasNorm})` : '', briefConflict ? `brief (${briefBiasNorm})` : '')
 
       // 4. Log to trade_alerts — the treatment arm of the engine experiment.
       //    Graded automatically by score-alerts (strict T1-before-stop).
@@ -2885,6 +2898,8 @@ export default function CockpitPage() {
               targetStructure: { t1: T1_PTS, stop: STOP_PTS, t2: T2_PTS },
               gateOverride: (dayReopen && dirGated30) ? `intraday ${dirToday!.wins}W-${dirToday!.losses}L` : undefined,
               measuredHitRate: measured?.hitRate ?? null, measuredN: measured?.n ?? 0,
+              planBias: planBiasNorm, briefBias: briefBiasNorm,
+              planConflict: planConflict || undefined, briefConflict: briefConflict || undefined,
               aiVerdict: overlay?.verdict ?? null, aiConfidence: overlay?.aiConfidence ?? null,
               agreement: overlay?.agreement ?? null,
             }),
@@ -2912,7 +2927,7 @@ export default function CockpitPage() {
       setSetupFireDisplay({
         name: fire.name, direction: fire.direction, detail: fire.detail,
         level: fire.level, entrySpx, predictedT1, predictedStop, contract: dayContract,
-        measured, overlay, sizing, pending: false, firedAt: fire.firedAt, logFailed: !logOk,
+        measured, overlay, sizing, planConflict, briefConflict, pending: false, firedAt: fire.firedAt, logFailed: !logOk,
       })
       setSessionFires(prev => {
         const next = prev.map(f => f.firedAt === fire.firedAt

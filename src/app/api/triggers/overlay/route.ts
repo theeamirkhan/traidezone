@@ -50,6 +50,8 @@ CURRENT FULL MARKET CONTEXT:
 - Cum delta: ${context.cumDelta ?? 'unknown'}
 - 15-min trend: ${context.m15Trend ?? 'unknown'}
 - Breadth: ${context.breadth ?? 'unknown'}
+- Trader's MORNING PLAN bias (set by the trader pre-open): ${context.morningPlanBias ?? 'not set'}
+- AI morning brief bias (generated pre-open): ${context.briefBias ?? 'not set'}
 - Scheduled news within 30min: ${context.newsSoon ? `YES — ${context.newsSoon}` : 'none flagged'}
 - Earnings/events today: ${context.earningsToday ?? 'none flagged'}
 ${context.measuredSetupStats ? `
@@ -78,6 +80,7 @@ RULES:
 - agreement: AGREE if your verdict is CONFIRM and your direction matches; PARTIAL if CAUTION; DISAGREE if CONFLICT.
 - Always include at least one conflictFactor for CAUTION/CONFLICT (empty array OK for clean CONFIRM).
 - Be direct and specific. The trader is experienced — no hand-holding, just the read.
+- MORNING PLAN CHECK: if the trader's morning plan bias or the AI brief bias is set and this fire goes AGAINST it, you MUST say so explicitly in reasoning and include a conflictFactor labeled "against morning plan". A counter-plan fire needs strong contextual support (flow, breadth, and gamma all aligned with the fire) to earn CONFIRM — otherwise default to CAUTION.
 - Never tell them they can't trade their own setup. Give them the context and let them decide.`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {

@@ -195,6 +195,8 @@ export interface SetupFireDisplay {
   pending: boolean
   firedAt: number
   logFailed?: boolean
+  planConflict?: boolean
+  briefConflict?: boolean
 }
 
 export function FocusPanel(props: {
@@ -265,7 +267,7 @@ export function FocusPanel(props: {
               {new Date(setupFire.firedAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET
             </span>
             <span style={{ fontSize: 11.5, color: P.soft, flex: 1, minWidth: 0 }}>
-              — {measuredLine} — <span style={{ color: verdict ? verdictColor : P.muted, fontWeight: 700 }}>{aiLine}</span>
+              — {measuredLine} — <span style={{ color: verdict ? verdictColor : P.muted, fontWeight: 700 }}>{aiLine}</span>{(setupFire.planConflict || setupFire.briefConflict) && <span style={{ color: P.red, fontWeight: 700 }}>{' '}⚠ AGAINST {setupFire.planConflict ? 'PLAN' : 'AI BRIEF'}</span>}
               <span style={{ color: P.muted }}>
                 {'  '}· entry {setupFire.entrySpx.toFixed(0)} · T1 {setupFire.predictedT1.toFixed(0)} · stop {setupFire.predictedStop.toFixed(0)}
                 {setupFire.contract ? <> · <span style={{ color: P.text, fontWeight: 700 }}>{setupFire.contract.strike}{setupFire.contract.type === 'CALL' ? 'C' : 'P'} {setupFire.contract.expiryLabel}</span></> : null}
