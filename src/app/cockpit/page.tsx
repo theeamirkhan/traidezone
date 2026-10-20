@@ -3082,7 +3082,21 @@ export default function CockpitPage() {
       // v9: persist the LOCKED morning forecast (once per day at 10:45 ET) with
       // per-signal votes — daily_recaps already stores predicted vs actual, this
       // adds WHICH signals voted, so weights can be re-derived from accuracy.
-      if (minutesSinceOpen >= 75) {
+      // v17: lock only during market hours (a page opened in the evening used
+      // to satisfy minutesSinceOpen>=75 and lock the day's forecast with every
+      // input null — the all-null _inputs rows of Oct 16-20), and only when
+      // the forecaster can actually see: defer while most feeds are null, so
+      // the lock retries on a later effect run once data loads.
+      const liveVixNow = marketIntel2?.vixPrice ?? vixPrice ?? null
+      const lockInputs = [gexData?.regime ?? null, gexData?.netGex ?? null, marketIntel2?.tick ?? null,
+        liveVixNow, marketIntel2?.termStructure?.vix1d ?? null,
+        multiTFData?.crossAsset?.confirmation ?? null, microstructure?.cumulativeDelta?.strength ?? null]
+      const nullInputs = lockInputs.filter(v => v === null || v === undefined || v === 'unknown').length
+      const inMarketWindow = minutesSinceOpen >= 75 && minutesSinceOpen <= 390
+      if (inMarketWindow && nullInputs >= 5) {
+        console.error(`[DayType] lock DEFERRED — ${nullInputs}/${lockInputs.length} inputs are null (data feeds not loaded or broken). Forecast would be blind.`)
+      }
+      if (inMarketWindow && nullInputs < 5) {
         const todayET = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
         try {
           if (localStorage.getItem('tz-daytype-locked') !== todayET) {

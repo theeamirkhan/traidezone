@@ -57,6 +57,7 @@ WRITE A RECAP that is HONEST. If little was learned, say so. Don't fabricate ins
 INTERPRETATION RULES (v13):
 - The headline win rate covers TRADEABLE signals only. Signals marked suppressedByGate were observation-only — the measured-stats gate kept them from being traded. When a suppressed fire LOSES, that is the gate WORKING (a dodged loss), never a system failure. Report the gateReport as its own line.
 - WAIT signals are advisory (no trade, no P&L). Never count them as losses in the headline framing; mention the waitRecord separately.
+- The suppressedByGate flag on each signal is GROUND TRUTH for whether it was traded. Never describe a suppressed row as a trade the system took, and never describe an unsuppressed row as suppressed — if your narrative disagrees with the flags, the narrative is wrong.
 - Do not recommend disabling WAIT signals or the gate — they are measurement arms.
 
 Return JSON with this exact structure:
@@ -571,7 +572,9 @@ async function runForUser(userId: string, force: boolean): Promise<NextResponse>
         signalsCount: signals.length,
         wins, losses, winRate,
         dayTypePredicted, actualDayType,
-        signals,
+        // v17: pass enriched rows so the table can mark GATE-HELD fires —
+        // on Oct 14 suppressed would-have-wins wore the same ✓ as real trades.
+        signals: enriched,
       })
       const subject = `[trAIde Zone] EOD Recap ${todayET} · ${winRate !== null ? winRate + '%' : '—'} WR · ${signals.length} signals`
 
@@ -833,7 +836,7 @@ function buildRecapEmail(p: {
               return `
               <tr style="border-bottom:${i < p.signals.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none'};">
                 <td style="padding:8px 12px;font-size:11px;color:#6b7a9a;width:60px;">${time}</td>
-                <td style="padding:8px 6px;font-size:12px;font-weight:700;color:${sigColor};width:55px;">${s.signal || ''}</td>
+                <td style="padding:8px 6px;font-size:12px;font-weight:700;color:${sigColor};width:55px;">${s.signal || ''}${s._suppressed ? '<br><span style="font-size:8px;font-weight:700;color:#f59e0b;border:1px solid rgba(245,158,11,0.45);border-radius:3px;padding:0 3px;letter-spacing:0.5px;">GATE-HELD</span>' : ''}</td>
                 <td style="padding:8px 6px;font-size:11px;color:#8899bb;width:50px;">${s.confidence || ''}%</td>
                 <td style="padding:8px 6px;font-size:14px;color:${outcomeColor};width:25px;text-align:center;">${outcomeIcon}</td>
                 <td style="padding:8px 6px;font-size:10px;color:#8899bb;">${escape(s.outcome_note || s.outcome || '')}</td>

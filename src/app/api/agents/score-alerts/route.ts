@@ -49,6 +49,13 @@ function scoreAlert(alert: any, currentPrice: number): {
   const ageMs     = Date.now() - new Date(alert.logged_at).getTime()
   const ageMin    = ageMs / 60000
 
+  // v17 sanity floor: a row logged without a plausible SPX entry price can
+  // never be graded against real prices (Oct 16: a WAIT with entry 0 graded
+  // as "+7688pts missed" and poisoned the WAIT stats). Mark it ungradeable.
+  if (!isFinite(entryMid) || entryMid < 1000) {
+    return { outcome: 'EXPIRED', ptsToT1: 0, outcomeNote: 'ungradeable: invalid entry price recorded at fire time' }
+  }
+
   // ── WAIT/NO TRADE signals: scored on whether staying out was correct ──
   // If price chops in a narrow range, WAIT was correct.
   // If price runs strongly in either direction past the entry zone, WAIT missed.

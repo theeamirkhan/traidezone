@@ -45,6 +45,8 @@ export type SetupId =
   | 'orb_hold_up' | 'orb_hold_down'
   | 'flip_cross_up' | 'flip_cross_down'
   | 'pdh_sweep_reverse' | 'pdl_sweep_reverse'
+  | 'lod_break_cont' | 'hod_break_cont'
+  | 'pdl_break_cont' | 'pdh_break_cont'
 
 export const SETUP_LABELS: Record<SetupId, string> = {
   level_rejection:   'Key-level rejection',
@@ -56,6 +58,10 @@ export const SETUP_LABELS: Record<SetupId, string> = {
   flip_cross_down:   'Gamma-flip cross (down)',
   pdh_sweep_reverse: 'PDH sweep + reverse',
   pdl_sweep_reverse: 'PDL sweep + reverse',
+  lod_break_cont:    'LOD break continuation',
+  hod_break_cont:    'HOD break continuation',
+  pdl_break_cont:    'PDL break continuation',
+  pdh_break_cont:    'PDH break continuation',
 }
 
 export interface SetupFire {
@@ -91,6 +97,11 @@ const FLIP_HOLD_MS    = 2 * 60_000   // must stay beyond flip 2min
 const SWEEP_REVERSE_PTS   = 2        // reverse back through extreme by 2pts
 const SWEEP_WINDOW_MS     = 20 * 60_000  // reversal must happen within 20min
 
+// v17 continuation setups (Oct 16 lesson: library was all-reversal, so trend
+// days went silent after the first hour while SPX handed out 70pts)
+const CONT_HOLD_MS        = 3 * 60_000   // extreme break must hold 3min to fire
+const TREND_MIN_SIDE_MS   = 10 * 60_000  // VWAP side must be held ≥10min = established trend
+
 const DEDUPE_MS      = 30 * 60_000   // don't refire same setup+level within 30min
 const FIRE_MIN_SESSION_MIN = 30      // your rule: no entries before 10:00 ET
 const FIRE_MAX_SESSION_MIN = 370     // no fresh entries after 3:40 ET
@@ -116,6 +127,15 @@ export interface SetupEngineState {
   flipCrossDir:  'up' | 'down' | null
   pdhSweptAt:    number | null
   pdlSweptAt:    number | null
+  // v17 continuation state (optional so a state object persisted before v17 still works)
+  sessionHigh?:  number | null
+  sessionLow?:   number | null
+  hodRef?:       number | null   // frozen session-high reference the break is measured against
+  lodRef?:       number | null
+  hodBrokeAt?:   number | null
+  lodBrokeAt?:   number | null
+  hodBrokenRef?: number | null
+  lodBrokenRef?: number | null
   fired:         Record<string, number>          // dedupe: fireKey → ts
 }
 
@@ -127,6 +147,10 @@ export function newSetupState(sessionDate: string): SetupEngineState {
     orbUpBrokeAt: null, orbDnBrokeAt: null,
     flipSide: null, flipCrossedAt: null, flipCrossDir: null,
     pdhSweptAt: null, pdlSweptAt: null,
+    sessionHigh: null, sessionLow: null,
+    hodRef: null, lodRef: null,
+    hodBrokeAt: null, lodBrokeAt: null,
+    hodBrokenRef: null, lodBrokenRef: null,
     fired: {},
   }
 }
@@ -300,6 +324,17 @@ export function processSetupTick(
     }
   }
 
+  // ── v17: trend qualification + session extremes (continuation setups) ──
+  // A trend is "established" when price has held one side of VWAP ≥10min AND
+  // is beyond the opening range on that side. Continuation setups only fire
+  // inside an established trend — chop days never qualify.
+  if (s.sessionHigh == null || p > s.sessionHigh) s.sessionHigh = p
+  if (s.sessionLow == null || p < s.sessionLow) s.sessionLow = p
+  const downTrend = s.vwapSide === 'below' && (now - s.vwapSideSince) >= TREND_MIN_SIDE_MS &&
+                    snap.orbLow != null && p < snap.orbLow
+  const upTrend   = s.vwapSide === 'above' && (now - s.vwapSideSince) >= TREND_MIN_SIDE_MS &&
+                    snap.orbHigh != null && p > snap.orbHigh
+
   // ═══ 3. ORB BREAK-AND-HOLD ══════════════════════════════════════════
   if (snap.orbHigh != null && snap.sessionMinutes >= 30) {
     if (s.orbUpBrokeAt === null) {
@@ -368,6 +403,15 @@ export function processSetupTick(
     if (s.pdhSweptAt === null) {
       if (p > snap.pdh + BREAK_PTS) s.pdhSweptAt = now
     } else if (now - s.pdhSweptAt > SWEEP_WINDOW_MS) {
+      // v17: held above PDH for the whole sweep window → real break, not a
+      // sweep. In an established uptrend that IS the continuation signal.
+      if (upTrend && p > snap.pdh + BREAK_PTS) {
+        tryFire({
+          setupId: 'pdh_break_cont', name: 'PDH break continuation', direction: 'LONG',
+          level: snap.pdh, levelLabel: 'PDH',
+          detail: `broke PDH ${snap.pdh.toFixed(1)} and held above ${Math.round(SWEEP_WINDOW_MS / 60000)}min in established uptrend`,
+        }, 'pdh_break_cont')
+      }
       s.pdhSweptAt = null                                                 // held above → real break, not a sweep
     } else if (p < snap.pdh - SWEEP_REVERSE_PTS) {
       tryFire({
@@ -382,6 +426,14 @@ export function processSetupTick(
     if (s.pdlSweptAt === null) {
       if (p < snap.pdl - BREAK_PTS) s.pdlSweptAt = now
     } else if (now - s.pdlSweptAt > SWEEP_WINDOW_MS) {
+      // v17: held below PDL for the whole sweep window in a downtrend → continuation.
+      if (downTrend && p < snap.pdl - BREAK_PTS) {
+        tryFire({
+          setupId: 'pdl_break_cont', name: 'PDL break continuation', direction: 'SHORT',
+          level: snap.pdl, levelLabel: 'PDL',
+          detail: `broke PDL ${snap.pdl.toFixed(1)} and held below ${Math.round(SWEEP_WINDOW_MS / 60000)}min in established downtrend`,
+        }, 'pdl_break_cont')
+      }
       s.pdlSweptAt = null
     } else if (p > snap.pdl + SWEEP_REVERSE_PTS) {
       tryFire({
@@ -392,6 +444,44 @@ export function processSetupTick(
       s.pdlSweptAt = null
     }
   }
+
+  // ═══ 6. SESSION-EXTREME BREAK CONTINUATION (v17) ════════════════════
+  // The trader's spec (Oct 16): "It should have been caught on low of day
+  // [break]... same if it is going up." In an established downtrend, each
+  // fresh break below the session low that HOLDS is a SHORT continuation;
+  // mirrored for uptrends. Dedupe key has no level, so the 30-min window
+  // caps a waterfall day at ~one fire per half hour per direction.
+  if (downTrend) {
+    if (s.lodRef == null) s.lodRef = s.sessionLow ?? p
+    if (s.lodBrokeAt == null) {
+      if (p < (s.lodRef as number) - BREAK_PTS) { s.lodBrokeAt = now; s.lodBrokenRef = s.lodRef }
+    } else if (s.lodBrokenRef != null && p > s.lodBrokenRef + ORB_FAIL_PTS) {
+      s.lodBrokeAt = null; s.lodBrokenRef = null; s.lodRef = s.sessionLow   // snapped back — failed break
+    } else if (now - s.lodBrokeAt >= CONT_HOLD_MS) {
+      tryFire({
+        setupId: 'lod_break_cont', name: 'LOD break continuation', direction: 'SHORT',
+        level: s.lodBrokenRef ?? null, levelLabel: 'LOD',
+        detail: `broke session low ${(s.lodBrokenRef ?? 0).toFixed(1)} and held ${Math.round(CONT_HOLD_MS / 60000)}min — downtrend ${Math.round((now - s.vwapSideSince) / 60000)}min below VWAP`,
+      }, 'lod_break_cont')
+      s.lodBrokeAt = null; s.lodBrokenRef = null; s.lodRef = p              // next fire needs a fresh break below here
+    }
+  } else { s.lodBrokeAt = null; s.lodBrokenRef = null; s.lodRef = null }
+
+  if (upTrend) {
+    if (s.hodRef == null) s.hodRef = s.sessionHigh ?? p
+    if (s.hodBrokeAt == null) {
+      if (p > (s.hodRef as number) + BREAK_PTS) { s.hodBrokeAt = now; s.hodBrokenRef = s.hodRef }
+    } else if (s.hodBrokenRef != null && p < s.hodBrokenRef - ORB_FAIL_PTS) {
+      s.hodBrokeAt = null; s.hodBrokenRef = null; s.hodRef = s.sessionHigh
+    } else if (now - s.hodBrokeAt >= CONT_HOLD_MS) {
+      tryFire({
+        setupId: 'hod_break_cont', name: 'HOD break continuation', direction: 'LONG',
+        level: s.hodBrokenRef ?? null, levelLabel: 'HOD',
+        detail: `broke session high ${(s.hodBrokenRef ?? 0).toFixed(1)} and held ${Math.round(CONT_HOLD_MS / 60000)}min — uptrend ${Math.round((now - s.vwapSideSince) / 60000)}min above VWAP`,
+      }, 'hod_break_cont')
+      s.hodBrokeAt = null; s.hodBrokenRef = null; s.hodRef = p
+    }
+  } else { s.hodBrokeAt = null; s.hodBrokenRef = null; s.hodRef = null }
 
   return { state: s, fires }
 }
