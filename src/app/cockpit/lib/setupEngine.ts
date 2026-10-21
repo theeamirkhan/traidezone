@@ -47,6 +47,10 @@ export type SetupId =
   | 'pdh_sweep_reverse' | 'pdl_sweep_reverse'
   | 'lod_break_cont' | 'hod_break_cont'
   | 'pdl_break_cont' | 'pdh_break_cont'
+  | 'orb_fakeout_short' | 'orb_fakeout_long'
+  | 'pc_flip_up' | 'pc_flip_down'
+  | 'vwap_stretch_long' | 'vwap_stretch_short'
+  | 'lunch_break_up' | 'lunch_break_down'
 
 export const SETUP_LABELS: Record<SetupId, string> = {
   level_rejection:   'Key-level rejection',
@@ -62,6 +66,14 @@ export const SETUP_LABELS: Record<SetupId, string> = {
   hod_break_cont:    'HOD break continuation',
   pdl_break_cont:    'PDL break continuation',
   pdh_break_cont:    'PDH break continuation',
+  orb_fakeout_short: 'ORB fakeout reversal (short)',
+  orb_fakeout_long:  'ORB fakeout reversal (long)',
+  pc_flip_up:        'Prev-close flip (green)',
+  pc_flip_down:      'Prev-close flip (red)',
+  vwap_stretch_long: 'VWAP stretch snapback (long)',
+  vwap_stretch_short:'VWAP stretch snapback (short)',
+  lunch_break_up:    'Lunch-range break (up)',
+  lunch_break_down:  'Lunch-range break (down)',
 }
 
 export interface SetupFire {
@@ -102,6 +114,20 @@ const SWEEP_WINDOW_MS     = 20 * 60_000  // reversal must happen within 20min
 const CONT_HOLD_MS        = 3 * 60_000   // extreme break must hold 3min to fire
 const TREND_MIN_SIDE_MS   = 10 * 60_000  // VWAP side must be held ≥10min = established trend
 
+// v18 setups
+const FAKEOUT_MIN_MS      = 90_000       // ORB break must have lived ≥90s to count as a trap (not tick noise)
+const FAKEOUT_WINDOW_MS   = 15 * 60_000  // ...and failed within 15min of breaking
+const PC_BUFFER           = 1.5          // decisive prev-close cross distance (red↔green flip)
+const PC_MIN_SIDE_MS      = 5 * 60_000   // must have held the prior side ≥5min
+const STRETCH_PTS         = 14           // distance from VWAP that counts as stretched
+const STRETCH_CONFIRM_PTS = 3            // reversal off the extreme that confirms the snapback
+const STRETCH_WINDOW_MS   = 20 * 60_000  // confirmation must come within 20min of the extreme
+const LUNCH_START_MIN     = 120          // 11:30 ET
+const LUNCH_END_MIN       = 210          // 1:00 ET
+const LUNCH_MAX_RANGE     = 16           // lunch range ≤16pts = compression worth trading the break of
+const LUNCH_BREAK_PTS     = 2            // break beyond the range by 2pts
+const LUNCH_HOLD_MS       = 3 * 60_000   // ...and hold it 3min
+
 const DEDUPE_MS      = 30 * 60_000   // don't refire same setup+level within 30min
 const FIRE_MIN_SESSION_MIN = 30      // your rule: no entries before 10:00 ET
 const FIRE_MAX_SESSION_MIN = 370     // no fresh entries after 3:40 ET
@@ -136,6 +162,16 @@ export interface SetupEngineState {
   lodBrokeAt?:   number | null
   hodBrokenRef?: number | null
   lodBrokenRef?: number | null
+  // v18 setup state (optional for back-compat with persisted pre-v18 state)
+  pcSide?:          'above' | 'below' | null   // which side of prev close price holds
+  pcSideSince?:     number
+  stretchSide?:     'above' | 'below' | null   // stretched ≥14pts from VWAP on this side
+  stretchExtreme?:  number | null              // most stretched price seen
+  stretchAt?:       number | null
+  lunchHigh?:       number | null
+  lunchLow?:        number | null
+  lunchBrokeAt?:    number | null
+  lunchBreakDir?:   'up' | 'down' | null
   fired:         Record<string, number>          // dedupe: fireKey → ts
 }
 
@@ -151,6 +187,9 @@ export function newSetupState(sessionDate: string): SetupEngineState {
     hodRef: null, lodRef: null,
     hodBrokeAt: null, lodBrokeAt: null,
     hodBrokenRef: null, lodBrokenRef: null,
+    pcSide: null, pcSideSince: 0,
+    stretchSide: null, stretchExtreme: null, stretchAt: null,
+    lunchHigh: null, lunchLow: null, lunchBrokeAt: null, lunchBreakDir: null,
     fired: {},
   }
 }
@@ -340,6 +379,16 @@ export function processSetupTick(
     if (s.orbUpBrokeAt === null) {
       if (p > snap.orbHigh + BREAK_PTS) s.orbUpBrokeAt = now
     } else if (p < snap.orbHigh - ORB_FAIL_PTS) {
+      // v18: a break that lived ≥90s and then failed is a bull trap — the
+      // failure itself is the signal (trapped buyers fuel the reversal).
+      const lived = now - s.orbUpBrokeAt
+      if (lived >= FAKEOUT_MIN_MS && lived <= FAKEOUT_WINDOW_MS) {
+        tryFire({
+          setupId: 'orb_fakeout_short', name: 'ORB fakeout reversal', direction: 'SHORT',
+          level: snap.orbHigh, levelLabel: 'ORB-H',
+          detail: `broke ORB high ${snap.orbHigh.toFixed(1)}, failed back inside after ${Math.round(lived / 60000)}min — trapped buyers`,
+        }, 'orb_fakeout_short')
+      }
       s.orbUpBrokeAt = null                                               // fell back inside — failed break
     } else if (now - s.orbUpBrokeAt >= ORB_HOLD_MS) {
       tryFire({
@@ -354,6 +403,14 @@ export function processSetupTick(
     if (s.orbDnBrokeAt === null) {
       if (p < snap.orbLow - BREAK_PTS) s.orbDnBrokeAt = now
     } else if (p > snap.orbLow + ORB_FAIL_PTS) {
+      const lived = now - s.orbDnBrokeAt
+      if (lived >= FAKEOUT_MIN_MS && lived <= FAKEOUT_WINDOW_MS) {
+        tryFire({
+          setupId: 'orb_fakeout_long', name: 'ORB fakeout reversal', direction: 'LONG',
+          level: snap.orbLow, levelLabel: 'ORB-L',
+          detail: `broke ORB low ${snap.orbLow.toFixed(1)}, failed back inside after ${Math.round(lived / 60000)}min — trapped sellers`,
+        }, 'orb_fakeout_long')
+      }
       s.orbDnBrokeAt = null
     } else if (now - s.orbDnBrokeAt >= ORB_HOLD_MS) {
       tryFire({
@@ -482,6 +539,95 @@ export function processSetupTick(
       s.hodBrokeAt = null; s.hodBrokenRef = null; s.hodRef = p
     }
   } else { s.hodBrokeAt = null; s.hodBrokenRef = null; s.hodRef = null }
+
+  // ═══ 7. PREV-CLOSE FLIP — red↔green sentiment cross (v18) ═══════════
+  // Same mechanic as the VWAP reclaim/fail: a decisive cross of yesterday's
+  // close after holding the other side ≥5min. Crossing green after a red
+  // morning (or red after green) flips the day's sentiment for every trader
+  // watching the tape — a classic momentum trigger.
+  if (snap.prevClose != null) {
+    const pd = p - snap.prevClose
+    const pcDecisive: 'above' | 'below' | null =
+      pd >= PC_BUFFER ? 'above' : pd <= -PC_BUFFER ? 'below' : null
+    if (pcDecisive && pcDecisive !== (s.pcSide ?? null)) {
+      const heldPrior = s.pcSide != null && (now - (s.pcSideSince ?? 0)) >= PC_MIN_SIDE_MS
+      if (heldPrior) {
+        tryFire({
+          setupId: pcDecisive === 'above' ? 'pc_flip_up' : 'pc_flip_down',
+          name: pcDecisive === 'above' ? 'Prev-close flip (green)' : 'Prev-close flip (red)',
+          direction: pcDecisive === 'above' ? 'LONG' : 'SHORT',
+          level: snap.prevClose, levelLabel: 'prev close',
+          detail: `crossed ${pcDecisive === 'above' ? 'green' : 'red'} through prev close ${snap.prevClose.toFixed(1)} after ${Math.round((now - (s.pcSideSince ?? now)) / 60000)}min on the other side`,
+        }, pcDecisive === 'above' ? 'pc_flip_up' : 'pc_flip_down')
+      }
+      s.pcSide = pcDecisive; s.pcSideSince = now
+    } else if (pcDecisive && s.pcSide == null) {
+      s.pcSide = pcDecisive; s.pcSideSince = now
+    }
+  }
+
+  // ═══ 8. VWAP STRETCH SNAPBACK — mean reversion (v18) ════════════════
+  // Price stretched ≥14pts from VWAP is a rubber band. We never catch the
+  // falling knife: we wait for the extreme, then a 3pt reversal toward VWAP
+  // within 20min confirms the snap. Fires TOWARD VWAP (counter-trend by
+  // design — its measured record will say if the edge is real).
+  if (snap.vwap != null) {
+    const stretch = p - snap.vwap
+    if (Math.abs(stretch) >= STRETCH_PTS) {
+      const side: 'above' | 'below' = stretch > 0 ? 'above' : 'below'
+      if (s.stretchSide !== side) {
+        s.stretchSide = side; s.stretchExtreme = p; s.stretchAt = now
+      } else if (side === 'above' && p > (s.stretchExtreme ?? p)) {
+        s.stretchExtreme = p; s.stretchAt = now
+      } else if (side === 'below' && p < (s.stretchExtreme ?? p)) {
+        s.stretchExtreme = p; s.stretchAt = now
+      }
+    }
+    if (s.stretchSide && s.stretchExtreme != null && s.stretchAt != null) {
+      if (now - s.stretchAt > STRETCH_WINDOW_MS) {
+        s.stretchSide = null; s.stretchExtreme = null; s.stretchAt = null   // extreme went stale
+      } else {
+        const pullback = s.stretchSide === 'above' ? s.stretchExtreme - p : p - s.stretchExtreme
+        if (pullback >= STRETCH_CONFIRM_PTS) {
+          tryFire({
+            setupId: s.stretchSide === 'above' ? 'vwap_stretch_short' : 'vwap_stretch_long',
+            name: 'VWAP stretch snapback', direction: s.stretchSide === 'above' ? 'SHORT' : 'LONG',
+            level: snap.vwap, levelLabel: 'VWAP',
+            detail: `stretched ${Math.abs((s.stretchExtreme - snap.vwap)).toFixed(1)}pts ${s.stretchSide} VWAP, reversed ${pullback.toFixed(1)}pts off the extreme — snapback toward ${snap.vwap.toFixed(1)}`,
+          }, s.stretchSide === 'above' ? 'vwap_stretch_short' : 'vwap_stretch_long')
+          s.stretchSide = null; s.stretchExtreme = null; s.stretchAt = null
+        }
+      }
+    }
+  }
+
+  // ═══ 9. LUNCH-RANGE BREAK — midday compression breakout (v18) ═══════
+  // Build the 11:30–1:00 ET range; if it compressed to ≤16pts, a 2pt break
+  // that holds 3min after 1:00 is the afternoon's directional move starting.
+  if (snap.sessionMinutes >= LUNCH_START_MIN && snap.sessionMinutes <= LUNCH_END_MIN) {
+    if (s.lunchHigh == null || p > s.lunchHigh) s.lunchHigh = p
+    if (s.lunchLow == null || p < s.lunchLow) s.lunchLow = p
+  }
+  if (snap.sessionMinutes > LUNCH_END_MIN && s.lunchHigh != null && s.lunchLow != null &&
+      (s.lunchHigh - s.lunchLow) <= LUNCH_MAX_RANGE) {
+    if (s.lunchBrokeAt == null) {
+      if (p > s.lunchHigh + LUNCH_BREAK_PTS) { s.lunchBrokeAt = now; s.lunchBreakDir = 'up' }
+      else if (p < s.lunchLow - LUNCH_BREAK_PTS) { s.lunchBrokeAt = now; s.lunchBreakDir = 'down' }
+    } else {
+      const backInside = s.lunchBreakDir === 'up' ? p < s.lunchHigh : p > s.lunchLow
+      if (backInside) { s.lunchBrokeAt = null; s.lunchBreakDir = null }
+      else if (now - s.lunchBrokeAt >= LUNCH_HOLD_MS) {
+        const up = s.lunchBreakDir === 'up'
+        tryFire({
+          setupId: up ? 'lunch_break_up' : 'lunch_break_down',
+          name: 'Lunch-range break', direction: up ? 'LONG' : 'SHORT',
+          level: up ? s.lunchHigh : s.lunchLow, levelLabel: up ? 'lunch high' : 'lunch low',
+          detail: `broke ${up ? 'above' : 'below'} the ${(s.lunchHigh - s.lunchLow).toFixed(1)}pt lunch range (${s.lunchLow.toFixed(1)}–${s.lunchHigh.toFixed(1)}) and held ${Math.round(LUNCH_HOLD_MS / 60000)}min`,
+        }, up ? 'lunch_break_up' : 'lunch_break_down')
+        s.lunchBrokeAt = null; s.lunchBreakDir = null
+      }
+    }
+  }
 
   return { state: s, fires }
 }
